@@ -19,6 +19,8 @@ export default function TokenExplorer() {
   const [transfers, setTransfers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchTriggered, setSearchTriggered] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<string>('balance');
 
   const handleSearch = async () => {
     if (!wallet) {
@@ -28,6 +30,9 @@ export default function TokenExplorer() {
 
     setIsLoading(true);
     setError(null);
+    
+    // Incrementar el contador para forzar la actualización de todos los componentes
+    setSearchTriggered(prev => prev + 1);
 
     try {
       const data = await fetchTokenTransfers(wallet, network, tokenFilter);
@@ -45,50 +50,62 @@ export default function TokenExplorer() {
     handleSearch();
   };
 
+  // Crear los componentes una sola vez
+  const balanceComponent = (
+    <TokenBalance 
+      walletAddress={wallet} 
+      network={network} 
+      isLoading={isLoading}
+      searchTriggered={searchTriggered}
+    />
+  );
+
+  const transfersComponent = (
+    <TokenTransfersList 
+      transfers={transfers} 
+      isLoading={isLoading} 
+      onAddressClick={handleAddressClick}
+    />
+  );
+
+  const vestingComponent = (
+    <VestingInfo 
+      walletAddress={wallet} 
+      network={network} 
+      isLoading={isLoading}
+      searchTriggered={searchTriggered}
+    />
+  );
+
+  const airdropsComponent = (
+    <AirdropAssignments 
+      walletAddress={wallet} 
+      network={network} 
+      isLoading={isLoading}
+      searchTriggered={searchTriggered}
+    />
+  );
+
   const tabs = [
     {
       id: 'balance',
       label: 'Balance de Tokens',
-      content: (
-        <TokenBalance 
-          walletAddress={wallet} 
-          network={network} 
-          isLoading={isLoading}
-        />
-      )
+      content: balanceComponent
     },
     {
       id: 'transfers',
       label: 'Transferencias de Tokens',
-      content: (
-        <TokenTransfersList 
-          transfers={transfers} 
-          isLoading={isLoading} 
-          onAddressClick={handleAddressClick}
-        />
-      )
+      content: transfersComponent
     },
     {
       id: 'vesting',
       label: 'Información de Vesting',
-      content: (
-        <VestingInfo 
-          walletAddress={wallet} 
-          network={network} 
-          isLoading={isLoading}
-        />
-      )
+      content: vestingComponent
     },
     {
       id: 'airdrops',
       label: 'Tokens Asignados (Airdrops)',
-      content: (
-        <AirdropAssignments 
-          walletAddress={wallet} 
-          network={network} 
-          isLoading={isLoading}
-        />
-      )
+      content: airdropsComponent
     }
   ];
 
@@ -119,7 +136,7 @@ export default function TokenExplorer() {
         )}
       </div>
 
-      <TabsContainer tabs={tabs} defaultTab="balance" />
+      <TabsContainer tabs={tabs} defaultTab="balance" onTabChange={setActiveTab} />
     </div>
   );
 }

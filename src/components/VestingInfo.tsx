@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { fetchVestingInfo } from '@/lib/blockchain';
 import { getExplorerUrl } from '@/lib/utils';
 import { Network } from '@/lib/types';
@@ -7,6 +7,7 @@ interface VestingInfoProps {
   walletAddress: string;
   network: Network;
   isLoading: boolean;
+  searchTriggered?: number;
 }
 
 interface VestingSchedule {
@@ -77,7 +78,6 @@ const generateUnlockSchedule = (schedule: VestingSchedule) => {
     const slicePeriod = schedule.slicePeriodSeconds * 1000;
 
     for (let date = startDate; date < endDate; date = new Date(date.getTime() + slicePeriod)) {
-      // Convertir totalAmount a número antes de la operación aritmética
       const totalAmountNum = parseFloat(schedule.totalAmount);
       const amount = (totalAmountNum / (endDate.getTime() - startDate.getTime())) * slicePeriod;
       unlocks.push({ date: date.getTime() / 1000, amount: amount.toString(), status: 'Pendiente' });
@@ -86,7 +86,6 @@ const generateUnlockSchedule = (schedule: VestingSchedule) => {
 
   if (schedule.cliff && schedule.cliffEndTime) {
     const cliffDate = new Date(schedule.cliffEndTime * 1000);
-    // Convertir totalAmount a número antes de la operación aritmética
     const totalAmountNum = parseFloat(schedule.totalAmount);
     const amount = totalAmountNum * (schedule.cliff / 100);
     unlocks.push({ date: cliffDate.getTime() / 1000, amount: amount.toString(), status: 'Liberado' });
@@ -95,48 +94,163 @@ const generateUnlockSchedule = (schedule: VestingSchedule) => {
   return unlocks;
 };
 
-const VestingInfo: React.FC<VestingInfoProps> = ({ walletAddress, network, isLoading }) => {
+const VestingInfo: React.FC<VestingInfoProps> = ({ walletAddress, network, isLoading, searchTriggered = 0 }) => {
   const [vestingSchedules, setVestingSchedules] = useState<VestingScheduleWithHistory[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [vestingContractAddress, setVestingContractAddress] = useState<string>('');
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
   const [showScheduleRows, setShowScheduleRows] = useState<Record<number, boolean>>({});
+  const [vestingContractsByResults, setVestingContractsByResults] = useState<Record<string, VestingScheduleWithHistory[]>>({});
+  const [currentContract, setCurrentContract] = useState<string | null>(null);
+  const [processedContracts, setProcessedContracts] = useState<number>(0);
+  const [statusMessages, setStatusMessages] = useState<string[]>([]);
 
-  const handleFetchVestingInfo = async () => {
-    if (!walletAddress || !vestingContractAddress) {
-      setError('Por favor, introduce una dirección de wallet y contrato de vesting válidas');
+  // Efecto para verificar la dirección de wallet recibida
+  useEffect(() => {
+    console.log("VestingInfo recibió wallet:", walletAddress);
+    console.log("VestingInfo recibió network:", network);
+  }, [walletAddress, network]);
+
+  // Efecto para activar la búsqueda automáticamente cuando cambie searchTriggered
+  useEffect(() => {
+    if (searchTriggered > 0 && walletAddress) {
+      console.log("Búsqueda automática activada por cambio en searchTriggered:", searchTriggered);
+      handleFetchAllVestingInfo();
+    }
+  }, [searchTriggered, walletAddress]);
+
+  const vestingContracts = [
+    "0xa699Cf416FFe6063317442c3Fbd0C39742E971c5",
+    "0x3e0ef51811B647E00A85A7e5e495fA4763911982",
+    "0xE521B2929DD28a725603bCb6F4009FBb656C4b15",
+    "0x3a7cf4cCC76bb23Cf15845B0d4f05BafF1D478cF",
+    "0x417Fc9c343210AA52F0b19dbf4EecBD786139BC1",
+    "0xFC750D874077F8c90858cC132e0619CE7571520b",
+    "0xde68AD324aafD9F2b6946073C90ED5e61D5d51B8",
+    "0xC4CE5cFea2B6e32Ad41973348AC70EB3b00D8e6d"
+  ];
+
+  const calculateTotals = () => {
+    if (vestingSchedules.length === 0) return null;
+    
+    let totalAmount = 0;
+    let totalVestedAmount = 0;
+    let totalClaimableAmount = 0;
+    let totalReleasedAmount = 0;
+    let totalRemainingAmount = 0;
+    
+    vestingSchedules.forEach(schedule => {
+      totalAmount += parseFloat(schedule.totalAmount) || 0;
+      totalVestedAmount += parseFloat(schedule.vestedAmount) || 0;
+      totalClaimableAmount += parseFloat(schedule.claimableAmount) || 0;
+      totalReleasedAmount += parseFloat(schedule.releasedAmount) || 0;
+      totalRemainingAmount += parseFloat(schedule.remainingAmount) || 0;
+    });
+    
+    return {
+      totalAmount: totalAmount.toFixed(6),
+      totalVestedAmount: totalVestedAmount.toFixed(6),
+      totalClaimableAmount: totalClaimableAmount.toFixed(6),
+      totalReleasedAmount: totalReleasedAmount.toFixed(6),
+      totalRemainingAmount: totalRemainingAmount.toFixed(6)
+    };
+  };
+  
+  const totals = calculateTotals();
+
+  const handleFetchAllVestingInfo = async () => {
+    if (!walletAddress) {
+      const errorMsg = 'Por favor, introduce una dirección de wallet válida';
+      setError(errorMsg);
+      console.error(errorMsg);
       return;
     }
 
+    console.log(`Iniciando búsqueda de vesting para wallet: ${walletAddress} en red: ${network}`);
     setLoading(true);
     setError(null);
+    setVestingSchedules([]);
+    setVestingContractsByResults({});
+    setProcessedContracts(0);
+    setStatusMessages([`Iniciando búsqueda para wallet: ${walletAddress}`]);
 
     try {
-      const data = await fetchVestingInfo(walletAddress, vestingContractAddress, network);
+      const allSchedules: VestingScheduleWithHistory[] = [];
+      const contractResults: Record<string, VestingScheduleWithHistory[]> = {};
       
-      // Añadir datos de ejemplo para el historial de reclamaciones
-      const dataWithHistory = data.map(schedule => {
-        // Solo añadir historial si hay tokens reclamados
-        if (parseFloat(schedule.releasedAmount) > 0) {
-          return {
-            ...schedule,
-            claimHistory: [
-              {
-                amount: schedule.releasedAmount,
-                timestamp: Math.floor(Date.now() / 1000) - 86400 * 7, // 7 días atrás
-                transactionHash: '0x' + Math.random().toString(16).substring(2, 42)
+      for (let i = 0; i < vestingContracts.length; i++) {
+        const contractAddress = vestingContracts[i];
+        setCurrentContract(contractAddress);
+        setProcessedContracts(i);
+        
+        const statusMsg = `Comprobando contrato ${i + 1} de ${vestingContracts.length}: ${contractAddress}`;
+        console.log(statusMsg);
+        setStatusMessages(prev => [...prev, statusMsg]);
+        
+        try {
+          console.log(`Consultando contrato: ${contractAddress} para wallet: ${walletAddress}`);
+          const data = await fetchVestingInfo(walletAddress, contractAddress, network);
+          console.log(`Respuesta del contrato ${contractAddress}:`, data);
+          
+          if (data && data.length > 0) {
+            const resultMsg = `✅ Encontrados ${data.length} schedules en contrato ${contractAddress}`;
+            console.log(resultMsg);
+            setStatusMessages(prev => [...prev, resultMsg]);
+            
+            const dataWithHistory = data.map(schedule => {
+              if (parseFloat(schedule.releasedAmount) > 0) {
+                return {
+                  ...schedule,
+                  contractAddress,
+                  claimHistory: [
+                    {
+                      amount: schedule.releasedAmount,
+                      timestamp: Math.floor(Date.now() / 1000) - 86400 * 7, 
+                      transactionHash: '0x' + Math.random().toString(16).substring(2, 42)
+                    }
+                  ]
+                };
               }
-            ]
-          };
+              return {
+                ...schedule,
+                contractAddress
+              };
+            });
+            
+            allSchedules.push(...dataWithHistory);
+            contractResults[contractAddress] = dataWithHistory;
+            
+            setVestingSchedules([...allSchedules]);
+            setVestingContractsByResults({...contractResults});
+          } else {
+            const emptyMsg = `⚠️ No se encontraron schedules en contrato ${contractAddress}`;
+            console.log(emptyMsg);
+            setStatusMessages(prev => [...prev, emptyMsg]);
+          }
+        } catch (err) {
+          const errorMsg = `❌ Error al consultar el contrato ${contractAddress}: ${err instanceof Error ? err.message : String(err)}`;
+          console.error(errorMsg);
+          setStatusMessages(prev => [...prev, errorMsg]);
         }
-        return schedule;
-      });
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
       
-      setVestingSchedules(dataWithHistory);
+      setCurrentContract(null);
+      setProcessedContracts(vestingContracts.length);
+      
+      const finalMsg = `Búsqueda completada. Encontrados ${allSchedules.length} schedules en total.`;
+      console.log(finalMsg);
+      setStatusMessages(prev => [...prev, finalMsg]);
+      
+      if (allSchedules.length === 0) {
+        setError('No se encontró información de vesting para esta wallet en ninguno de los contratos.');
+      }
     } catch (err) {
-      setError('Error al obtener los datos de vesting. Por favor, inténtalo de nuevo.');
-      console.error(err);
+      const errorMsg = `Error general al obtener los datos de vesting: ${err instanceof Error ? err.message : String(err)}`;
+      setError(errorMsg);
+      console.error(errorMsg);
+      setStatusMessages(prev => [...prev, errorMsg]);
     } finally {
       setLoading(false);
     }
@@ -171,27 +285,33 @@ const VestingInfo: React.FC<VestingInfoProps> = ({ walletAddress, network, isLoa
       <h2 className="text-xl font-semibold mb-4">Información de Vesting</h2>
       
       <div className="mb-6">
-        <div className="flex flex-col mb-4">
-          <label htmlFor="vestingContract" className="text-sm font-medium text-gray-700 mb-1">
-            Dirección del Contrato de Vesting
-          </label>
-          <div className="flex">
-            <input
-              id="vestingContract"
-              type="text"
-              value={vestingContractAddress}
-              onChange={(e) => setVestingContractAddress(e.target.value)}
-              placeholder="0x..."
-              className="input-field flex-grow"
-            />
-            <button 
-              onClick={handleFetchVestingInfo}
-              disabled={loading}
-              className="btn-primary ml-2"
-            >
-              {loading ? 'Cargando...' : 'Consultar'}
-            </button>
-          </div>
+        <div className="flex justify-between items-center mb-4">
+          <button 
+            onClick={handleFetchAllVestingInfo}
+            disabled={loading || !walletAddress}
+            className="btn-primary"
+          >
+            {loading ? 'Cargando...' : 'Consultar Todos los Contratos de Vesting'}
+          </button>
+          
+          {loading && (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
+              <span className="text-sm text-gray-600">
+                Comprobando contrato {processedContracts + 1} de {vestingContracts.length}: 
+                <span className="font-mono ml-1">{currentContract}</span>
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="mb-4 p-3 bg-gray-50 rounded-md">
+          <p className="text-sm text-gray-700">
+            <strong>Wallet:</strong> {walletAddress || 'No especificada'}
+          </p>
+          <p className="text-sm text-gray-700">
+            <strong>Red:</strong> {network || 'No especificada'}
+          </p>
         </div>
 
         {error && (
@@ -199,243 +319,339 @@ const VestingInfo: React.FC<VestingInfoProps> = ({ walletAddress, network, isLoa
             {error}
           </div>
         )}
+        
+        {loading && processedContracts > 0 && (
+          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+            <div 
+              className="bg-blue-600 h-2.5 rounded-full" 
+              style={{ width: `${(processedContracts / vestingContracts.length) * 100}%` }}
+            ></div>
+          </div>
+        )}
+        
+        {statusMessages.length > 0 && (
+          <div className="mt-4 mb-4 p-3 bg-gray-50 rounded-md max-h-40 overflow-y-auto">
+            <h3 className="text-sm font-medium mb-2">Log de operaciones:</h3>
+            <ul className="text-xs space-y-1">
+              {statusMessages.map((msg, index) => (
+                <li key={index} className="font-mono">{msg}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {vestingSchedules.length === 0 && !loading ? (
         <p className="text-center text-gray-500">
-          No se encontró información de vesting para esta wallet y contrato. Por favor, introduce una dirección de contrato de vesting válida.
+          No se encontró información de vesting para esta wallet. Haz clic en "Consultar Todos los Contratos de Vesting" para buscar.
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Liberado</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reclamable</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reclamado</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bloqueado</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Período</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Próximo Desbloqueo</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {vestingSchedules.map((schedule, index) => (
-                <React.Fragment key={index}>
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{schedule.tokenSymbol}</div>
-                          <div className="text-sm text-gray-500">{schedule.tokenName}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{schedule.totalAmount}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{schedule.vestedAmount}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{schedule.claimableAmount}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="text-sm text-gray-900">{schedule.releasedAmount}</div>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleRowExpansion(index);
-                          }}
-                          className="ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-2 rounded text-xs"
-                          title="Ver historial de reclamaciones"
-                        >
-                          {expandedRows[index] ? '−' : '+'}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{schedule.remainingAmount}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {new Date(schedule.startTime * 1000).toLocaleDateString()} - {new Date(schedule.endTime * 1000).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {schedule.nextUnlockTime ? (
-                          <>
-                            {new Date(schedule.nextUnlockTime * 1000).toLocaleDateString()}: {schedule.nextUnlockAmount}
-                          </>
-                        ) : (
-                          'No hay más desbloqueos'
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                  {expandedRows[index] && (
+        <div>
+          {Object.entries(vestingContractsByResults).map(([contractAddress, schedules], contractIndex) => (
+            <div key={contractIndex} className="mb-8">
+              <h3 className="text-lg font-medium mb-3">
+                Contrato: <span className="font-mono text-sm">{contractAddress}</span>
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan={8} className="px-6 py-4 bg-gray-50">
-                        <div className="text-sm font-medium text-gray-900 mb-2">Historial de Reclamaciones</div>
-                        {schedule.claimHistory && schedule.claimHistory.length > 0 ? (
-                          <table className="min-w-full divide-y divide-gray-200 border">
-                            <thead className="bg-gray-100">
-                              <tr>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transacción</th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {schedule.claimHistory.map((claim, claimIndex) => (
-                                <tr key={claimIndex}>
-                                  <td className="px-4 py-2 whitespace-nowrap">
-                                    <div className="text-sm text-gray-900">
-                                      {new Date(claim.timestamp * 1000).toLocaleDateString()} {new Date(claim.timestamp * 1000).toLocaleTimeString()}
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-2 whitespace-nowrap">
-                                    <div className="text-sm text-gray-900">{claim.amount} {schedule.tokenSymbol}</div>
-                                  </td>
-                                  <td className="px-4 py-2 whitespace-nowrap">
-                                    <div className="text-sm text-gray-900">
-                                      {claim.transactionHash ? (
-                                        <a
-                                          href={`${getExplorerUrl(network)}/tx/${claim.transactionHash}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-blue-600 hover:text-blue-800"
-                                        >
-                                          {claim.transactionHash.substring(0, 8)}...{claim.transactionHash.substring(claim.transactionHash.length - 6)}
-                                        </a>
-                                      ) : (
-                                        "No disponible"
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <div className="text-sm text-gray-500">No hay historial de reclamaciones disponible.</div>
-                        )}
-                      </td>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Liberado</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reclamable</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reclamado</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bloqueado</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Período</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Próximo Desbloqueo</th>
                     </tr>
-                  )}
-                  <tr>
-                    <td colSpan={8} className="px-6 py-4 bg-gray-50">
-                      <div className="flex items-center">
-                        <div className="text-sm font-medium text-gray-900">Cronograma de Liberación</div>
-                        <button 
-                          onClick={() => toggleScheduleRow(index)}
-                          className="ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-2 rounded text-xs"
-                          title="Ver cronograma de liberación"
-                        >
-                          {showScheduleRows[index] ? '−' : '+'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  {showScheduleRows[index] && (
-                    <tr>
-                      <td colSpan={8} className="px-6 py-4 bg-gray-50">
-                        <div className="grid grid-cols-1 gap-4">
-                          {/* Información general de liberación */}
-                          <div className="bg-white p-4 rounded shadow-sm">
-                            <h4 className="text-md font-medium text-gray-900 mb-2">Detalles de Liberación</h4>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <p className="text-sm text-gray-600">Período de liberación:</p>
-                                <p className="text-sm font-medium">
-                                  {schedule.slicePeriodSeconds ? 
-                                    formatPeriod(schedule.slicePeriodSeconds) : 
-                                    'No especificado'}
-                                </p>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {schedules.map((schedule, index) => (
+                      <React.Fragment key={index}>
+                        <tr>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">{schedule.tokenSymbol}</div>
+                                <div className="text-sm text-gray-500">{schedule.tokenName}</div>
                               </div>
-                              {schedule.cliff && schedule.cliffEndTime && (
-                                <div>
-                                  <p className="text-sm text-gray-600">Período de cliff:</p>
-                                  <p className="text-sm font-medium">
-                                    Hasta {new Date(schedule.cliffEndTime * 1000).toLocaleDateString()}
-                                    ({formatPeriod(schedule.cliff)})
-                                  </p>
-                                </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{schedule.totalAmount}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{schedule.vestedAmount}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{schedule.claimableAmount}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="text-sm text-gray-900">{schedule.releasedAmount}</div>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleRowExpansion(contractIndex * 100 + index);
+                                }}
+                                className="ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-2 rounded text-xs"
+                                title="Ver historial de reclamaciones"
+                              >
+                                {expandedRows[contractIndex * 100 + index] ? '−' : '+'}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{schedule.remainingAmount}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {new Date(schedule.startTime * 1000).toLocaleDateString()} - {new Date(schedule.endTime * 1000).toLocaleDateString()}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {schedule.nextUnlockTime ? (
+                                <>
+                                  {new Date(schedule.nextUnlockTime * 1000).toLocaleDateString()}: {schedule.nextUnlockAmount}
+                                </>
+                              ) : (
+                                'No hay más desbloqueos'
                               )}
                             </div>
-                          </div>
-                          
-                          {/* Línea de tiempo de liberación */}
-                          <div className="bg-white p-4 rounded shadow-sm">
-                            <h4 className="text-md font-medium text-gray-900 mb-2">Línea de Tiempo</h4>
-                            <div className="relative pt-1">
-                              <div className="flex mb-2 items-center justify-between">
-                                <div>
-                                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
-                                    Inicio: {new Date(schedule.startTime * 1000).toLocaleDateString()}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-green-600 bg-green-200">
-                                    Fin: {new Date(schedule.endTime * 1000).toLocaleDateString()}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
-                                {renderTimelineProgress(schedule)}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Tabla de desbloqueos */}
-                          <div className="bg-white p-4 rounded shadow-sm">
-                            <h4 className="text-md font-medium text-gray-900 mb-2">Calendario de Desbloqueos</h4>
-                            {generateUnlockSchedule(schedule).length > 0 ? (
-                              <div className="overflow-x-auto">
+                          </td>
+                        </tr>
+                        {expandedRows[contractIndex * 100 + index] && (
+                          <tr>
+                            <td colSpan={8} className="px-6 py-4 bg-gray-50">
+                              <div className="text-sm font-medium text-gray-900 mb-2">Historial de Reclamaciones</div>
+                              {schedule.claimHistory && schedule.claimHistory.length > 0 ? (
                                 <table className="min-w-full divide-y divide-gray-200 border">
                                   <thead className="bg-gray-100">
                                     <tr>
                                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
                                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
-                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transacción</th>
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-gray-200">
-                                    {generateUnlockSchedule(schedule).map((unlock, unlockIndex) => (
-                                      <tr key={unlockIndex}>
+                                    {schedule.claimHistory.map((claim, claimIndex) => (
+                                      <tr key={claimIndex}>
                                         <td className="px-4 py-2 whitespace-nowrap">
                                           <div className="text-sm text-gray-900">
-                                            {new Date(unlock.date * 1000).toLocaleDateString()}
+                                            {new Date(claim.timestamp * 1000).toLocaleDateString()} {new Date(claim.timestamp * 1000).toLocaleTimeString()}
                                           </div>
                                         </td>
                                         <td className="px-4 py-2 whitespace-nowrap">
-                                          <div className="text-sm text-gray-900">{unlock.amount} {schedule.tokenSymbol}</div>
+                                          <div className="text-sm text-gray-900">{claim.amount} {schedule.tokenSymbol}</div>
                                         </td>
                                         <td className="px-4 py-2 whitespace-nowrap">
-                                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${unlock.status === 'Liberado' ? 'bg-green-100 text-green-800' : unlock.status === 'Pendiente' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
-                                            {unlock.status}
-                                          </span>
+                                          <div className="text-sm text-gray-900">
+                                            {claim.transactionHash ? (
+                                              <a
+                                                href={`${getExplorerUrl(network)}/tx/${claim.transactionHash}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:text-blue-800"
+                                              >
+                                                {claim.transactionHash.substring(0, 8)}...{claim.transactionHash.substring(claim.transactionHash.length - 6)}
+                                              </a>
+                                            ) : (
+                                              "No disponible"
+                                            )}
+                                          </div>
                                         </td>
                                       </tr>
                                     ))}
                                   </tbody>
                                 </table>
+                              ) : (
+                                <div className="text-sm text-gray-500">No hay historial de reclamaciones disponible.</div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                        <tr>
+                          <td colSpan={8} className="px-6 py-4 bg-gray-50">
+                            <div className="flex items-center">
+                              <div className="text-sm font-medium text-gray-900">Cronograma de Liberación</div>
+                              <button 
+                                onClick={() => toggleScheduleRow(contractIndex * 100 + index)}
+                                className="ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-2 rounded text-xs"
+                                title="Ver cronograma de liberación"
+                              >
+                                {showScheduleRows[contractIndex * 100 + index] ? '−' : '+'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {showScheduleRows[contractIndex * 100 + index] && (
+                          <tr>
+                            <td colSpan={8} className="px-6 py-4 bg-gray-50">
+                              <div className="grid grid-cols-1 gap-4">
+                                <div className="bg-white p-4 rounded shadow-sm">
+                                  <h4 className="text-md font-medium text-gray-900 mb-2">Detalles de Liberación</h4>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <p className="text-sm text-gray-600">Período de liberación:</p>
+                                      <p className="text-sm font-medium">
+                                        {schedule.slicePeriodSeconds ? 
+                                          formatPeriod(schedule.slicePeriodSeconds) : 
+                                          'No especificado'}
+                                      </p>
+                                    </div>
+                                    {schedule.cliff && schedule.cliffEndTime && (
+                                      <div>
+                                        <p className="text-sm text-gray-600">Período de cliff:</p>
+                                        <p className="text-sm font-medium">
+                                          Hasta {new Date(schedule.cliffEndTime * 1000).toLocaleDateString()}
+                                          ({formatPeriod(schedule.cliff)})
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <div className="bg-white p-4 rounded shadow-sm">
+                                  <h4 className="text-md font-medium text-gray-900 mb-2">Línea de Tiempo</h4>
+                                  <div className="relative pt-1">
+                                    <div className="flex mb-2 items-center justify-between">
+                                      <div>
+                                        <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                                          Inicio: {new Date(schedule.startTime * 1000).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-green-600 bg-green-200">
+                                          Fin: {new Date(schedule.endTime * 1000).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
+                                      {renderTimelineProgress(schedule)}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="bg-white p-4 rounded shadow-sm">
+                                  <h4 className="text-md font-medium text-gray-900 mb-2">Calendario de Desbloqueos</h4>
+                                  {generateUnlockSchedule(schedule).length > 0 ? (
+                                    <div className="overflow-x-auto">
+                                      <table className="min-w-full divide-y divide-gray-200 border">
+                                        <thead className="bg-gray-100">
+                                          <tr>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                          {generateUnlockSchedule(schedule).map((unlock, unlockIndex) => (
+                                            <tr key={unlockIndex}>
+                                              <td className="px-4 py-2 whitespace-nowrap">
+                                                <div className="text-sm text-gray-900">
+                                                  {new Date(unlock.date * 1000).toLocaleDateString()}
+                                                </div>
+                                              </td>
+                                              <td className="px-4 py-2 whitespace-nowrap">
+                                                <div className="text-sm text-gray-900">{unlock.amount} {schedule.tokenSymbol}</div>
+                                              </td>
+                                              <td className="px-4 py-2 whitespace-nowrap">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${unlock.status === 'Liberado' ? 'bg-green-100 text-green-800' : unlock.status === 'Pendiente' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                  {unlock.status}
+                                                </span>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  ) : (
+                                    <div className="text-sm text-gray-500">No se pudo generar el calendario de desbloqueos con la información disponible.</div>
+                                  )}
+                                </div>
                               </div>
-                            ) : (
-                              <div className="text-sm text-gray-500">No se pudo generar el calendario de desbloqueos con la información disponible.</div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                  {schedules.length > 0 && (() => {
+                    let totalAmount = 0;
+                    let totalVestedAmount = 0;
+                    let totalClaimableAmount = 0;
+                    let totalReleasedAmount = 0;
+                    let totalRemainingAmount = 0;
+                    
+                    schedules.forEach(schedule => {
+                      totalAmount += parseFloat(schedule.totalAmount) || 0;
+                      totalVestedAmount += parseFloat(schedule.vestedAmount) || 0;
+                      totalClaimableAmount += parseFloat(schedule.claimableAmount) || 0;
+                      totalReleasedAmount += parseFloat(schedule.releasedAmount) || 0;
+                      totalRemainingAmount += parseFloat(schedule.remainingAmount) || 0;
+                    });
+                    
+                    return (
+                      <tfoot className="bg-gray-100 font-medium">
+                        <tr>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <strong>TOTALES DEL CONTRATO</strong>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {totalAmount.toFixed(6)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {totalVestedAmount.toFixed(6)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {totalClaimableAmount.toFixed(6)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {totalReleasedAmount.toFixed(6)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {totalRemainingAmount.toFixed(6)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap"></td>
+                          <td className="px-6 py-4 whitespace-nowrap"></td>
+                        </tr>
+                      </tfoot>
+                    );
+                  })()}
+                </table>
+              </div>
+            </div>
+          ))}
+          
+          {vestingSchedules.length > 0 && (
+            <div className="mt-8 p-4 bg-blue-50 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-4">Totales Globales (Todos los Contratos)</h3>
+              <div className="grid grid-cols-5 gap-4">
+                <div className="bg-white p-4 rounded shadow-sm">
+                  <div className="text-sm text-gray-600">Total</div>
+                  <div className="text-xl font-bold text-gray-900">{totals?.totalAmount}</div>
+                </div>
+                <div className="bg-white p-4 rounded shadow-sm">
+                  <div className="text-sm text-gray-600">Liberado</div>
+                  <div className="text-xl font-bold text-gray-900">{totals?.totalVestedAmount}</div>
+                </div>
+                <div className="bg-white p-4 rounded shadow-sm">
+                  <div className="text-sm text-gray-600">Reclamable</div>
+                  <div className="text-xl font-bold text-gray-900">{totals?.totalClaimableAmount}</div>
+                </div>
+                <div className="bg-white p-4 rounded shadow-sm">
+                  <div className="text-sm text-gray-600">Reclamado</div>
+                  <div className="text-xl font-bold text-gray-900">{totals?.totalReleasedAmount}</div>
+                </div>
+                <div className="bg-white p-4 rounded shadow-sm">
+                  <div className="text-sm text-gray-600">Bloqueado</div>
+                  <div className="text-xl font-bold text-gray-900">{totals?.totalRemainingAmount}</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

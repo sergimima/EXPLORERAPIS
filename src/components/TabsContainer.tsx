@@ -9,10 +9,18 @@ interface Tab {
 interface TabsContainerProps {
   tabs: Tab[];
   defaultTab?: string;
+  onTabChange?: (tabId: string) => void;
 }
 
-const TabsContainer: React.FC<TabsContainerProps> = ({ tabs, defaultTab }) => {
+const TabsContainer: React.FC<TabsContainerProps> = ({ tabs, defaultTab, onTabChange }) => {
   const [activeTab, setActiveTab] = useState<string>(defaultTab || tabs[0]?.id || '');
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    if (onTabChange) {
+      onTabChange(tabId);
+    }
+  };
 
   return (
     <div>
@@ -21,7 +29,7 @@ const TabsContainer: React.FC<TabsContainerProps> = ({ tabs, defaultTab }) => {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`
                 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
                 ${activeTab === tab.id

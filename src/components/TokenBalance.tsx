@@ -7,6 +7,7 @@ interface TokenBalanceProps {
   walletAddress: string;
   network: Network;
   isLoading: boolean;
+  searchTriggered?: number; 
 }
 
 interface TokenInfo {
@@ -17,7 +18,7 @@ interface TokenInfo {
   decimals: number;
 }
 
-const TokenBalance: React.FC<TokenBalanceProps> = ({ walletAddress, network, isLoading }) => {
+const TokenBalance: React.FC<TokenBalanceProps> = ({ walletAddress, network, isLoading, searchTriggered = 0 }) => {
   const [tokenBalances, setTokenBalances] = useState<TokenInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,12 +81,19 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({ walletAddress, network, isL
     }
   };
 
-  // Cargar datos de ejemplo automáticamente si hay una wallet
+  // Cargar datos cuando cambia la wallet o la red
   useEffect(() => {
     if (walletAddress && !isLoading) {
       handleFetchBalances();
     }
   }, [walletAddress, network, isLoading]);
+
+  // Responder al botón de búsqueda global
+  useEffect(() => {
+    if (searchTriggered > 0) {
+      handleFetchBalances();
+    }
+  }, [searchTriggered]);
 
   if (isLoading) {
     return (
@@ -101,71 +109,77 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({ walletAddress, network, isL
     <div className="bg-white p-6 rounded-lg shadow-md">
       <h2 className="text-xl font-semibold mb-4">Balance de Tokens</h2>
       
-      <div className="mb-6">
-        <button 
-          onClick={handleFetchBalances}
-          disabled={loading || !walletAddress}
-          className="btn-primary"
-        >
-          {loading ? 'Cargando...' : 'Consultar Balance'}
-        </button>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mt-4">
-            {error}
-          </div>
-        )}
-        
-        {showMockData && (
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mt-4">
-            <strong>DATOS DE EJEMPLO:</strong> Mostrando datos de ejemplo porque no se pudieron obtener datos reales de la blockchain. Los balances reales pueden ser diferentes.
-          </div>
-        )}
-      </div>
-
-      {tokenBalances.length === 0 && !loading ? (
-        <p className="text-center text-gray-500">
-          No se encontraron tokens para esta wallet. Por favor, consulta el balance para ver los tokens disponibles.
-        </p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dirección del Token</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {tokenBalances.map((token, index) => (
-                <tr key={index} className={showMockData ? "bg-yellow-50" : ""}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{token.tokenSymbol}</div>
-                        <div className="text-sm text-gray-500">{token.tokenName}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{token.balance}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <a 
-                      href={`${getExplorerUrl(network)}/token/${token.tokenAddress}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-500 hover:text-blue-700"
-                    >
-                      {`${token.tokenAddress.substring(0, 6)}...${token.tokenAddress.substring(token.tokenAddress.length - 4)}`}
-                    </a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="flex justify-center items-center h-40">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
+      ) : (
+        <>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          )}
+          
+          {tokenBalances.length > 0 ? (
+            <table className="min-w-full bg-white">
+              <thead>
+                <tr>
+                  <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Token
+                  </th>
+                  <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Balance
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {tokenBalances.map((token, index) => (
+                  <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="py-2 px-4 border-b border-gray-200">
+                      <div className="flex items-center">
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {token.tokenName} ({token.tokenSymbol})
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            <a 
+                              href={`${getExplorerUrl(network)}/token/${token.tokenAddress}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              {token.tokenAddress.substring(0, 6)}...{token.tokenAddress.substring(token.tokenAddress.length - 4)}
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-2 px-4 border-b border-gray-200 text-right text-sm font-medium">
+                      {parseFloat(token.balance).toLocaleString(undefined, {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 4
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No se encontraron tokens para esta wallet.</p>
+              <button 
+                onClick={() => {
+                  setShowMockData(true);
+                  setTokenBalances(mockTokenBalances);
+                }} 
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                Mostrar datos de ejemplo
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

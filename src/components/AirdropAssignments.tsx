@@ -6,6 +6,7 @@ interface AirdropAssignmentsProps {
   walletAddress: string;
   network: Network;
   isLoading: boolean;
+  searchTriggered?: number; // Opcional para mantener compatibilidad con código existente
 }
 
 interface UserToken {
@@ -33,7 +34,7 @@ interface UserInfo {
   wallet?: string;
 }
 
-const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, network, isLoading }) => {
+const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, network, isLoading, searchTriggered }) => {
   const [userTokens, setUserTokens] = useState<UserToken[]>([]);
   const [userPoints, setUserPoints] = useState<UserPoints[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -151,6 +152,12 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (searchTriggered !== undefined) {
+      fetchUserByEmail();
+    }
+  }, [searchTriggered]);
 
   if (isLoading) {
     return (
