@@ -7,6 +7,7 @@ interface AirdropAssignmentsProps {
   network: Network;
   isLoading: boolean;
   searchTriggered?: number; // Opcional para mantener compatibilidad con código existente
+  preloadedData?: {tokens: UserToken[], points: UserPoints[]};
 }
 
 interface UserToken {
@@ -34,9 +35,9 @@ interface UserInfo {
   wallet?: string;
 }
 
-const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, network, isLoading, searchTriggered }) => {
-  const [userTokens, setUserTokens] = useState<UserToken[]>([]);
-  const [userPoints, setUserPoints] = useState<UserPoints[]>([]);
+const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, network, isLoading, searchTriggered, preloadedData }) => {
+  const [userTokens, setUserTokens] = useState<UserToken[]>(preloadedData?.tokens || []);
+  const [userPoints, setUserPoints] = useState<UserPoints[]>(preloadedData?.points || []);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string>('');

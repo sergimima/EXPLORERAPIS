@@ -1,6 +1,7 @@
 // Importaciones
 import axios from 'axios';
 import { ethers } from 'ethers';
+import { VESTING_CONTRACT_ABIS } from './contractAbis';
 
 // Configuración de las redes
 const NETWORKS: Record<string, {
@@ -39,6 +40,16 @@ export interface TokenTransfer {
   amount: string;
   timestamp: number;
   transactionHash: string;
+}
+
+// Interfaz para el balance de tokens
+export interface TokenBalance {
+  tokenAddress: string;
+  tokenSymbol: string;
+  tokenName: string;
+  balance: string;
+  decimals: number;
+  usdValue: number | null;
 }
 
 /**
@@ -96,48 +107,79 @@ export async function getTokenTransfersFromBlockchain(
       console.warn('No se ha configurado la clave API de Basescan');
     }
     
-    // Realizar la solicitud a la API de Basescan
-    const response = await axios.get(networkConfig.explorerApiUrl, {
-      params: {
-        module: 'account',
-        action: 'tokentx',
-        address: walletAddress,
-        sort: 'desc',
-        apikey: apiKey
-      }
-    });
+    // Implementar reintentos para manejar límites de tasa
+    const maxRetries = 3;
+    let retryCount = 0;
+    let lastError = null;
     
-    // Verificar si la respuesta es válida
-    if (response.data.status === '1' && Array.isArray(response.data.result)) {
-      // Transformar los datos de la API al formato de nuestra aplicación
-      return response.data.result.map((tx: any) => ({
-        tokenAddress: tx.contractAddress,
-        tokenSymbol: tx.tokenSymbol || 'UNKNOWN',
-        tokenName: tx.tokenName || 'Unknown Token',
-        from: tx.from,
-        to: tx.to,
-        amount: ethers.formatUnits(tx.value, parseInt(tx.tokenDecimal) || 18),
-        timestamp: parseInt(tx.timeStamp),
-        transactionHash: tx.hash
-      }));
-    } else {
-      console.warn('La API de Basescan no devolvió resultados válidos:', response.data.message || 'Sin mensaje de error');
-      return [];
+    while (retryCount < maxRetries) {
+      try {
+        // Realizar la solicitud a la API de Basescan
+        const response = await axios.get(networkConfig.explorerApiUrl, {
+          params: {
+            module: 'account',
+            action: 'tokentx',
+            address: walletAddress,
+            sort: 'desc',
+            apikey: apiKey || 'YourApiKeyToken' // Usar clave API por defecto si no hay una configurada
+          }
+        });
+        
+        // Verificar si la respuesta es válida
+        if (response.data.status === '1' && Array.isArray(response.data.result)) {
+          // Transformar los datos de la API al formato de nuestra aplicación
+          return response.data.result.map((tx: any) => ({
+            tokenAddress: tx.contractAddress,
+            tokenSymbol: tx.tokenSymbol || 'UNKNOWN',
+            tokenName: tx.tokenName || 'Unknown Token',
+            from: tx.from,
+            to: tx.to,
+            amount: ethers.formatUnits(tx.value, parseInt(tx.tokenDecimal) || 18),
+            timestamp: parseInt(tx.timeStamp),
+            transactionHash: tx.hash
+          }));
+        } else if (response.data.status === 'NOTOK' && response.data.message?.includes('rate limit')) {
+          // Si es un error de límite de tasa, esperamos y reintentamos
+          console.warn(`Límite de tasa excedido en BaseScan (intento ${retryCount + 1}/${maxRetries}), esperando antes de reintentar...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Espera exponencial
+          retryCount++;
+          lastError = new Error(response.data.message);
+        } else {
+          // Si la respuesta es NOTOK pero no es por límite de tasa
+          console.warn('La API de Basescan no devolvió resultados válidos:', response.data.message || 'Sin mensaje de error');
+          
+          // Si el mensaje indica que no hay transferencias, retornamos un array vacío
+          if (response.data.message?.includes('No transactions found')) {
+            return [];
+          }
+          
+          // Para otros errores, intentamos una vez más después de una pausa
+          if (retryCount < maxRetries - 1) {
+            console.warn(`Reintentando después de error (intento ${retryCount + 1}/${maxRetries})...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            retryCount++;
+          } else {
+            return []; // Devolver array vacío después de agotar los reintentos
+          }
+        }
+      } catch (error) {
+        // Error de red o de otro tipo
+        lastError = error;
+        retryCount++;
+        if (retryCount < maxRetries) {
+          console.warn(`Error al conectar con BaseScan (intento ${retryCount}/${maxRetries}), reintentando...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
+      }
     }
+    
+    // Si llegamos aquí, es porque agotamos los reintentos
+    console.error('Error al obtener transferencias después de múltiples intentos:', lastError);
+    return [];
   } catch (error) {
     console.error('Error al obtener transferencias de tokens desde la blockchain:', error);
-    throw error;
+    return []; // Devolver array vacío en lugar de propagar el error
   }
-}
-
-// Interfaz para el balance de tokens
-export interface TokenBalance {
-  tokenAddress: string;
-  tokenSymbol: string;
-  tokenName: string;
-  balance: string;
-  decimals: number;
-  usdValue: number | null;
 }
 
 /**
@@ -164,91 +206,118 @@ export async function fetchTokenBalances(
       console.warn('No se ha configurado la clave API de Basescan. Usando clave API por defecto.');
     }
     
-    // Realizar la solicitud a la API de Basescan
-    const response = await axios.get(networkConfig.explorerApiUrl, {
-      params: {
-        module: 'account',
-        action: 'tokenlist',
-        address: walletAddress,
-        apikey: apiKey || 'YourApiKeyToken' // Usar clave API por defecto si no hay una configurada
-      }
-    });
+    // Implementar reintentos para manejar límites de tasa
+    const maxRetries = 3;
+    let retryCount = 0;
+    let lastError = null;
     
-    // Verificar si la respuesta es válida
-    if (response.data.status === '1' && Array.isArray(response.data.result)) {
-      // Transformar los datos de la API al formato de nuestra aplicación
-      return response.data.result.map((token: any) => ({
-        tokenAddress: token.contractAddress,
-        tokenSymbol: token.symbol || 'UNKNOWN',
-        tokenName: token.name || 'Unknown Token',
-        balance: ethers.formatUnits(token.balance, parseInt(token.decimals) || 18),
-        decimals: parseInt(token.decimals) || 18,
-        usdValue: null // La API de Basescan no proporciona valores en USD directamente
-      }));
-    } else {
-      // Si la API devuelve un error, intentar obtener los tokens de las transferencias
-      console.warn('La API de Basescan no devolvió resultados válidos para los balances:', response.data.message || 'Sin mensaje de error');
-      
-      // Intentar obtener tokens de las transferencias como alternativa
+    while (retryCount < maxRetries) {
       try {
-        console.log('Intentando obtener tokens de las transferencias...');
-        const transfers = await getTokenTransfersFromBlockchain(walletAddress, network);
-        
-        // Crear un mapa para agrupar las transferencias por token
-        const tokenMap = new Map<string, {
-          tokenAddress: string;
-          tokenSymbol: string;
-          tokenName: string;
-          incomingAmount: number;
-          outgoingAmount: number;
-          decimals: number;
-        }>();
-        
-        // Procesar las transferencias para calcular balances aproximados
-        transfers.forEach(transfer => {
-          const tokenKey = transfer.tokenAddress;
-          
-          if (!tokenMap.has(tokenKey)) {
-            tokenMap.set(tokenKey, {
-              tokenAddress: transfer.tokenAddress,
-              tokenSymbol: transfer.tokenSymbol,
-              tokenName: transfer.tokenName,
-              incomingAmount: 0,
-              outgoingAmount: 0,
-              decimals: 18 // Valor por defecto
-            });
-          }
-          
-          const token = tokenMap.get(tokenKey)!;
-          const amount = parseFloat(transfer.amount);
-          
-          // Sumar transferencias entrantes, restar salientes
-          if (transfer.to.toLowerCase() === walletAddress.toLowerCase()) {
-            token.incomingAmount += amount;
-          } else if (transfer.from.toLowerCase() === walletAddress.toLowerCase()) {
-            token.outgoingAmount += amount;
+        // Realizar la solicitud a la API de Basescan
+        const response = await axios.get(networkConfig.explorerApiUrl, {
+          params: {
+            module: 'account',
+            action: 'tokenlist',
+            address: walletAddress,
+            apikey: apiKey || 'YourApiKeyToken' // Usar clave API por defecto si no hay una configurada
           }
         });
         
-        // Convertir el mapa a un array de balances
-        const balances = Array.from(tokenMap.values()).map(token => {
-          const netBalance = token.incomingAmount - token.outgoingAmount;
-          return {
-            tokenAddress: token.tokenAddress,
-            tokenSymbol: token.tokenSymbol,
-            tokenName: token.tokenName,
-            balance: netBalance > 0 ? netBalance.toString() : '0',
-            decimals: token.decimals,
-            usdValue: null
-          };
-        });
-        
-        // Filtrar tokens con balance positivo
-        return balances.filter(token => parseFloat(token.balance) > 0);
-      } catch (transferError) {
-        console.error('Error al obtener tokens de las transferencias:', transferError);
-        return [];
+        // Verificar si la respuesta es válida
+        if (response.data.status === '1' && Array.isArray(response.data.result)) {
+          // Transformar los datos de la API al formato de nuestra aplicación
+          return response.data.result.map((token: any) => ({
+            tokenAddress: token.contractAddress,
+            tokenSymbol: token.symbol || 'UNKNOWN',
+            tokenName: token.name || 'Unknown Token',
+            balance: ethers.formatUnits(token.balance, parseInt(token.decimals) || 18),
+            decimals: parseInt(token.decimals) || 18,
+            usdValue: null // La API de Basescan no proporciona valores en USD directamente
+          }));
+        } else if (response.data.status === 'NOTOK' && response.data.message?.includes('rate limit')) {
+          // Si es un error de límite de tasa, esperamos y reintentamos
+          console.warn(`Límite de tasa excedido en BaseScan (intento ${retryCount + 1}/${maxRetries}), esperando antes de reintentar...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Espera exponencial
+          retryCount++;
+          lastError = new Error(response.data.message);
+        } else {
+          // Si la API devuelve un error, intentar obtener los tokens de las transferencias
+          console.warn('La API de Basescan no devolvió resultados válidos para los balances:', response.data.message || 'Sin mensaje de error');
+          break; // Salimos del bucle para intentar la alternativa
+        }
+      } catch (error) {
+        // Error de red o de otro tipo
+        lastError = error;
+        retryCount++;
+        if (retryCount < maxRetries) {
+          console.warn(`Error al conectar con BaseScan (intento ${retryCount}/${maxRetries}), reintentando...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        } else {
+          break; // Salimos del bucle para intentar la alternativa
+        }
       }
+    }
+    
+    // Si llegamos aquí, es porque agotamos los reintentos o hubo un error no relacionado con límites de tasa
+    // Intentar obtener tokens de las transferencias como alternativa
+    try {
+      console.log('Intentando obtener tokens de las transferencias como alternativa...');
+      const transfers = await getTokenTransfersFromBlockchain(walletAddress, network);
+      
+      // Crear un mapa para agrupar las transferencias por token
+      const tokenMap = new Map<string, {
+        tokenAddress: string;
+        tokenSymbol: string;
+        tokenName: string;
+        incomingAmount: number;
+        outgoingAmount: number;
+        decimals: number;
+      }>();
+      
+      // Procesar las transferencias para calcular balances aproximados
+      transfers.forEach(transfer => {
+        const tokenKey = transfer.tokenAddress;
+        
+        if (!tokenMap.has(tokenKey)) {
+          tokenMap.set(tokenKey, {
+            tokenAddress: transfer.tokenAddress,
+            tokenSymbol: transfer.tokenSymbol,
+            tokenName: transfer.tokenName,
+            incomingAmount: 0,
+            outgoingAmount: 0,
+            decimals: 18 // Valor por defecto
+          });
+        }
+        
+        const token = tokenMap.get(tokenKey)!;
+        const amount = parseFloat(transfer.amount);
+        
+        // Sumar transferencias entrantes, restar salientes
+        if (transfer.to.toLowerCase() === walletAddress.toLowerCase()) {
+          token.incomingAmount += amount;
+        } else if (transfer.from.toLowerCase() === walletAddress.toLowerCase()) {
+          token.outgoingAmount += amount;
+        }
+      });
+      
+      // Convertir el mapa a un array de balances
+      const balances = Array.from(tokenMap.values()).map(token => {
+        const netBalance = token.incomingAmount - token.outgoingAmount;
+        return {
+          tokenAddress: token.tokenAddress,
+          tokenSymbol: token.tokenSymbol,
+          tokenName: token.tokenName,
+          balance: netBalance > 0 ? netBalance.toString() : '0',
+          decimals: token.decimals,
+          usdValue: null
+        };
+      });
+      
+      // Filtrar tokens con balance positivo
+      return balances.filter(token => parseFloat(token.balance) > 0);
+    } catch (transferError) {
+      console.error('Error al obtener tokens de las transferencias:', transferError);
+      return [];
     }
   } catch (error) {
     console.error('Error al obtener balances de tokens:', error);
@@ -267,20 +336,31 @@ export async function fetchVestingInfo(walletAddress: string, vestingContractAdd
   try {
     // Validar la dirección de la wallet
     if (!ethers.isAddress(walletAddress)) {
-      throw new Error('Dirección de wallet inválida');
+      throw new Error(`Dirección de wallet inválida: ${walletAddress}`);
     }
 
     // Validar la dirección del contrato de vesting
     if (!ethers.isAddress(vestingContractAddress)) {
-      throw new Error('Dirección de contrato de vesting inválida');
+      throw new Error(`Dirección de contrato de vesting inválida: ${vestingContractAddress}`);
     }
 
+    // Normalizar las direcciones antes de pasarlas a la función
+    const normalizedWalletAddress = walletAddress.toLowerCase();
+    const normalizedContractAddress = vestingContractAddress.toLowerCase();
+
     // Obtener información de vesting desde la blockchain
-    const vestingInfo = await getVestingInfoFromBlockchain(walletAddress, vestingContractAddress, network);
+    const vestingInfo = await getVestingInfoFromBlockchain(normalizedWalletAddress, normalizedContractAddress, network);
+    
+    // Si no hay información de vesting, devolver un array vacío
+    if (!vestingInfo || vestingInfo.length === 0) {
+      return [];
+    }
+    
     return vestingInfo;
   } catch (error) {
-    console.error('Error al obtener información de vesting:', error);
-    throw error;
+    console.error(`Error al obtener información de vesting para wallet ${walletAddress} en contrato ${vestingContractAddress}:`, error);
+    // Devolver un array vacío en lugar de propagar el error
+    return [];
   }
 }
 
@@ -293,6 +373,10 @@ export async function fetchVestingInfo(walletAddress: string, vestingContractAdd
  */
 async function getVestingInfoFromBlockchain(walletAddress: string, vestingContractAddress: string, network: string) {
   try {
+    // Normalizar direcciones (convertir a checksum address)
+    walletAddress = ethers.getAddress(walletAddress.toLowerCase());
+    vestingContractAddress = ethers.getAddress(vestingContractAddress.toLowerCase());
+    
     // Obtener configuración de la red
     const networkConfig = NETWORKS[network];
     if (!networkConfig) {
@@ -302,17 +386,32 @@ async function getVestingInfoFromBlockchain(walletAddress: string, vestingContra
     // Crear proveedor de Ethereum
     const provider = new ethers.JsonRpcProvider(networkConfig.rpcUrl);
     
-    // Intentar obtener el ABI desde BaseScan
-    console.log('Intentando obtener ABI desde BaseScan...');
-    const contractABI = await getContractABI(vestingContractAddress, network);
+    // Usar ABI precargado si existe, o intentar obtenerlo desde BaseScan
+    let contractABI;
     
-    // Si tenemos el ABI desde BaseScan, lo usamos primero
+    // Primero intentamos usar el ABI precargado
+    if (VESTING_CONTRACT_ABIS[vestingContractAddress]) {
+      console.log('Usando ABI precargado para el contrato:', vestingContractAddress);
+      contractABI = VESTING_CONTRACT_ABIS[vestingContractAddress];
+    } else {
+      // Si no tenemos el ABI precargado, intentamos obtenerlo desde BaseScan
+      console.log('Intentando obtener ABI desde BaseScan...');
+      contractABI = await getContractABI(vestingContractAddress, network);
+      // Si obtuvimos el ABI, lo guardamos para futuras consultas
+      if (contractABI) {
+        console.log('Guardando ABI obtenido para futuras consultas');
+        // @ts-ignore - Ignoramos el error de TypeScript porque sabemos que estamos modificando un objeto importado
+        VESTING_CONTRACT_ABIS[vestingContractAddress] = contractABI;
+      }
+    }
+    
+    // Si tenemos el ABI, lo usamos
     if (contractABI) {
       try {
-        console.log('Usando ABI obtenido desde BaseScan');
+        console.log('Usando ABI obtenido');
         const contract = new ethers.Contract(vestingContractAddress, contractABI, provider);
         
-        // Obtener dirección del token
+        // Intentar obtener la dirección del token
         let tokenAddress;
         try {
           tokenAddress = await contract.token();
@@ -388,11 +487,17 @@ async function getVestingInfoFromBlockchain(walletAddress: string, vestingContra
             const vestingSchedules = [];
             
             // Si vestingIds es un objeto con propiedades numéricas (como un array-like)
-            if (vestingIds && typeof vestingIds === 'object' && Object.keys(vestingIds).length > 0) {
+            if (vestingIds && typeof vestingIds === 'object') {
               // Determinar cuántos elementos hay
-              const numItems = Object.keys(vestingIds)
-                .filter(key => !isNaN(Number(key)))
-                .length;
+              let numItems = 0;
+              
+              if (Array.isArray(vestingIds)) {
+                numItems = vestingIds.length;
+              } else {
+                numItems = Object.keys(vestingIds)
+                  .filter(key => !isNaN(Number(key)))
+                  .length;
+              }
               
               console.log("Número de elementos detectados:", numItems);
               
@@ -421,9 +526,16 @@ async function getVestingInfoFromBlockchain(walletAddress: string, vestingContra
                     else if (Object.keys(vestingIds[i]).some(k => !isNaN(Number(k)))) {
                       vestingId = vestingIds[i][0];
                     }
+                    // Intentar con vestingId directamente
+                    else if (vestingIds[i].vestingId) {
+                      vestingId = vestingIds[i].vestingId;
+                    }
                   } else if (typeof vestingIds[i] === 'string') {
                     // Si es directamente un string
                     vestingId = vestingIds[i];
+                  } else if (typeof vestingIds[i] === 'bigint' || typeof vestingIds[i] === 'number') {
+                    // Si es un número o bigint
+                    vestingId = vestingIds[i].toString();
                   }
                   
                   if (!vestingId) {
@@ -633,16 +745,12 @@ async function getVestingInfoFromBlockchain(walletAddress: string, vestingContra
             
             const endTime = startTime + duration;
             const cliffEndTime = startTime + cliff;
-            const currentTime = Math.floor(Date.now() / 1000);
-            
-            // Calcular el monto restante
-            const remainingAmount = totalAmount - released - releasable;
             
             vestingInfo = {
               totalAmount: ethers.formatUnits(totalAmount, tokenDecimals),
               vestedAmount: ethers.formatUnits(released, tokenDecimals),
               claimableAmount: ethers.formatUnits(releasable, tokenDecimals),
-              remainingAmount: ethers.formatUnits(remainingAmount, tokenDecimals),
+              remainingAmount: ethers.formatUnits(totalAmount - released - releasable, tokenDecimals),
               releasedAmount: ethers.formatUnits(released, tokenDecimals), 
               startTime: startTime,
               endTime: endTime,
@@ -764,6 +872,7 @@ async function getVestingInfoFromBlockchain(walletAddress: string, vestingContra
         if (abi.some(fn => fn.includes("getVestingSchedule"))) {
           // Tipo 2 - Con getVestingSchedule
           console.log("Probando contrato Tipo 2 (getVestingSchedule)");
+          
           try {
             const schedule = await contract.getVestingSchedule(walletAddress);
             
@@ -802,18 +911,18 @@ async function getVestingInfoFromBlockchain(walletAddress: string, vestingContra
             const duration = Number(await contract.vestingDuration(walletAddress));
             const cliff = Number(await contract.vestingCliff(walletAddress));
             const released = await contract.released(walletAddress);
-            const releasableAmount = await contract.releasable(walletAddress);
+            const releasable = await contract.releasable(walletAddress);
             
             const endTime = startTime + duration;
             const cliffEndTime = startTime + cliff;
             
             // Calcular el monto restante
-            const remainingAmount = totalAmount - released - releasableAmount;
+            const remainingAmount = totalAmount - released - releasable;
             
             vestingInfo = {
               totalAmount: ethers.formatUnits(totalAmount, tokenDecimals),
               vestedAmount: ethers.formatUnits(released, tokenDecimals),
-              claimableAmount: ethers.formatUnits(releasableAmount, tokenDecimals),
+              claimableAmount: ethers.formatUnits(releasable, tokenDecimals),
               remainingAmount: ethers.formatUnits(remainingAmount, tokenDecimals),
               releasedAmount: ethers.formatUnits(released, tokenDecimals), 
               startTime: startTime,
@@ -967,24 +1076,52 @@ async function getContractABI(contractAddress: string, network: string) {
       console.warn('No se encontró API key para BaseScan, usando valor por defecto (limitado)');
     }
 
-    // Hacer la petición a la API de BaseScan
-    const response = await axios.get(apiUrl, {
-      params: {
-        module: 'contract',
-        action: 'getabi',
-        address: contractAddress,
-        apikey: apiKey
-      }
-    });
+    // Implementar reintentos para manejar límites de tasa
+    const maxRetries = 3;
+    let retryCount = 0;
+    let lastError = null;
 
-    // Verificar si la respuesta es correcta
-    if (response.data.status === '1' && response.data.result) {
-      console.log('ABI obtenido correctamente desde BaseScan');
-      return JSON.parse(response.data.result);
-    } else {
-      console.warn('Error al obtener ABI desde BaseScan:', response.data.message);
-      return null;
+    while (retryCount < maxRetries) {
+      try {
+        // Hacer la petición a la API de BaseScan
+        const response = await axios.get(apiUrl, {
+          params: {
+            module: 'contract',
+            action: 'getabi',
+            address: contractAddress,
+            apikey: apiKey
+          }
+        });
+
+        // Verificar si la respuesta es correcta
+        if (response.data.status === '1' && response.data.result) {
+          console.log('ABI obtenido correctamente desde BaseScan');
+          return JSON.parse(response.data.result);
+        } else if (response.data.status === 'NOTOK' && response.data.message?.includes('rate limit')) {
+          // Si es un error de límite de tasa, esperamos y reintentamos
+          console.warn(`Límite de tasa excedido en BaseScan (intento ${retryCount + 1}/${maxRetries}), esperando antes de reintentar...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Espera exponencial
+          retryCount++;
+          lastError = new Error(response.data.message);
+        } else {
+          // Otros errores de la API, no reintentamos
+          console.warn('Error al obtener ABI desde BaseScan:', response.data.message);
+          return null;
+        }
+      } catch (error) {
+        // Error de red o de otro tipo
+        lastError = error;
+        retryCount++;
+        if (retryCount < maxRetries) {
+          console.warn(`Error al conectar con BaseScan (intento ${retryCount}/${maxRetries}), reintentando...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
+      }
     }
+
+    // Si llegamos aquí, es porque agotamos los reintentos
+    console.error('Error al obtener ABI después de múltiples intentos:', lastError);
+    return null;
   } catch (error) {
     console.error('Error al obtener ABI desde BaseScan:', error);
     return null;

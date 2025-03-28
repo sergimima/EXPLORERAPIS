@@ -8,6 +8,7 @@ interface TokenBalanceProps {
   network: Network;
   isLoading: boolean;
   searchTriggered?: number; 
+  preloadedData?: TokenInfo[]; // Datos precargados desde el componente principal
 }
 
 interface TokenInfo {
@@ -18,7 +19,13 @@ interface TokenInfo {
   decimals: number;
 }
 
-const TokenBalance: React.FC<TokenBalanceProps> = ({ walletAddress, network, isLoading, searchTriggered = 0 }) => {
+const TokenBalance: React.FC<TokenBalanceProps> = ({ 
+  walletAddress, 
+  network, 
+  isLoading, 
+  searchTriggered = 0,
+  preloadedData
+}) => {
   const [tokenBalances, setTokenBalances] = useState<TokenInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +56,23 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({ walletAddress, network, isL
     }
   ];
 
+  // Efecto para usar datos precargados si están disponibles
+  useEffect(() => {
+    if (preloadedData && preloadedData.length > 0) {
+      console.log("Usando datos precargados en TokenBalance:", preloadedData.length, "tokens");
+      setTokenBalances(preloadedData);
+      setShowMockData(false);
+      setError(null);
+    }
+  }, [preloadedData]);
+
   const handleFetchBalances = async () => {
+    // Si ya tenemos datos precargados, no necesitamos buscar de nuevo
+    if (preloadedData && preloadedData.length > 0) {
+      console.log("Usando datos precargados, no es necesario buscar de nuevo");
+      return;
+    }
+    
     if (!walletAddress) {
       return;
     }
@@ -81,19 +104,20 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({ walletAddress, network, isL
     }
   };
 
-  // Cargar datos cuando cambia la wallet o la red
+  // Cargar datos cuando cambia la wallet o la red, solo si no hay datos precargados
   useEffect(() => {
-    if (walletAddress && !isLoading) {
-      handleFetchBalances();
-    }
-  }, [walletAddress, network, isLoading]);
+    // Comentamos esta parte para evitar cargas automáticas al cambiar la wallet
+    // if (walletAddress && !isLoading && !preloadedData) {
+    //   handleFetchBalances();
+    // }
+  }, [walletAddress, network, isLoading, preloadedData]);
 
-  // Responder al botón de búsqueda global
+  // Responder al botón de búsqueda global, solo si no hay datos precargados
   useEffect(() => {
-    if (searchTriggered > 0) {
+    if (searchTriggered > 0 && !preloadedData) {
       handleFetchBalances();
     }
-  }, [searchTriggered]);
+  }, [searchTriggered, preloadedData]);
 
   if (isLoading) {
     return (

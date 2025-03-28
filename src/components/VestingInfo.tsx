@@ -8,6 +8,7 @@ interface VestingInfoProps {
   network: Network;
   isLoading: boolean;
   searchTriggered?: number;
+  preloadedData?: any[]; // Datos precargados desde el componente principal
 }
 
 interface VestingSchedule {
@@ -94,7 +95,13 @@ const generateUnlockSchedule = (schedule: VestingSchedule) => {
   return unlocks;
 };
 
-const VestingInfo: React.FC<VestingInfoProps> = ({ walletAddress, network, isLoading, searchTriggered = 0 }) => {
+const VestingInfo: React.FC<VestingInfoProps> = ({ 
+  walletAddress, 
+  network, 
+  isLoading, 
+  searchTriggered = 0,
+  preloadedData 
+}) => {
   const [vestingSchedules, setVestingSchedules] = useState<VestingScheduleWithHistory[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,15 +116,50 @@ const VestingInfo: React.FC<VestingInfoProps> = ({ walletAddress, network, isLoa
   useEffect(() => {
     console.log("VestingInfo recibió wallet:", walletAddress);
     console.log("VestingInfo recibió network:", network);
+    
+    // Limpiar datos cuando cambia la wallet o la red
+    if (walletAddress) {
+      setVestingSchedules([]);
+      setVestingContractsByResults({});
+      setStatusMessages(["Datos limpiados. Pulse 'Buscar Información de Vesting' para cargar los datos."]);
+    }
   }, [walletAddress, network]);
 
-  // Efecto para activar la búsqueda automáticamente cuando cambie searchTriggered
+  // Efecto para usar datos precargados si están disponibles
   useEffect(() => {
-    if (searchTriggered > 0 && walletAddress) {
-      console.log("Búsqueda automática activada por cambio en searchTriggered:", searchTriggered);
-      handleFetchAllVestingInfo();
+    if (preloadedData && preloadedData.length > 0) {
+      console.log("Usando datos precargados en VestingInfo:", preloadedData.length, "schedules");
+      
+      // Convertir los datos precargados al formato esperado
+      const formattedData = preloadedData.map(schedule => {
+        // Asegurarse de que tiene el formato correcto de VestingScheduleWithHistory
+        if (!schedule.contractAddress) {
+          return {
+            ...schedule,
+            contractAddress: "desconocido", // Valor por defecto si no existe
+            claimHistory: schedule.claimHistory || []
+          };
+        }
+        return schedule;
+      });
+      
+      setVestingSchedules(formattedData);
+      
+      // Organizar por contrato
+      const byContract: Record<string, VestingScheduleWithHistory[]> = {};
+      formattedData.forEach(schedule => {
+        const contract = schedule.contractAddress || "desconocido";
+        if (!byContract[contract]) {
+          byContract[contract] = [];
+        }
+        byContract[contract].push(schedule);
+      });
+      
+      setVestingContractsByResults(byContract);
+      setError(null);
+      setStatusMessages(["Datos cargados desde el componente principal"]);
     }
-  }, [searchTriggered, walletAddress]);
+  }, [preloadedData]);
 
   const vestingContracts = [
     "0xa699Cf416FFe6063317442c3Fbd0C39742E971c5",
@@ -127,7 +169,10 @@ const VestingInfo: React.FC<VestingInfoProps> = ({ walletAddress, network, isLoa
     "0x417Fc9c343210AA52F0b19dbf4EecBD786139BC1",
     "0xFC750D874077F8c90858cC132e0619CE7571520b",
     "0xde68AD324aafD9F2b6946073C90ED5e61D5d51B8",
-    "0xC4CE5cFea2B6e32Ad41973348AC70EB3b00D8e6d"
+    "0xC4CE5cFea2B6e32Ad41973348AC70EB3b00D8e6d",
+    "0x7BBDa50bE87DFf935782C80D4222D46490F242A1",
+    "0x1808CF66F69DC1B8217d1C655fBD134B213AE358",
+    "0xfc750d874077f8c90858cc132e0619ce7571520b"
   ];
 
   const calculateTotals = () => {
@@ -159,6 +204,12 @@ const VestingInfo: React.FC<VestingInfoProps> = ({ walletAddress, network, isLoa
   const totals = calculateTotals();
 
   const handleFetchAllVestingInfo = async () => {
+    // Si ya tenemos datos precargados, no necesitamos buscar de nuevo
+    if (preloadedData && preloadedData.length > 0) {
+      console.log("Usando datos precargados, no es necesario buscar de nuevo");
+      return;
+    }
+    
     if (!walletAddress) {
       const errorMsg = 'Por favor, introduce una dirección de wallet válida';
       setError(errorMsg);
@@ -166,14 +217,16 @@ const VestingInfo: React.FC<VestingInfoProps> = ({ walletAddress, network, isLoa
       return;
     }
 
-    console.log(`Iniciando búsqueda de vesting para wallet: ${walletAddress} en red: ${network}`);
+    // Normalizar la dirección de wallet (convertir a minúsculas)
+    const normalizedWalletAddress = walletAddress.toLowerCase();
+    console.log(`Iniciando búsqueda de vesting para wallet: ${normalizedWalletAddress} en red: ${network}`);
     setLoading(true);
     setError(null);
     setVestingSchedules([]);
     setVestingContractsByResults({});
     setProcessedContracts(0);
-    setStatusMessages([`Iniciando búsqueda para wallet: ${walletAddress}`]);
-
+    setStatusMessages([`Iniciando búsqueda para wallet: ${normalizedWalletAddress}`]);
+    
     try {
       const allSchedules: VestingScheduleWithHistory[] = [];
       const contractResults: Record<string, VestingScheduleWithHistory[]> = {};
@@ -188,8 +241,8 @@ const VestingInfo: React.FC<VestingInfoProps> = ({ walletAddress, network, isLoa
         setStatusMessages(prev => [...prev, statusMsg]);
         
         try {
-          console.log(`Consultando contrato: ${contractAddress} para wallet: ${walletAddress}`);
-          const data = await fetchVestingInfo(walletAddress, contractAddress, network);
+          console.log(`Consultando contrato: ${contractAddress} para wallet: ${normalizedWalletAddress}`);
+          const data = await fetchVestingInfo(normalizedWalletAddress, contractAddress, network);
           console.log(`Respuesta del contrato ${contractAddress}:`, data);
           
           if (data && data.length > 0) {
@@ -233,7 +286,8 @@ const VestingInfo: React.FC<VestingInfoProps> = ({ walletAddress, network, isLoa
           setStatusMessages(prev => [...prev, errorMsg]);
         }
         
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Pequeña pausa entre consultas para no sobrecargar la red
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
       
       setCurrentContract(null);
@@ -244,7 +298,8 @@ const VestingInfo: React.FC<VestingInfoProps> = ({ walletAddress, network, isLoa
       setStatusMessages(prev => [...prev, finalMsg]);
       
       if (allSchedules.length === 0) {
-        setError('No se encontró información de vesting para esta wallet en ninguno de los contratos.');
+        // Mensaje más detallado cuando no se encuentran vestings
+        setError(`No se encontró información de vesting para la wallet ${normalizedWalletAddress} en ninguno de los contratos. Esto puede deberse a que la wallet no tiene vestings asignados o a que los contratos no reconocen esta dirección.`);
       }
     } catch (err) {
       const errorMsg = `Error general al obtener los datos de vesting: ${err instanceof Error ? err.message : String(err)}`;
