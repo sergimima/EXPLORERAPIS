@@ -17,10 +17,19 @@ export async function processVestingWithGetVestingListByHolder(
   const result: any = {
     beneficiaries: [],
     totalSchedulesCreated: 0,
-    releasableTokens: '0'
+    releasableTokens: '0',
+    totalVested: '0',
+    totalReleased: '0',
+    remainingToVest: '0',
+    lockedTokens: '0'
   };
 
   console.log("Usando getVestingListByHolder para obtener información exacta de vesting");
+  
+  // Variables para acumular totales
+  let totalVestedAmount = 0;
+  let totalReleasedAmount = 0;
+  let totalReleasableAmount = 0;
   
   // Procesar cada beneficiario
   for (const beneficiary of beneficiaries) {
@@ -31,6 +40,16 @@ export async function processVestingWithGetVestingListByHolder(
       
       // Si hay vestings para este beneficiario
       if (vestingList && vestingList.length > 0) {
+        // Crear un objeto para almacenar la información agregada del beneficiario
+        const aggregatedInfo: any = {
+          address: beneficiary,
+          totalAmount: 0,
+          totalClaimed: 0,
+          totalRemaining: 0,
+          totalReleasable: 0,
+          vestings: [] // Almacenar información detallada de cada vesting
+        };
+        
         // Procesar cada vesting
         for (let i = 0; i < vestingList.length; i++) {
           const vesting = vestingList[i];
@@ -110,10 +129,31 @@ export async function processVestingWithGetVestingListByHolder(
             }
           }
           
-          // Añadir a la lista de beneficiarios
-          result.beneficiaries.push(scheduleInfo);
+          // Actualizar totales para este beneficiario
+          aggregatedInfo.totalAmount += totalAmount;
+          aggregatedInfo.totalClaimed += claimed;
+          aggregatedInfo.totalRemaining += parseFloat(scheduleInfo.remaining);
+          aggregatedInfo.totalReleasable += parseFloat(scheduleInfo.releasable);
+          
+          // Actualizar totales globales
+          totalVestedAmount += totalAmount;
+          totalReleasedAmount += claimed;
+          totalReleasableAmount += parseFloat(scheduleInfo.releasable);
+          
+          // Añadir este vesting a la lista de vestings del beneficiario
+          aggregatedInfo.vestings.push(scheduleInfo);
+          
           console.log(`Vesting ${i} para ${beneficiary}: ${scheduleInfo.amount} tokens, liberables: ${scheduleInfo.releasable}`);
         }
+        
+        // Convertir los totales a strings
+        aggregatedInfo.totalAmount = aggregatedInfo.totalAmount.toString();
+        aggregatedInfo.totalClaimed = aggregatedInfo.totalClaimed.toString();
+        aggregatedInfo.totalRemaining = aggregatedInfo.totalRemaining.toString();
+        aggregatedInfo.totalReleasable = aggregatedInfo.totalReleasable.toString();
+        
+        // Añadir el beneficiario agregado a la lista
+        result.beneficiaries.push(aggregatedInfo);
       } else {
         // Si no hay vestings, añadir solo la dirección
         result.beneficiaries.push({ address: beneficiary });
@@ -125,19 +165,18 @@ export async function processVestingWithGetVestingListByHolder(
   }
   
   // Actualizar el número total de schedules creados
-  result.totalSchedulesCreated = result.beneficiaries.length;
+  result.totalSchedulesCreated = result.beneficiaries.reduce((total: number, beneficiary: any) => 
+    total + (beneficiary.vestings ? beneficiary.vestings.length : 0), 0);
   console.log("Total de schedules obtenidos:", result.totalSchedulesCreated);
   
-  // Calcular tokens liberables totales
-  let totalReleasable = 0;
-  for (const beneficiary of result.beneficiaries) {
-    if (beneficiary.releasable) {
-      totalReleasable += parseFloat(beneficiary.releasable);
-    }
-  }
+  // Actualizar totales globales
+  result.totalVested = totalVestedAmount.toString();
+  result.totalReleased = totalReleasedAmount.toString();
+  result.remainingToVest = (totalVestedAmount - totalReleasedAmount).toString();
+  result.lockedTokens = result.remainingToVest;
   
-  if (totalReleasable > 0) {
-    result.releasableTokens = totalReleasable.toString();
+  if (totalReleasableAmount > 0) {
+    result.releasableTokens = totalReleasableAmount.toString();
     console.log("Total de tokens liberables:", result.releasableTokens);
   }
   

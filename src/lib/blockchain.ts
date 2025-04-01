@@ -1405,6 +1405,10 @@ export async function checkVestingContractStatus(
               // Actualizar el resultado con la información exacta
               result.beneficiaries = exactVestingInfo.beneficiaries;
               result.totalSchedulesCreated = exactVestingInfo.totalSchedulesCreated;
+              result.totalVested = exactVestingInfo.totalVested;
+              result.totalReleased = exactVestingInfo.totalReleased;
+              result.remainingToVest = exactVestingInfo.remainingToVest;
+              result.lockedTokens = exactVestingInfo.lockedTokens;
               
               if (exactVestingInfo.releasableTokens && parseFloat(exactVestingInfo.releasableTokens) > 0) {
                 result.releasableTokens = exactVestingInfo.releasableTokens;

@@ -37,7 +37,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<VestingContractSummary | null>(null);
-  const [expandedSchedules, setExpandedSchedules] = useState<string[]>([]);
+  const [expandedBeneficiaries, setExpandedBeneficiaries] = useState<Record<number, boolean>>({});
   const [searchHistory, setSearchHistory] = useState<VestingContractSummary[]>([]);
 
   // Función para verificar si una dirección es válida
@@ -318,47 +318,89 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                           <th className="py-2 px-4 border-b text-right">Reclamado</th>
                           <th className="py-2 px-4 border-b text-right">Pendiente</th>
                           <th className="py-2 px-4 border-b text-right">Liberables</th>
-                          <th className="py-2 px-4 border-b text-center">Período</th>
+                          <th className="py-2 px-4 border-b text-center">Detalles</th>
                         </tr>
                       </thead>
                       <tbody>
                         {summary.beneficiaries.map((beneficiary: any, index: number) => (
-                          <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                            <td className="py-2 px-4 border-b font-mono text-sm">
-                              {beneficiary.address}
-                              {beneficiary.scheduleId && <span className="ml-2 text-xs text-gray-500">(ID: {beneficiary.scheduleId})</span>}
-                              {beneficiary.transactions && <span className="ml-2 text-xs text-blue-500">({beneficiary.transactions} tx)</span>}
-                              {beneficiary.isEstimated && <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-1 rounded">Estimado</span>}
-                              {beneficiary.isExact && <span className="ml-2 text-xs bg-green-100 text-green-800 px-1 rounded">Exacto</span>}
-                            </td>
-                            <td className="py-2 px-4 border-b text-right">
-                              {beneficiary.amount ? parseFloat(beneficiary.amount).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
-                            </td>
-                            <td className="py-2 px-4 border-b text-right text-red-600">
-                              {beneficiary.claimed ? parseFloat(beneficiary.claimed).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
-                            </td>
-                            <td className="py-2 px-4 border-b text-right">
-                              {beneficiary.remaining ? parseFloat(beneficiary.remaining).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
-                            </td>
-                            <td className="py-2 px-4 border-b text-right text-green-600 font-semibold">
-                              {beneficiary.releasable ? parseFloat(beneficiary.releasable).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
-                            </td>
-                            <td className="py-2 px-4 border-b text-center text-xs">
-                              {beneficiary.startTime ? (
-                                <div>
-                                  <div>Inicio: {new Date(beneficiary.startTime * 1000).toLocaleDateString()}</div>
-                                  <div>Fin: {new Date(beneficiary.endTime * 1000).toLocaleDateString()}</div>
-                                  {beneficiary.cliff > 0 && (
-                                    <div className="text-orange-500">
-                                      Cliff: {new Date(beneficiary.cliff * 1000).toLocaleDateString()}
+                          <React.Fragment key={index}>
+                            {/* Fila principal del beneficiario con totales */}
+                            <tr className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b-2 border-gray-300`}>
+                              <td className="py-2 px-4 font-mono text-sm font-semibold">
+                                {beneficiary.address}
+                                {beneficiary.vestings && <span className="ml-2 text-xs text-blue-500">({beneficiary.vestings.length} vestings)</span>}
+                              </td>
+                              <td className="py-2 px-4 text-right font-semibold">
+                                {beneficiary.totalAmount ? parseFloat(beneficiary.totalAmount).toLocaleString(undefined, { maximumFractionDigits: 4 }) : 
+                                 (beneficiary.amount ? parseFloat(beneficiary.amount).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0')}
+                              </td>
+                              <td className="py-2 px-4 text-right text-red-600 font-semibold">
+                                {beneficiary.totalClaimed ? parseFloat(beneficiary.totalClaimed).toLocaleString(undefined, { maximumFractionDigits: 4 }) : 
+                                 (beneficiary.claimed ? parseFloat(beneficiary.claimed).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0')}
+                              </td>
+                              <td className="py-2 px-4 text-right font-semibold">
+                                {beneficiary.totalRemaining ? parseFloat(beneficiary.totalRemaining).toLocaleString(undefined, { maximumFractionDigits: 4 }) : 
+                                 (beneficiary.remaining ? parseFloat(beneficiary.remaining).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0')}
+                              </td>
+                              <td className="py-2 px-4 text-right text-green-600 font-semibold">
+                                {beneficiary.totalReleasable ? parseFloat(beneficiary.totalReleasable).toLocaleString(undefined, { maximumFractionDigits: 4 }) : 
+                                 (beneficiary.releasable ? parseFloat(beneficiary.releasable).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0')}
+                              </td>
+                              <td className="py-2 px-4 text-center">
+                                {beneficiary.vestings && beneficiary.vestings.length > 0 ? (
+                                  <button 
+                                    className="text-blue-500 hover:text-blue-700 text-sm"
+                                    onClick={() => {
+                                      const expandedRows = {...expandedBeneficiaries};
+                                      expandedRows[index] = !expandedRows[index];
+                                      setExpandedBeneficiaries(expandedRows);
+                                    }}
+                                  >
+                                    {expandedBeneficiaries[index] ? 'Ocultar detalles' : 'Ver detalles'}
+                                  </button>
+                                ) : (
+                                  <span className="text-gray-400 text-sm">No hay vestings</span>
+                                )}
+                              </td>
+                            </tr>
+                            
+                            {/* Filas de detalle para cada vesting individual */}
+                            {beneficiary.vestings && expandedBeneficiaries[index] && beneficiary.vestings.map((vesting: any, vestingIndex: number) => (
+                              <tr key={`${index}-${vestingIndex}`} className="bg-gray-100 text-sm">
+                                <td className="py-1 px-4 border-b pl-8 font-mono">
+                                  <span className="text-gray-600">ID: {vesting.scheduleId}</span>
+                                  {vesting.isExact && <span className="ml-2 text-xs bg-green-100 text-green-800 px-1 rounded">Exacto</span>}
+                                </td>
+                                <td className="py-1 px-4 border-b text-right">
+                                  {vesting.amount ? parseFloat(vesting.amount).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
+                                </td>
+                                <td className="py-1 px-4 border-b text-right text-red-500">
+                                  {vesting.claimed ? parseFloat(vesting.claimed).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
+                                </td>
+                                <td className="py-1 px-4 border-b text-right">
+                                  {vesting.remaining ? parseFloat(vesting.remaining).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
+                                </td>
+                                <td className="py-1 px-4 border-b text-right text-green-500">
+                                  {vesting.releasable ? parseFloat(vesting.releasable).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
+                                </td>
+                                <td className="py-1 px-4 border-b text-center text-xs">
+                                  {vesting.startTime ? (
+                                    <div>
+                                      <div>Inicio: {new Date(vesting.startTime * 1000).toLocaleDateString()}</div>
+                                      <div>Fin: {new Date(vesting.endTime * 1000).toLocaleDateString()}</div>
+                                      {vesting.cliff > 0 && (
+                                        <div className="text-orange-500">
+                                          Cliff: {new Date(vesting.cliff * 1000).toLocaleDateString()}
+                                        </div>
+                                      )}
                                     </div>
+                                  ) : (
+                                    <span className="text-gray-400">No disponible</span>
                                   )}
-                                </div>
-                              ) : (
-                                <span className="text-gray-400">No disponible</span>
-                              )}
-                            </td>
-                          </tr>
+                                </td>
+                              </tr>
+                            ))}
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>
