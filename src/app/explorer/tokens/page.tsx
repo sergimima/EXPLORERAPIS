@@ -10,6 +10,7 @@ import TabsContainer from '@/components/TabsContainer';
 import VestingInfo from '@/components/VestingInfo';
 import TokenBalance from '@/components/TokenBalance';
 import AirdropAssignments from '@/components/AirdropAssignments';
+import VestingSummary from '@/components/VestingSummary';
 import { Network } from '@/lib/types';
 
 export default function TokenExplorer() {
@@ -205,7 +206,7 @@ export default function TokenExplorer() {
     />
   );
 
-  const airdropsComponent = (
+  const airdropComponent = (
     <AirdropAssignments 
       walletAddress={wallet} 
       network={network} 
@@ -215,27 +216,19 @@ export default function TokenExplorer() {
     />
   );
 
+  // Nuevo componente de resumen de vesting
+  const vestingSummaryComponent = (
+    <VestingSummary 
+      network={network}
+    />
+  );
+
   const tabs = [
-    {
-      id: 'balance',
-      label: 'Balance de Tokens',
-      content: balanceComponent
-    },
-    {
-      id: 'transfers',
-      label: 'Transferencias de Tokens',
-      content: transfersComponent
-    },
-    {
-      id: 'vesting',
-      label: 'Información de Vesting',
-      content: vestingComponent
-    },
-    {
-      id: 'airdrops',
-      label: 'Tokens Asignados (Airdrops)',
-      content: airdropsComponent
-    }
+    { id: 'balance', label: 'Balance de Tokens', content: balanceComponent },
+    { id: 'transfers', label: 'Transferencias', content: transfersComponent },
+    { id: 'vesting', label: 'Información de Vesting', content: vestingComponent },
+    { id: 'vestingSummary', label: 'Resumen de Vesting', content: vestingSummaryComponent },
+    { id: 'airdrops', label: 'Airdrops', content: airdropComponent },
   ];
 
   // Calcular el progreso total de carga
