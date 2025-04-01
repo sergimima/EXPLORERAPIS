@@ -329,6 +329,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                               {beneficiary.scheduleId && <span className="ml-2 text-xs text-gray-500">(ID: {beneficiary.scheduleId})</span>}
                               {beneficiary.transactions && <span className="ml-2 text-xs text-blue-500">({beneficiary.transactions} tx)</span>}
                               {beneficiary.isEstimated && <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-1 rounded">Estimado</span>}
+                              {beneficiary.isExact && <span className="ml-2 text-xs bg-green-100 text-green-800 px-1 rounded">Exacto</span>}
                             </td>
                             <td className="py-2 px-4 border-b text-right">
                               {beneficiary.amount ? parseFloat(beneficiary.amount).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}

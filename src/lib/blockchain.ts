@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ethers } from 'ethers';
 import { VESTING_CONTRACT_ABIS } from './contractAbis';
 import { processBeneficiariesIndividually, calculateReleasableTokens } from './vestingHelpers';
+import { processVestingWithGetVestingListByHolder } from './vestingContractHelpers';
 
 // Configuración de las redes
 const NETWORKS: Record<string, {
@@ -1139,14 +1140,18 @@ export async function checkVestingContractStatus(
           if (!result.tokenAddress) {
             try {
               // Obtener historial de transferencias de tokens para el contrato
-              const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken';
+              const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
+              if (!apiKey) {
+                console.warn('No se ha configurado la clave API de Basescan');
+              }
+              
               const response = await axios.get(networkConfig.explorerApiUrl, {
                 params: {
                   module: 'account',
                   action: 'tokentx',
                   address: normalizedContractAddress,
                   sort: 'asc', // Ordenar por antigüedad para ver primero las más antiguas
-                  apikey: apiKey
+                  apikey: apiKey || 'YourApiKeyToken' // Usar clave API por defecto si no hay una configurada
                 }
               });
               
@@ -1367,139 +1372,6 @@ export async function checkVestingContractStatus(
             }
           }
           
-          // Intentar obtener tokens liberables si el contrato tiene esta función
-          if (contractABI.some((fn: any) => typeof fn === 'object' && fn.name === 'computeReleasableAmount')) {
-            try {
-              // Para contratos que requieren una dirección de beneficiario, intentamos con todos los beneficiarios
-              const beneficiaries = await getBeneficiariesFromTransferHistory(normalizedContractAddress, network);
-              
-              if (beneficiaries.length > 0) {
-                let totalReleasable = 0;
-                
-                // Procesar todos los beneficiarios para calcular tokens liberables
-                for (const beneficiary of beneficiaries) { 
-                  try {
-                    const releasable = await contract.computeReleasableAmount(beneficiary);
-                    const releasableAmount = parseFloat(ethers.formatUnits(releasable, result.tokenDecimals));
-                    totalReleasable += releasableAmount;
-                    
-                    console.log(`Tokens liberables para ${beneficiary}: ${releasableAmount}`);
-                    
-                    // Si ya tenemos la lista de beneficiarios, actualizamos la información de tokens liberables
-                    if (result.beneficiaries) {
-                      const beneficiaryInfo = result.beneficiaries.find(b => b.address.toLowerCase() === beneficiary.toLowerCase());
-                      if (beneficiaryInfo) {
-                        beneficiaryInfo.releasable = releasableAmount.toString();
-                        console.log(`Actualizado releasable para ${beneficiary}: ${releasableAmount}`);
-                      }
-                    }
-                  } catch (e) {
-                    console.warn(`Error al calcular monto liberado para ${beneficiary}:`, e);
-                  }
-                }
-                
-                // Asegurarnos de que el valor no sea cero si realmente hay tokens liberables
-                if (totalReleasable > 0) {
-                  result.releasableTokens = totalReleasable.toString();
-                  console.log("Total de tokens liberables estimado:", result.releasableTokens);
-                }
-              }
-            } catch (e) {
-              console.warn("Error al calcular tokens liberables:", e);
-            }
-          } else if (contractABI.some((fn: any) => typeof fn === 'object' && fn.name === 'releasableAmount')) {
-            try {
-              const releasable = await contract.releasableAmount();
-              const releasableAmount = parseFloat(ethers.formatUnits(releasable, result.tokenDecimals));
-              
-              // Solo actualizar si es mayor que cero
-              if (releasableAmount > 0) {
-                result.releasableTokens = releasableAmount.toString();
-                console.log("Total de tokens liberables:", result.releasableTokens);
-              }
-            } catch (e) {
-              console.warn("Error al obtener tokens liberables:", e);
-            }
-          }
-          
-          // Calcular tokens liberables directamente desde los datos que ya tenemos
-          if (result.totalVested && result.totalReleased) {
-            const totalVested = parseFloat(result.totalVested);
-            const totalReleased = parseFloat(result.totalReleased);
-            const currentTime = Math.floor(Date.now() / 1000);
-            
-            // Calcular cuánto debería estar liberado hasta ahora basado en el tiempo transcurrido
-            let estimatedReleasable = 0;
-            
-            // Si tenemos beneficiarios con información de tiempo, calculamos basado en eso
-            if (result.beneficiaries && result.beneficiaries.length > 0) {
-              for (const beneficiary of result.beneficiaries) {
-                if (beneficiary.startTime && beneficiary.endTime && beneficiary.amount) {
-                  const startTime = beneficiary.startTime;
-                  const endTime = beneficiary.endTime;
-                  const totalAmount = parseFloat(beneficiary.amount);
-                  const claimed = parseFloat(beneficiary.claimed || '0');
-                  
-                  // Si el vesting ya comenzó
-                  if (currentTime > startTime) {
-                    // Calcular el porcentaje de tiempo transcurrido
-                    const totalDuration = endTime - startTime;
-                    const elapsed = Math.min(currentTime - startTime, totalDuration);
-                    const percentComplete = elapsed / totalDuration;
-                    
-                    // Calcular cuánto debería estar liberado
-                    const shouldBeReleased = totalAmount * percentComplete;
-                    const releasable = Math.max(0, shouldBeReleased - claimed);
-                    
-                    // Actualizar el valor de tokens liberables para este beneficiario
-                    beneficiary.releasable = releasable.toString();
-                    estimatedReleasable += releasable;
-                    
-                    console.log(`Estimación para ${beneficiary.address}: Total=${totalAmount}, Reclamado=${claimed}, Liberado=${shouldBeReleased}, Liberables=${releasable}`);
-                  }
-                }
-              }
-            }
-            
-            // Si encontramos tokens liberables, actualizamos el valor
-            if (estimatedReleasable > 0) {
-              result.releasableTokens = estimatedReleasable.toString();
-              console.log(`Tokens liberables estimados por cálculo de tiempo: ${estimatedReleasable}`);
-            }
-          }
-          
-          // Calcular el monto restante por vesting
-          const totalVested = parseFloat(result.totalVested);
-          const totalReleased = parseFloat(result.totalReleased);
-          
-          if (!isNaN(totalVested) && !isNaN(totalReleased)) {
-            result.remainingToVest = Math.max(0, totalVested - totalReleased).toString();
-            
-            // Determinar si todos los tokens han sido vested
-            result.allTokensVested = totalReleased >= totalVested * 0.99 || totalVested === 0;
-            console.log("¿Todos los tokens han sido vested?:", result.allTokensVested);
-          }
-          
-          // Si no tenemos información de montos de otras fuentes, usamos las transferencias
-          if (result.totalTokensIn && result.totalTokensIn !== '0' && result.totalVested === '0') {
-            result.totalVested = result.totalTokensIn;
-          }
-          
-          if (result.totalTokensOut && result.totalTokensOut !== '0' && result.totalReleased === '0') {
-            result.totalReleased = result.totalTokensOut;
-          }
-          
-          if (result.totalVested !== '0' && result.totalReleased !== '0' && result.remainingToVest === '0') {
-            const totalVested = parseFloat(result.totalVested);
-            const totalReleased = parseFloat(result.totalReleased);
-            result.remainingToVest = Math.max(0, totalVested - totalReleased).toString();
-          }
-          
-          // Calcular tokens bloqueados si no tenemos el valor
-          if (result.lockedTokens === '0' && result.remainingToVest !== '0') {
-            result.lockedTokens = result.remainingToVest;
-          }
-          
           // Obtener los beneficiarios y sus schedules
           try {
             const beneficiaries = await getBeneficiariesFromTransferHistory(normalizedContractAddress, network);
@@ -1513,6 +1385,34 @@ export async function checkVestingContractStatus(
             // Verificar si el contrato tiene funciones para obtener schedules por índice
             const hasGetVestingScheduleAtIndex = contractABI.some((fn: any) => 
               typeof fn === 'object' && (fn.name === 'getVestingScheduleAtIndex' || fn.name === 'getVestingScheduleIdAtIndex'));
+            
+            // Verificar si el contrato tiene el método getVestingListByHolder
+            const hasGetVestingListByHolder = contractABI.some((fn: any) => 
+              typeof fn === 'object' && fn.name === 'getVestingListByHolder');
+            
+            // Si el contrato tiene el método getVestingListByHolder, usarlo para obtener información exacta
+            if (hasGetVestingListByHolder) {
+              console.log("Usando getVestingListByHolder para obtener información exacta de vesting");
+              
+              // Usar la función auxiliar para procesar los beneficiarios con getVestingListByHolder
+              const exactVestingInfo = await processVestingWithGetVestingListByHolder(
+                contract,
+                beneficiaries,
+                contractABI,
+                result.tokenDecimals
+              );
+              
+              // Actualizar el resultado con la información exacta
+              result.beneficiaries = exactVestingInfo.beneficiaries;
+              result.totalSchedulesCreated = exactVestingInfo.totalSchedulesCreated;
+              
+              if (exactVestingInfo.releasableTokens && parseFloat(exactVestingInfo.releasableTokens) > 0) {
+                result.releasableTokens = exactVestingInfo.releasableTokens;
+              }
+              
+              // Si ya procesamos los beneficiarios, no necesitamos continuar
+              return result;
+            }
             
             // Intentar obtener información de vesting directamente desde el historial de transacciones
             // Esto es útil para contratos que no exponen métodos para obtener información de vesting
@@ -1685,11 +1585,10 @@ export async function checkVestingContractStatus(
                       scheduleId: i.toString(),
                       amount: ethers.formatUnits(schedule.amountTotal || schedule.totalAmount || BigInt(0), result.tokenDecimals),
                       claimed: ethers.formatUnits(schedule.released || BigInt(0), result.tokenDecimals),
-                      remaining: '0',
                       startTime: Number(schedule.start || schedule.startTime || 0),
                       endTime: Number(schedule.end || schedule.endTime || 0),
-                      cliff: Number(schedule.cliff || 0),
-                      slice: Number(schedule.slicePeriodSeconds || 0)
+                      ...(schedule.cliff && { cliff: Number(schedule.cliff) }),
+                      ...(schedule.slicePeriodSeconds && { slicePeriodSeconds: Number(schedule.slicePeriodSeconds) })
                     };
                     
                     // Calcular remaining
