@@ -31,12 +31,32 @@ export async function processVestingWithGetVestingListByHolder(
   let totalReleasedAmount = 0;
   let totalReleasableAmount = 0;
   
+  // Limitar el número de beneficiarios a procesar para evitar bloqueos
+  const maxBeneficiariesToProcess = 10; // Limitar a 10 beneficiarios para evitar bloqueos
+  const beneficiariesToProcess = beneficiaries.slice(0, maxBeneficiariesToProcess);
+  
   // Procesar cada beneficiario
-  for (const beneficiary of beneficiaries) {
+  for (const beneficiary of beneficiariesToProcess) {
     try {
-      // Obtener la lista de vestings para este beneficiario
-      const vestingList = await contract.getVestingListByHolder(beneficiary);
-      console.log(`Vestings para ${beneficiary}:`, vestingList);
+      // Obtener la lista de vestings para este beneficiario con un timeout
+      let vestingList;
+      try {
+        // Establecer un timeout para la llamada al contrato
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout al obtener vestings')), 5000)
+        );
+        
+        // Llamar al contrato con timeout
+        vestingList = await Promise.race([
+          contract.getVestingListByHolder(beneficiary),
+          timeoutPromise
+        ]);
+        
+        console.log(`Vestings para ${beneficiary}:`, vestingList);
+      } catch (timeoutError) {
+        console.warn(`Timeout al obtener vestings para ${beneficiary}:`, timeoutError);
+        continue; // Saltar a la siguiente iteración
+      }
       
       // Si hay vestings para este beneficiario
       if (vestingList && vestingList.length > 0) {
@@ -79,51 +99,13 @@ export async function processVestingWithGetVestingListByHolder(
             // Calcular liberables basado en el tiempo
             const currentTime = Math.floor(Date.now() / 1000);
             if (currentTime > scheduleInfo.startTime) {
-              // Si hay un método para calcular el monto liberado
-              if (contractABI.some((fn: any) => typeof fn === 'object' && fn.name === 'calculateVestedAmount')) {
-                try {
-                  // Obtener el ID del vesting
-                  let vestingId;
-                  if (vesting.id) {
-                    vestingId = vesting.id;
-                  } else if (contractABI.some((fn: any) => typeof fn === 'object' && fn.name === 'computeVestingId')) {
-                    vestingId = await contract.computeVestingId(vesting);
-                  } else if (contractABI.some((fn: any) => typeof fn === 'object' && fn.name === 'holderAddrToVestingsId')) {
-                    vestingId = await contract.holderAddrToVestingsId(beneficiary, i);
-                  }
-                  
-                  if (vestingId) {
-                    const vestedAmount = await contract.calculateVestedAmount(vestingId, currentTime);
-                    const releasable = parseFloat(ethers.formatUnits(vestedAmount, tokenDecimals)) - claimed;
-                    scheduleInfo.releasable = Math.max(0, releasable).toString();
-                  } else {
-                    // Cálculo basado en tiempo si no podemos obtener el ID
-                    const totalDuration = scheduleInfo.endTime - scheduleInfo.startTime;
-                    const elapsed = Math.min(currentTime - scheduleInfo.startTime, totalDuration);
-                    const percentComplete = elapsed / totalDuration;
-                    const shouldBeReleased = totalAmount * percentComplete;
-                    const releasable = Math.max(0, shouldBeReleased - claimed);
-                    scheduleInfo.releasable = releasable.toString();
-                  }
-                } catch (e) {
-                  console.warn(`Error al calcular tokens liberables para ${beneficiary}:`, e);
-                  // Cálculo basado en tiempo como fallback
-                  const totalDuration = scheduleInfo.endTime - scheduleInfo.startTime;
-                  const elapsed = Math.min(currentTime - scheduleInfo.startTime, totalDuration);
-                  const percentComplete = elapsed / totalDuration;
-                  const shouldBeReleased = totalAmount * percentComplete;
-                  const releasable = Math.max(0, shouldBeReleased - claimed);
-                  scheduleInfo.releasable = releasable.toString();
-                }
-              } else {
-                // Cálculo basado en tiempo
-                const totalDuration = scheduleInfo.endTime - scheduleInfo.startTime;
-                const elapsed = Math.min(currentTime - scheduleInfo.startTime, totalDuration);
-                const percentComplete = elapsed / totalDuration;
-                const shouldBeReleased = totalAmount * percentComplete;
-                const releasable = Math.max(0, shouldBeReleased - claimed);
-                scheduleInfo.releasable = releasable.toString();
-              }
+              // Usar directamente el cálculo basado en tiempo para evitar errores con computeVestingId
+              const totalDuration = scheduleInfo.endTime - scheduleInfo.startTime;
+              const elapsed = Math.min(currentTime - scheduleInfo.startTime, totalDuration);
+              const percentComplete = elapsed / totalDuration;
+              const shouldBeReleased = totalAmount * percentComplete;
+              const releasable = Math.max(0, shouldBeReleased - claimed);
+              scheduleInfo.releasable = releasable.toString();
             } else {
               scheduleInfo.releasable = '0';
             }

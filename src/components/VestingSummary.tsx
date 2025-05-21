@@ -6,6 +6,7 @@ import { Network } from '@/lib/types';
 interface VestingSummaryProps {
   network: Network;
   initialContractAddress?: string;
+  hideSearchBar?: boolean;
 }
 
 interface VestingContractSummary {
@@ -32,7 +33,7 @@ interface VestingContractSummary {
   error?: string;
 }
 
-const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContractAddress = '' }) => {
+const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContractAddress = '', hideSearchBar = false }) => {
   const [contractAddress, setContractAddress] = useState<string>(initialContractAddress);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,31 +129,103 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
     setSummary(historySummary);
   };
 
+  // Efecto para buscar automáticamente cuando se proporciona una dirección inicial
+  useEffect(() => {
+    // Crear una función para buscar el contrato inicial
+    const searchInitialContract = async () => {
+      if (initialContractAddress && isValidAddress(initialContractAddress)) {
+        console.log('Buscando contrato inicial:', initialContractAddress);
+        
+        // Primero actualizamos la dirección del contrato
+        setContractAddress(initialContractAddress);
+        
+        // Luego ejecutamos la búsqueda manualmente
+        // Ya validamos la dirección arriba, así que no necesitamos volver a hacerlo
+        console.log('Iniciando búsqueda para:', initialContractAddress);
+
+        setLoading(true);
+        setError(null);
+        setSummary(null);
+
+        try {
+          // Usar la función para verificar el estado del contrato de vesting
+          const contractStatus = await checkVestingContractStatus(initialContractAddress, network);
+          
+          // Crear un resumen con la información obtenida
+          const newSummary: VestingContractSummary = {
+            contractAddress: contractStatus.contractAddress,
+            tokenAddress: contractStatus.tokenAddress || undefined,
+            tokenName: contractStatus.tokenName || undefined,
+            tokenSymbol: contractStatus.tokenSymbol || undefined,
+            totalVested: contractStatus.totalVested,
+            totalReleased: contractStatus.totalReleased,
+            remainingToVest: contractStatus.remainingToVest,
+            allTokensVested: contractStatus.allTokensVested,
+            vestingSchedulesCount: contractStatus.vestingSchedulesCount,
+            totalSchedulesCreated: contractStatus.totalSchedulesCreated,
+            lastTokenBalance: contractStatus.lastTokenBalance,
+            contractType: contractStatus.contractType,
+            totalTokensIn: contractStatus.totalTokensIn,
+            totalTokensOut: contractStatus.totalTokensOut,
+            lockedTokens: contractStatus.lockedTokens,
+            releasableTokens: contractStatus.releasableTokens,
+            beneficiaries: contractStatus.beneficiaries,
+            creationDate: contractStatus.creationDate,
+            lastUpdated: Date.now(),
+            error: contractStatus.error || undefined,
+            claimedTokens: contractStatus.claimedTokens
+          };
+          
+          setSummary(newSummary);
+          
+          // Añadimos a historial solo si es un contrato válido
+          if (contractStatus.isValid) {
+            setSearchHistory(prev => {
+              // Eliminar duplicados
+              const filtered = prev.filter(item => item.contractAddress.toLowerCase() !== initialContractAddress.toLowerCase());
+              return [newSummary, ...filtered].slice(0, 5); // Mantener solo los últimos 5
+            });
+          }
+        } catch (err) {
+          console.error('Error al obtener información del contrato:', err);
+          setError(`Error al obtener información del contrato: ${err instanceof Error ? err.message : 'Error desconocido'}`);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    
+    // Ejecutar la búsqueda cuando cambie la dirección inicial
+    searchInitialContract();
+  }, [initialContractAddress, network]);
+
   return (
     <div className="bg-white shadow-md rounded-lg p-6">
       <h2 className="text-2xl font-bold mb-6">Resumen de Contrato de Vesting</h2>
       
-      <div className="mb-6">
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            value={contractAddress}
-            onChange={(e) => setContractAddress(e.target.value)}
-            placeholder="Dirección del contrato de vesting"
-            className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleSearch}
-            disabled={loading}
-            className={`px-4 py-2 rounded-md text-white ${
-              loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
-            }`}
-          >
-            {loading ? 'Buscando...' : 'Buscar'}
-          </button>
+      {!hideSearchBar && (
+        <div className="mb-6">
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              value={contractAddress}
+              onChange={(e) => setContractAddress(e.target.value)}
+              placeholder="Dirección del contrato de vesting"
+              className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={handleSearch}
+              disabled={loading}
+              className={`px-4 py-2 rounded-md text-white ${
+                loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              {loading ? 'Buscando...' : 'Buscar'}
+            </button>
+          </div>
+          {error && <p className="text-red-500 mt-2">{error}</p>}
         </div>
-        {error && <p className="text-red-500 mt-2">{error}</p>}
-      </div>
+      )}
       
       {summary && (
         <div className="bg-gray-50 p-4 rounded-md mb-6">

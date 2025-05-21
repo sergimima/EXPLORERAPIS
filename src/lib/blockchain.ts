@@ -5,32 +5,88 @@ import { VESTING_CONTRACT_ABIS } from './contractAbis';
 import { processBeneficiariesIndividually, calculateReleasableTokens } from './vestingHelpers';
 import { processVestingWithGetVestingListByHolder } from './vestingContractHelpers';
 
+// ABI mínimo para interactuar con tokens ERC20
+const ERC20_ABI = [
+  "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)",
+  "function balanceOf(address) view returns (uint)",
+  "function transfer(address to, uint amount) returns (bool)"
+];
+
 // Configuración de las redes
 const NETWORKS: Record<string, {
   rpcUrl: string;
   explorerApiUrl: string;
+  explorerApiV2Url: string;
   chainId: number;
   name: string;
+  etherscanChainId?: number; // ID de cadena para la API V2 de Etherscan
 }> = {
   'base': {
     rpcUrl: 'https://mainnet.base.org',
     explorerApiUrl: 'https://api.basescan.org/api',
+    explorerApiV2Url: 'https://api.etherscan.io/v2/api',
     chainId: 8453,
+    etherscanChainId: 8453, // ID de Base Mainnet en Etherscan
     name: 'Base Mainnet'
   },
   'base-testnet': {
     rpcUrl: 'https://goerli.base.org',
     explorerApiUrl: 'https://api-goerli.basescan.org/api',
+    explorerApiV2Url: 'https://api.etherscan.io/v2/api',
     chainId: 84531,
+    etherscanChainId: 84531, // ID de Base Goerli Testnet en Etherscan
     name: 'Base Testnet (Goerli)'
   },
   'base-sepolia': {
     rpcUrl: 'https://sepolia.base.org',
     explorerApiUrl: 'https://api-sepolia.basescan.org/api',
+    explorerApiV2Url: 'https://api.etherscan.io/v2/api',
     chainId: 84532,
+    etherscanChainId: 84532, // ID de Base Sepolia Testnet en Etherscan
     name: 'Base Testnet (Sepolia)'
   }
 };
+
+// Función auxiliar para realizar llamadas a la API V2 de Etherscan
+async function callEtherscanV2Api(params: Record<string, string | number>, network: string) {
+  const networkConfig = NETWORKS[network as keyof typeof NETWORKS];
+  if (!networkConfig) {
+    throw new Error(`Red no soportada: ${network}`);
+  }
+
+  const apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;
+  if (!apiKey) {
+    throw new Error('No se ha configurado la clave API de Etherscan');
+  }
+
+  const queryParams = new URLSearchParams({
+    ...params,
+    chainid: networkConfig.etherscanChainId?.toString() || '',
+    apikey: apiKey
+  });
+
+  const url = `${networkConfig.explorerApiV2Url}?${queryParams.toString()}`;
+  console.log('Llamando a la API V2:', url);
+  
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (data.status === '0' && data.message !== 'No transactions found') {
+      throw new Error(data.result || 'Error en la respuesta de la API');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error en la llamada a la API V2:', error);
+    throw new Error(`Error al llamar a la API V2: ${error}`);
+  }
+}
+
+//=============================================================================
+// #region INTERFACES Y TIPOS
+//=============================================================================
 
 // Interfaz para transferencias de tokens
 export interface TokenTransfer {
@@ -53,6 +109,37 @@ export interface TokenBalance {
   decimals: number;
   usdValue: number | null;
 }
+
+// Interfaz para la información de suministro
+export interface TokenSupplyInfo {
+  totalSupply: string;
+  circulatingSupply: string;
+  lockedSupply: string;
+  lastUpdated: string;
+}
+
+// Interfaz para la información de vesting
+export interface VestingInfo {
+  contractAddress: string;
+  tokenName: string;
+  tokenSymbol: string;
+  tokenDecimals: number;
+  totalAmount: string;
+  vestedAmount: string;
+  claimableAmount: string;
+  remainingAmount: string;
+  releasedAmount: string;
+  startTime: number;
+  endTime: number;
+  cliffTime: number;
+  phase: string;
+  isRevoked: boolean;
+}
+
+//=============================================================================
+// #region PESTAÑA: TRANSFERENCIAS
+// Funciones utilizadas en la pestaña de Transferencias de tokens
+//=============================================================================
 
 /**
  * Obtiene las transferencias de tokens para una dirección de wallet específica
@@ -86,103 +173,83 @@ export async function fetchTokenTransfers(
     console.error('Error al obtener transferencias de tokens:', error);
     
     // En caso de error, devolvemos un array vacío
-    return [];
+    return [] as TokenTransfer[];
   }
 }
 
 /**
- * Obtiene las transferencias de tokens desde la blockchain utilizando la API de Basescan
+ * Obtiene las transferencias de tokens desde la blockchain utilizando la API V2 de Etherscan
  */
-export async function getTokenTransfersFromBlockchain(
+async function getTokenTransfersFromBlockchain(
   walletAddress: string,
   network: string = 'base'
 ): Promise<TokenTransfer[]> {
   try {
-    const networkConfig = NETWORKS[network as keyof typeof NETWORKS];
-    if (!networkConfig) {
-      throw new Error(`Red no soportada: ${network}`);
+    const data = await callEtherscanV2Api({
+      module: 'account',
+      action: 'tokentx',
+      address: walletAddress.toLowerCase(),
+      startblock: '0',
+      endblock: '99999999',
+      sort: 'desc',
+      page: '1',
+      offset: '1000', // Límite de resultados por página
+    }, network);
+
+    if (!data.result || !Array.isArray(data.result)) {
+      throw new Error('Formato de respuesta inesperado de la API V2');
     }
-    
-    // Obtener la clave API de las variables de entorno
-    const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
-    if (!apiKey) {
-      console.warn('No se ha configurado la clave API de Basescan');
-    }
-    
-    // Implementar reintentos para manejar límites de tasa
-    const maxRetries = 3;
-    let retryCount = 0;
-    let lastError = null;
-    
-    while (retryCount < maxRetries) {
+
+    // Procesar los resultados para extraer la información relevante
+    const transfers: TokenTransfer[] = [];
+    const uniqueTokens = new Set<string>();
+
+    for (const tx of data.result) {
       try {
-        // Realizar la solicitud a la API de Basescan
-        const response = await axios.get(networkConfig.explorerApiUrl, {
-          params: {
-            module: 'account',
-            action: 'tokentx',
-            address: walletAddress,
-            sort: 'desc',
-            apikey: apiKey || 'YourApiKeyToken' // Usar clave API por defecto si no hay una configurada
-          }
-        });
-        
-        // Verificar si la respuesta es válida
-        if (response.data.status === '1' && Array.isArray(response.data.result)) {
-          // Transformar los datos de la API al formato de nuestra aplicación
-          return response.data.result.map((tx: any) => ({
+        // Solo procesar transacciones de transferencia estándar
+        if (tx.tokenSymbol && tx.tokenName && tx.contractAddress) {
+          uniqueTokens.add(tx.contractAddress.toLowerCase());
+
+          transfers.push({
             tokenAddress: tx.contractAddress,
-            tokenSymbol: tx.tokenSymbol || 'UNKNOWN',
-            tokenName: tx.tokenName || 'Unknown Token',
+            tokenSymbol: tx.tokenSymbol,
+            tokenName: tx.tokenName,
             from: tx.from,
             to: tx.to,
-            amount: ethers.formatUnits(tx.value, parseInt(tx.tokenDecimal) || 18),
+            amount: tx.value,
             timestamp: parseInt(tx.timeStamp),
             transactionHash: tx.hash
-          }));
-        } else if (response.data.status === 'NOTOK' && response.data.message?.includes('rate limit')) {
-          // Si es un error de límite de tasa, esperamos y reintentamos
-          console.warn(`Límite de tasa excedido en BaseScan (intento ${retryCount + 1}/${maxRetries}), esperando antes de reintentar...`);
-          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Espera exponencial
-          retryCount++;
-          lastError = new Error(response.data.message);
-        } else {
-          // Si la respuesta es NOTOK pero no es por límite de tasa
-          console.warn('La API de Basescan no devolvió resultados válidos:', response.data.message || 'Sin mensaje de error');
-          
-          // Si el mensaje indica que no hay transferencias, retornamos un array vacío
-          if (response.data.message?.includes('No transactions found')) {
-            return [];
-          }
-          
-          // Para otros errores, intentamos una vez más después de una pausa
-          if (retryCount < maxRetries - 1) {
-            console.warn(`Reintentando después de error (intento ${retryCount + 1}/${maxRetries})...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            retryCount++;
-          } else {
-            return []; // Devolver array vacío después de agotar los reintentos
-          }
+          });
         }
       } catch (error) {
-        // Error de red o de otro tipo
-        lastError = error;
-        retryCount++;
-        if (retryCount < maxRetries) {
-          console.warn(`Error al conectar con BaseScan (intento ${retryCount}/${maxRetries}), reintentando...`);
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-        }
+        console.warn('Error al procesar transacción:', tx, error);
       }
     }
-    
-    // Si llegamos aquí, es porque agotamos los reintentos
-    console.error('Error al obtener transferencias después de múltiples intentos:', lastError);
-    return [];
+
+
+    // Si no hay resultados, devolver array vacío
+    if (transfers.length === 0) {
+      return [];
+    }
+
+    // Ordenar por timestamp descendente (más reciente primero)
+    transfers.sort((a, b) => b.timestamp - a.timestamp);
+
+    return transfers;
   } catch (error) {
-    console.error('Error al obtener transferencias de tokens desde la blockchain:', error);
-    return []; // Devolver array vacío en lugar de propagar el error
+    console.error('Error al obtener transferencias de tokens:', error);
+    
+    // En caso de error, devolvemos un array vacío
+    return [] as TokenTransfer[];
   }
 }
+
+// #endregion
+
+//=============================================================================
+// #region PESTAÑA: BALANCE DE TOKENS
+// Funciones utilizadas en la pestaña de Balance de Tokens
+//=============================================================================
 
 /**
  * Obtiene los balances de tokens para una dirección de wallet específica
@@ -319,13 +386,20 @@ export async function fetchTokenBalances(
       return balances.filter(token => parseFloat(token.balance) > 0);
     } catch (transferError) {
       console.error('Error al obtener tokens de las transferencias:', transferError);
-      return [];
+      return [] as TokenBalance[];
     }
   } catch (error) {
     console.error('Error al obtener balances de tokens:', error);
-    return [];
+    return [] as TokenBalance[];
   }
 }
+
+// #endregion
+
+//=============================================================================
+// #region PESTAÑA: INFORMACIÓN DE VESTING
+// Funciones utilizadas en la pestaña de Información de Vesting
+//=============================================================================
 
 /**
  * Obtiene información de vesting para una wallet y contrato específicos
@@ -347,22 +421,29 @@ export async function fetchVestingInfo(walletAddress: string, vestingContractAdd
     }
 
     // Normalizar las direcciones antes de pasarlas a la función
-    const normalizedWalletAddress = walletAddress.toLowerCase();
-    const normalizedContractAddress = vestingContractAddress.toLowerCase();
+    // Usamos ethers.getAddress para normalizar a formato checksum
+    const normalizedWalletAddress = ethers.getAddress(walletAddress);
+    const normalizedContractAddress = ethers.getAddress(vestingContractAddress);
+    
+    console.log(`Buscando vestings para wallet ${normalizedWalletAddress} en contrato ${normalizedContractAddress} (red: ${network})`);
 
     // Obtener información de vesting desde la blockchain
     const vestingInfo = await getVestingInfoFromBlockchain(normalizedWalletAddress, normalizedContractAddress, network);
     
     // Si no hay información de vesting, devolver un array vacío
     if (!vestingInfo || vestingInfo.length === 0) {
-      return [];
+      return [] as VestingInfo[];
     }
     
     return vestingInfo;
   } catch (error) {
-    console.error(`Error al obtener información de vesting para wallet ${walletAddress} en contrato ${vestingContractAddress}:`, error);
+    if (error instanceof Error) {
+      console.error(`Error al obtener información de vesting para wallet ${walletAddress} en contrato ${vestingContractAddress}:`, error.message);
+    } else {
+      console.error(`Error desconocido al obtener información de vesting para wallet ${walletAddress} en contrato ${vestingContractAddress}`);
+    }
     // Devolver un array vacío en lugar de propagar el error
-    return [];
+    return [] as VestingInfo[];
   }
 }
 
@@ -373,627 +454,195 @@ export async function fetchVestingInfo(walletAddress: string, vestingContractAdd
  * @param network Red blockchain
  * @returns Información de vesting
  */
-async function getVestingInfoFromBlockchain(walletAddress: string, vestingContractAddress: string, network: string) {
+async function getVestingInfoFromBlockchain(walletAddress: string, vestingContractAddress: string, network: string): Promise<VestingInfo[]> {
   try {
-    // Normalizar direcciones (convertir a checksum address)
-    walletAddress = ethers.getAddress(walletAddress.toLowerCase());
-    vestingContractAddress = ethers.getAddress(vestingContractAddress.toLowerCase());
+    console.log(`Buscando vestings para wallet ${walletAddress} en contrato ${vestingContractAddress} (red: ${network})`);
     
     // Obtener configuración de la red
     const networkConfig = NETWORKS[network];
     if (!networkConfig) {
       throw new Error(`Red no soportada: ${network}`);
     }
-
-    // Crear proveedor de Ethereum
+    
+    // Configurar provider
     const provider = new ethers.JsonRpcProvider(networkConfig.rpcUrl);
     
-    // Usar ABI precargado si existe, o intentar obtenerlo desde BaseScan
-    let contractABI;
+    // Normalizar dirección del contrato a formato checksum
+    const normalizedContractAddress = ethers.getAddress(vestingContractAddress);
+    console.log(`Usando ABI precargado para el contrato: ${normalizedContractAddress}`);
     
-    // Primero intentamos usar el ABI precargado
-    if (VESTING_CONTRACT_ABIS[vestingContractAddress]) {
-      console.log('Usando ABI precargado para el contrato:', vestingContractAddress);
-      contractABI = VESTING_CONTRACT_ABIS[vestingContractAddress];
+    // Obtener ABI del contrato
+    let contractAbi = VESTING_CONTRACT_ABIS[normalizedContractAddress];
+    if (!contractAbi) {
+      console.log(`No se encontró ABI precargado para ${normalizedContractAddress}, usando ABI genérico`);
+      contractAbi = GENERIC_VESTING_ABI;
+    }
+    console.log(`Usando ABI obtenido`);
+    
+    // Crear instancia del contrato
+    const vestingContract = new ethers.Contract(normalizedContractAddress, contractAbi, provider);
+    
+    // Obtener dirección del token - intentar múltiples métodos
+    let tokenAddress: string | null = null;
+    try {
+      tokenAddress = await vestingContract.token();
+      console.log(`Encontrado método token() con ABI de BaseScan: ${tokenAddress}`);
+    } catch (error) {
+      console.warn(`Error al llamar a token(), pero continuaremos:`, error);
+      try {
+        tokenAddress = await vestingContract.getToken();
+        console.log(`Encontrado método getToken(): ${tokenAddress}`);
+      } catch (error2) {
+        console.warn(`Error al llamar a getToken(), pero continuaremos:`, error2);
+        try {
+          tokenAddress = await vestingContract.tokenAddress();
+          console.log(`Encontrado método tokenAddress(): ${tokenAddress}`);
+        } catch (error3) {
+          console.warn(`Error al llamar a tokenAddress(), pero continuaremos:`, error3);
+        }
+      }
+    }
+    
+    if (!tokenAddress) {
+      console.warn(`No se pudo obtener token, pero continuaremos`);
+    }
+    
+    // Obtener información del token
+    let tokenName = 'Token Desconocido';
+    let tokenSymbol = '???';
+    let tokenDecimals = 18;
+    
+    if (tokenAddress && ethers.isAddress(tokenAddress)) {
+      try {
+        const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+        tokenName = await tokenContract.name();
+        console.log(`Nombre del token obtenido: ${tokenName}`);
+      } catch (error) {
+        console.warn(`No se pudo obtener el nombre del token`);
+      }
+      try {
+        const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+        tokenSymbol = await tokenContract.symbol();
+        console.log(`Símbolo del token obtenido: ${tokenSymbol}`);
+      } catch (error) {
+        console.warn(`No se pudo obtener el símbolo del token`);
+      }
+      try {
+        const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+        tokenDecimals = await tokenContract.decimals();
+        console.log(`Decimales del token obtenidos: ${tokenDecimals}`);
+      } catch (error) {
+        console.warn(`No se pudo obtener los decimales del token, usando valor por defecto: ${tokenDecimals}`);
+      }
     } else {
-      // Si no tenemos el ABI precargado, intentamos obtenerlo desde BaseScan
-      console.log('Intentando obtener ABI desde BaseScan...');
-      contractABI = await getContractABI(vestingContractAddress, network);
-      // Si obtuvimos el ABI, lo guardamos para futuras consultas
-      if (contractABI) {
-        console.log('Guardando ABI obtenido para futuras consultas');
-        // @ts-ignore - Ignoramos el error de TypeScript porque sabemos que estamos modificando un objeto importado
-        VESTING_CONTRACT_ABIS[vestingContractAddress] = contractABI;
-      }
+      console.warn(`No se pudo crear contrato de token: dirección inválida o nula ${tokenAddress}`);
     }
     
-    // Si tenemos el ABI, lo usamos
-    if (contractABI) {
+    console.log(`Información del token obtenida: ${tokenName} ${tokenSymbol} ${tokenDecimals}`);
+    
+    // Intentar obtener vestings usando diferentes métodos
+    let vestingSchedules: any[] = [];
+    
+    // Método 1: getVestingListByHolder
+    try {
+      console.log(`Intentando obtener vestings con getVestingListByHolder`);
+      vestingSchedules = await vestingContract.getVestingListByHolder(walletAddress);
+      console.log(`Vestings obtenidos con getVestingListByHolder: ${vestingSchedules.length}`);
+    } catch (error) {
+      console.error(`Error al intentar obtener vestings con getVestingListByHolder:`, error);
+      
+      // Método 2: getVestingSchedule (individual) con diferentes formatos de ID
       try {
-        console.log('Usando ABI obtenido');
-        const contract = new ethers.Contract(vestingContractAddress, contractABI, provider);
-        
-        // Intentar obtener la dirección del token
-        let tokenAddress;
-        try {
-          tokenAddress = await contract.token();
-          console.log("Encontrado método token() con ABI de BaseScan:", tokenAddress);
-        } catch (e) {
-          console.warn("No se encontró método token() en el ABI de BaseScan:", e);
-          // Si no podemos obtener el token, probamos con nuestros ABIs predefinidos
-          throw new Error("No se pudo obtener token con ABI de BaseScan");
-        }
-        
-        // Obtener información del token
-        const tokenABI = [
-          "function name() view returns (string)",
-          "function symbol() view returns (string)",
-          "function decimals() view returns (uint8)"
+        console.log(`Intentando obtener vesting con getVestingSchedule`);
+        let schedule = null;
+        const idFormats = [
+          walletAddress,
+          walletAddress.toLowerCase(),
+          `0x000000000000000000000000${walletAddress.slice(2).toLowerCase()}`,
+          `0x000000000000000000000000${walletAddress.slice(2)}`,
+          '0',
+          '1'
         ];
         
-        const tokenContract = new ethers.Contract(tokenAddress, tokenABI, provider);
-        let tokenName, tokenSymbol, tokenDecimals;
+        for (const format of idFormats) {
+          try {
+            console.log(`Probando getVestingSchedule con formato: ${format}`);
+            schedule = await vestingContract.getVestingSchedule(format);
+            if (schedule) {
+              console.log(`Vesting obtenido con getVestingSchedule usando formato: ${format}`);
+              vestingSchedules = [schedule];
+              break;
+            }
+          } catch (formatError) {
+            console.warn(`Error con formato ${format} en getVestingSchedule:`, formatError);
+          }
+        }
         
+        if (!schedule) {
+          console.error(`No se pudo obtener vesting con ningún formato en getVestingSchedule`);
+        }
+      } catch (error2) {
+        console.error(`Error al intentar obtener vesting con getVestingSchedule:`, error2);
+        
+        // Método 3: getSchedulesByHolder
         try {
-          tokenName = await tokenContract.name();
-          tokenSymbol = await tokenContract.symbol();
-          tokenDecimals = await tokenContract.decimals();
-          console.log("Información del token obtenida:", tokenName, tokenSymbol, tokenDecimals);
-        } catch (e) {
-          console.warn("Error al obtener información del token:", e);
-          // Usamos valores por defecto si no podemos obtener la información
-          tokenName = "Token Desconocido";
-          tokenSymbol = "???";
-          tokenDecimals = 18;
-        }
-        
-        // Intentar obtener información de vesting
-        // Primero verificamos qué métodos están disponibles en el ABI
-        const abiMethods = contractABI.filter((item: any) => item.type === 'function').map((item: any) => item.name);
-        console.log("Métodos disponibles en el ABI:", abiMethods);
-        
-        let vestingInfo = null;
-        
-        // Contrato Vottun específico (0x3e0ef51811B647E00A85A7e5e495fA4763911982)
-        if (abiMethods.includes('getVestingListByHolder') && abiMethods.includes('getVestingSchedule')) {
-          console.log("Detectado contrato Vottun con getVestingListByHolder");
+          console.log(`Intentando obtener vestings con getSchedulesByHolder`);
+          vestingSchedules = await vestingContract.getSchedulesByHolder(walletAddress);
+          console.log(`Vestings obtenidos con getSchedulesByHolder: ${vestingSchedules.length}`);
+        } catch (error3) {
+          console.error(`Error al intentar obtener vestings con getSchedulesByHolder:`, error3);
           
+          // Método 4: getVestingSchedules (si está disponible)
           try {
-            // Verificar primero si el contrato tiene un método para contar vestings
-            if (abiMethods.includes('getHolderVestingCount')) {
-              try {
-                const vestingCount = await contract.getHolderVestingCount(walletAddress);
-                console.log(`Número de vestings para ${walletAddress}:`, vestingCount);
-                
-                // Si no hay vestings, devolvemos un array vacío inmediatamente
-                if (vestingCount && Number(vestingCount) === 0) {
-                  console.log(`La dirección ${walletAddress} no tiene vestings en este contrato`);
-                  return [];
-                }
-              } catch (e) {
-                console.warn("Error al obtener el conteo de vestings:", e);
-                // Continuamos con el método normal si falla
-              }
-            }
-            
-            // Obtener la lista de IDs de vesting para el holder
-            const vestingIds = await contract.getVestingListByHolder(walletAddress);
-            console.log("IDs de vesting obtenidos:", vestingIds);
-            
-            // Verificar la estructura de los datos
-            console.log("Tipo de vestingIds:", typeof vestingIds);
-            console.log("Es Array:", Array.isArray(vestingIds));
-            console.log("Longitud:", vestingIds.length);
-            
-            // Intentar extraer información directamente de la respuesta
-            const vestingSchedules = [];
-            
-            // Si vestingIds es un objeto con propiedades numéricas (como un array-like)
-            if (vestingIds && typeof vestingIds === 'object') {
-              // Determinar cuántos elementos hay
-              let numItems = 0;
-              
-              if (Array.isArray(vestingIds)) {
-                numItems = vestingIds.length;
-              } else {
-                numItems = Object.keys(vestingIds)
-                  .filter(key => !isNaN(Number(key)))
-                  .length;
-              }
-              
-              console.log("Número de elementos detectados:", numItems);
-              
-              if (numItems === 0) {
-                console.log(`La dirección ${walletAddress} no tiene vestings en este contrato (array vacío)`);
-                return [];
-              }
-              
-              for (let i = 0; i < numItems; i++) {
-                try {
-                  // Intentar extraer información directamente
-                  console.log("Elemento", i, ":", vestingIds[i]);
-                  
-                  // Intentar extraer el ID de vesting (puede estar en diferentes formatos)
-                  let vestingId;
-                  if (vestingIds[i] && typeof vestingIds[i] === 'object') {
-                    // Puede ser un objeto con el ID en la primera posición
-                    if (vestingIds[i][0]) {
-                      vestingId = vestingIds[i][0];
-                    } 
-                    // O puede tener propiedades específicas
-                    else if (vestingIds[i].id) {
-                      vestingId = vestingIds[i].id;
-                    }
-                    // Si es un objeto con propiedades numéricas, tomamos la primera
-                    else if (Object.keys(vestingIds[i]).some(k => !isNaN(Number(k)))) {
-                      vestingId = vestingIds[i][0];
-                    }
-                    // Intentar con vestingId directamente
-                    else if (vestingIds[i].vestingId) {
-                      vestingId = vestingIds[i].vestingId;
-                    }
-                  } else if (typeof vestingIds[i] === 'string') {
-                    // Si es directamente un string
-                    vestingId = vestingIds[i];
-                  } else if (typeof vestingIds[i] === 'bigint' || typeof vestingIds[i] === 'number') {
-                    // Si es un número o bigint
-                    vestingId = vestingIds[i].toString();
-                  }
-                  
-                  if (!vestingId) {
-                    console.warn("No se pudo determinar el ID de vesting para el elemento", i);
-                    continue;
-                  }
-                  
-                  console.log("Procesando vesting ID:", vestingId);
-                  
-                  // Intentar obtener información directamente del objeto si ya contiene los datos
-                  let schedule;
-                  if (vestingIds[i] && typeof vestingIds[i] === 'object' && 
-                      (vestingIds[i].amount || vestingIds[i].amountTotal || vestingIds[i][5])) {
-                    // El objeto ya contiene la información que necesitamos
-                    console.log("Usando información de vesting directamente del objeto");
-                    schedule = vestingIds[i];
-                  } else {
-                    // Necesitamos hacer una llamada adicional para obtener el schedule
-                    try {
-                      schedule = await contract.getVestingSchedule(vestingId);
-                      console.log("Vesting schedule para ID", vestingId, ":", schedule);
-                    } catch (e) {
-                      console.warn("Error al obtener schedule para ID", vestingId, ":", e);
-                      // Intentar con otro formato si falla
-                      try {
-                        // Algunos contratos esperan un bytes32 en lugar de string
-                        if (typeof vestingId === 'string' && vestingId.startsWith('0x')) {
-                          console.log("Intentando con formato bytes32...");
-                          schedule = await contract.getVestingSchedule(ethers.zeroPadValue(vestingId, 32));
-                        } else {
-                          throw new Error("Formato de ID no compatible");
-                        }
-                      } catch (e2) {
-                        console.warn("Error en segundo intento:", e2);
-                        continue;
-                      }
-                    }
-                  }
-                  
-                  if (!schedule) {
-                    console.warn("No se pudo obtener schedule para ID", vestingId);
-                    continue;
-                  }
-                  
-                  // Extraer los valores del schedule (adaptando a diferentes formatos posibles)
-                  // Para el contrato Vottun específico, sabemos que los campos están en posiciones específicas
-                  // o con nombres específicos
-                  const totalAmount = schedule.amountTotal || schedule.amount || schedule[5] || BigInt(0);
-                  const startTime = Number(schedule.start || schedule.startTime || schedule[3] || 0);
-                  const duration = Number(schedule.duration || schedule[4] || 0);
-                  const endTime = startTime + duration;
-                  const cliff = Number(schedule.cliff || 0);
-                  const slicePeriodSeconds = Number(schedule.slicePeriodSeconds || schedule[6] || 0);
-                  const revocable = schedule.revocable || schedule[9] || false;
-                  const released = schedule.released || schedule[7] || BigInt(0);
-                  
-                  // Para este contrato específico, podemos calcular aproximadamente
-                  const currentTime = Math.floor(Date.now() / 1000);
-                  let vestedAmount = BigInt(0);
-                  
-                  if (currentTime >= startTime) {
-                    if (currentTime >= endTime) {
-                      // Si ya pasó el tiempo total, todo está liberado
-                      vestedAmount = totalAmount;
-                    } else {
-                      // Calcular proporción liberada
-                      const timeFromStart = currentTime - startTime;
-                      const vestedPortion = timeFromStart / duration;
-                      vestedAmount = (totalAmount * BigInt(Math.floor(vestedPortion * 1000000))) / BigInt(1000000);
-                    }
-                  }
-                  
-                  // Calcular monto reclamable (liberado menos lo ya reclamado)
-                  const claimableAmount = vestedAmount > released ? vestedAmount - released : BigInt(0);
-                  
-                  // Calcular el monto restante
-                  const remainingAmount = totalAmount - vestedAmount;
-                  
-                  vestingSchedules.push({
-                    vestingId: vestingId,
-                    totalAmount: ethers.formatUnits(totalAmount, tokenDecimals),
-                    vestedAmount: ethers.formatUnits(vestedAmount, tokenDecimals),
-                    claimableAmount: ethers.formatUnits(claimableAmount, tokenDecimals),
-                    remainingAmount: ethers.formatUnits(remainingAmount, tokenDecimals),
-                    releasedAmount: ethers.formatUnits(released, tokenDecimals), // Tokens ya reclamados
-                    startTime: startTime,
-                    endTime: endTime,
-                    cliff: cliff,
-                    slicePeriodSeconds: slicePeriodSeconds,
-                    revocable: revocable
-                  });
-                } catch (e) {
-                  console.warn("Error al procesar vesting ID", i, ":", e);
-                }
-              }
-              
-              if (vestingSchedules.length > 0) {
-                // Devolver información para todos los vestings encontrados
-                return vestingSchedules.map(schedule => ({
-                  tokenAddress,
-                  tokenSymbol,
-                  tokenName,
-                  vestingContract: vestingContractAddress,
-                  ...schedule
-                }));
-              }
-            } else {
-              console.warn("No se encontraron IDs de vesting para el holder o formato no reconocido:", walletAddress);
-            }
-          } catch (e) {
-            console.warn("Error al obtener lista de vestings:", e);
+            console.log(`Intentando obtener vestings con getVestingSchedules`);
+            vestingSchedules = await vestingContract.getVestingSchedules(walletAddress);
+            console.log(`Vestings obtenidos con getVestingSchedules: ${vestingSchedules.length}`);
+          } catch (error4) {
+            console.error(`Error al intentar obtener vestings con getVestingSchedules:`, error4);
           }
         }
-        
-        // Verificar si tiene métodos específicos y obtener la información correspondiente
-        if (abiMethods.some((fn: any) => typeof fn === 'object' && fn.name === 'getVestingSchedule')) {
-          // Tipo con getVestingSchedule
-          console.log("Detectado método getVestingSchedule");
-          
-          try {
-            const schedule = await contract.getVestingSchedule(walletAddress);
-            
-            let nextUnlockTime, nextUnlockAmount;
-            if (abiMethods.some((fn: any) => typeof fn === 'object' && fn.name === 'getNextUnlock')) {
-              try {
-                const nextUnlock = await contract.getNextUnlock(walletAddress);
-                nextUnlockTime = Number(nextUnlock.timestamp);
-                nextUnlockAmount = ethers.formatUnits(nextUnlock.amount, tokenDecimals);
-              } catch (e) {
-                console.warn("No se pudo obtener próximo desbloqueo:", e);
-              }
-            }
-            
-            vestingInfo = {
-              totalAmount: ethers.formatUnits(schedule.totalAmount, tokenDecimals),
-              vestedAmount: ethers.formatUnits(schedule.vestedAmount, tokenDecimals),
-              claimableAmount: ethers.formatUnits(schedule.claimableAmount, tokenDecimals),
-              remainingAmount: ethers.formatUnits(schedule.remainingAmount, tokenDecimals),
-              releasedAmount: ethers.formatUnits(schedule.released || BigInt(0), tokenDecimals), // Tokens ya reclamados
-              startTime: Number(schedule.startTime),
-              endTime: Number(schedule.endTime),
-              ...(nextUnlockTime && { nextUnlockTime }),
-              ...(nextUnlockAmount && { nextUnlockAmount })
-            };
-          } catch (e) {
-            console.warn("Error al obtener vesting schedule:", e);
-          }
-        } 
-        else if (abiMethods.some((fn: any) => typeof fn === 'object' && (fn.name === 'vestingAmount' || fn.name === 'getVestingAmount'))) {
-          // Tipo Vottun - Contrato específico
-          console.log("Probando contrato Tipo Vottun");
-          try {
-            const totalAmount = await contract.vestingAmount(walletAddress);
-            const startTime = Number(await contract.vestingStart(walletAddress));
-            const duration = Number(await contract.vestingDuration(walletAddress));
-            const cliff = Number(await contract.vestingCliff(walletAddress));
-            const released = await contract.released(walletAddress);
-            const releasable = await contract.releasable(walletAddress);
-            
-            const endTime = startTime + duration;
-            const cliffEndTime = startTime + cliff;
-            
-            vestingInfo = {
-              totalAmount: ethers.formatUnits(totalAmount, tokenDecimals),
-              vestedAmount: ethers.formatUnits(released, tokenDecimals),
-              claimableAmount: ethers.formatUnits(releasable, tokenDecimals),
-              remainingAmount: ethers.formatUnits(totalAmount - released - releasable, tokenDecimals),
-              releasedAmount: ethers.formatUnits(released, tokenDecimals), 
-              startTime: startTime,
-              endTime: endTime,
-              cliffEndTime: cliffEndTime
-            };
-          } catch (e) {
-            console.warn("Error al obtener información de vesting:", e);
-          }
-        }
-        
-        // Si encontramos información de vesting, la devolvemos
-        if (vestingInfo) {
-          return [{
-            tokenAddress,
-            tokenSymbol,
-            tokenName,
-            vestingContract: vestingContractAddress,
-            ...vestingInfo
-          }];
-        }
-      } catch (e) {
-        console.warn("Error al usar ABI de BaseScan:", e);
-        // Si hay un error, continuamos con nuestros ABIs predefinidos
       }
     }
     
-    // Si no pudimos obtener el ABI desde BaseScan o hubo un error, usamos nuestros ABIs predefinidos
-    console.log('Usando ABIs predefinidos...');
-    
-    // Intentamos con diferentes ABIs comunes para contratos de vesting
-    // Esta es una lista más completa de posibles funciones en contratos de vesting
-    const vestingABIs = [
-      // ABI específico para el contrato Vottun (0x3e0ef51811B647E00A85A7e5e495fA4763911982)
-      [
-        "function token() view returns (address)",
-        "function vestingAmount(address) view returns (uint256)",
-        "function vestingStart(address) view returns (uint256)",
-        "function vestingDuration(address) view returns (uint256)",
-        "function vestingCliff(address) view returns (uint256)",
-        "function released(address) view returns (uint256)",
-        "function releasable(address) view returns (uint256)",
-        "function vestingBeneficiary(address) view returns (address)"
-      ],
-      // ABI Tipo 1 - Estilo OpenZeppelin VestingWallet
-      [
-        "function beneficiary() view returns (address)",
-        "function token() view returns (address)",
-        "function start() view returns (uint256)",
-        "function duration() view returns (uint256)",
-        "function released() view returns (uint256)",
-        "function releasable() view returns (uint256)",
-        "function vestedAmount(uint64) view returns (uint256)"
-      ],
-      // ABI Tipo 2 - Estilo personalizado con getVestingSchedule
-      [
-        "function getVestingSchedule(address beneficiary) view returns (uint256 totalAmount, uint256 vestedAmount, uint256 claimableAmount, uint256 remainingAmount, uint256 startTime, uint256 endTime)",
-        "function getNextUnlock(address beneficiary) view returns (uint256 timestamp, uint256 amount)",
-        "function token() view returns (address)"
-      ],
-      // ABI Tipo 3 - Estilo con cliff
-      [
-        "function token() view returns (address)",
-        "function cliff() view returns (uint256)",
-        "function start() view returns (uint256)",
-        "function duration() view returns (uint256)",
-        "function released(address) view returns (uint256)",
-        "function releasableAmount(address) view returns (uint256)",
-        "function totalAmount(address) view returns (uint256)"
-      ]
-    ];
-    
-    // Información que intentaremos obtener
-    let tokenAddress;
-    let vestingInfo = null;
-    let tokenContract;
-    let tokenName;
-    let tokenSymbol;
-    let tokenDecimals;
-    
-    // Probar cada ABI hasta encontrar uno que funcione
-    for (const abi of vestingABIs) {
-      try {
-        const contract = new ethers.Contract(vestingContractAddress, abi, provider);
-        
-        // Intentar obtener la dirección del token
-        try {
-          tokenAddress = await contract.token();
-          console.log("Encontrado método token()", tokenAddress);
-        } catch (e) {
-          // Si no tiene método token(), intentamos otras opciones
-          console.log("No se encontró método token(), probando alternativas");
-          continue;
-        }
-        
-        // Si llegamos aquí, tenemos un contrato que al menos tiene token()
-        // Ahora intentamos obtener información del token
-        const tokenABI = [
-          "function name() view returns (string)",
-          "function symbol() view returns (string)",
-          "function decimals() view returns (uint8)"
-        ];
-        
-        tokenContract = new ethers.Contract(tokenAddress, tokenABI, provider);
-        
-        try {
-          tokenName = await tokenContract.name();
-          tokenSymbol = await tokenContract.symbol();
-          tokenDecimals = await tokenContract.decimals();
-          console.log("Información del token obtenida:", tokenName, tokenSymbol, tokenDecimals);
-        } catch (e) {
-          console.warn("Error al obtener información del token:", e);
-          // Usamos valores por defecto si no podemos obtener la información
-          tokenName = "Token Desconocido";
-          tokenSymbol = "???";
-          tokenDecimals = 18;
-        }
-        
-        // Ahora intentamos obtener información de vesting según el tipo de contrato
-        if (abi.some((fn: any) => typeof fn === 'object' && fn.name === 'getVestingSchedule')) {
-          // Tipo 2 - Con getVestingSchedule
-          console.log("Probando contrato Tipo 2 (getVestingSchedule)");
-          
-          try {
-            const schedule = await contract.getVestingSchedule(walletAddress);
-            
-            let nextUnlockTime, nextUnlockAmount;
-            if (abi.some((fn: any) => typeof fn === 'object' && fn.name === 'getNextUnlock')) {
-              try {
-                const nextUnlock = await contract.getNextUnlock(walletAddress);
-                nextUnlockTime = Number(nextUnlock.timestamp);
-                nextUnlockAmount = ethers.formatUnits(nextUnlock.amount, tokenDecimals);
-              } catch (e) {
-                console.warn("No se pudo obtener próximo desbloqueo:", e);
-              }
-            }
-            
-            vestingInfo = {
-              totalAmount: ethers.formatUnits(schedule.totalAmount, tokenDecimals),
-              vestedAmount: ethers.formatUnits(schedule.vestedAmount, tokenDecimals),
-              claimableAmount: ethers.formatUnits(schedule.claimableAmount, tokenDecimals),
-              remainingAmount: ethers.formatUnits(schedule.remainingAmount, tokenDecimals),
-              releasedAmount: ethers.formatUnits(schedule.released || BigInt(0), tokenDecimals), // Tokens ya reclamados
-              startTime: Number(schedule.startTime),
-              endTime: Number(schedule.endTime),
-              ...(nextUnlockTime && { nextUnlockTime }),
-              ...(nextUnlockAmount && { nextUnlockAmount })
-            };
-            break;
-          } catch (e) {
-            console.warn("Error al probar ABI:", e);
-            continue;
-          }
-        } 
-        else if (abi.some((fn: any) => typeof fn === 'object' && (fn.name === 'vestingAmount' || fn.name === 'getVestingAmount'))) {
-          // Tipo Vottun - Contrato específico
-          console.log("Probando contrato Tipo Vottun");
-          try {
-            const totalAmount = await contract.vestingAmount(walletAddress);
-            const startTime = Number(await contract.vestingStart(walletAddress));
-            const duration = Number(await contract.vestingDuration(walletAddress));
-            const cliff = Number(await contract.vestingCliff(walletAddress));
-            const released = await contract.released(walletAddress);
-            const releasable = await contract.releasable(walletAddress);
-            
-            const endTime = startTime + duration;
-            const cliffEndTime = startTime + cliff;
-            
-            vestingInfo = {
-              totalAmount: ethers.formatUnits(totalAmount, tokenDecimals),
-              vestedAmount: ethers.formatUnits(released, tokenDecimals),
-              claimableAmount: ethers.formatUnits(releasable, tokenDecimals),
-              remainingAmount: ethers.formatUnits(totalAmount - released - releasable, tokenDecimals),
-              releasedAmount: ethers.formatUnits(released, tokenDecimals), 
-              startTime: startTime,
-              endTime: endTime,
-              cliffEndTime: cliffEndTime
-            };
-            break;
-          } catch (e) {
-            console.warn("Error al probar ABI:", e);
-            continue;
-          }
-        }
-        else if (abi.some((fn: any) => typeof fn === 'object' && fn.name === 'cliff')) {
-          // Tipo 3 - Estilo con cliff
-          console.log("Probando contrato Tipo 3 (con cliff)");
-          try {
-            const start = Number(await contract.start());
-            const cliff = Number(await contract.cliff());
-            const duration = Number(await contract.duration());
-            const totalAmount = await contract.totalAmount(walletAddress);
-            const released = await contract.released(walletAddress);
-            let releasable;
-            
-            try {
-              releasable = await contract.releasableAmount(walletAddress);
-            } catch (e) {
-              // Si no hay método releasableAmount, calculamos una aproximación
-              const currentTime = Math.floor(Date.now() / 1000);
-              const timeFromStart = currentTime - start;
-              if (timeFromStart < cliff) {
-                releasable = BigInt(0);
-              } else if (timeFromStart >= duration) {
-                releasable = totalAmount - released;
-              } else {
-                const vestedPortion = timeFromStart / duration;
-                const vestedAmount = (totalAmount * BigInt(Math.floor(vestedPortion * 1000000))) / BigInt(1000000);
-                releasable = vestedAmount - released;
-              }
-            }
-            
-            const endTime = start + duration;
-            const cliffEnd = start + cliff;
-            
-            vestingInfo = {
-              totalAmount: ethers.formatUnits(totalAmount, tokenDecimals),
-              vestedAmount: ethers.formatUnits(released, tokenDecimals),
-              claimableAmount: ethers.formatUnits(releasable, tokenDecimals),
-              remainingAmount: ethers.formatUnits(totalAmount - released - releasable, tokenDecimals),
-              releasedAmount: ethers.formatUnits(released, tokenDecimals), 
-              startTime: start,
-              endTime: endTime,
-              cliffEndTime: cliffEnd
-            };
-            break;
-          } catch (e) {
-            console.warn("Error al probar ABI:", e);
-            continue;
-          }
-        }
-        else {
-          // Tipo 1 - Estilo OpenZeppelin
-          console.log("Probando contrato Tipo 1 (OpenZeppelin)");
-          try {
-            const start = Number(await contract.start());
-            const duration = Number(await contract.duration());
-            const released = await contract.released();
-            const releasable = await contract.releasable();
-            
-            // Para obtener el total, necesitamos calcular el vested amount al final del período
-            const currentTime = Math.floor(Date.now() / 1000);
-            const endTime = start + duration;
-            
-            // Calculamos el total sumando lo liberado y lo que se puede liberar
-            const totalAmount = await contract.vestedAmount(BigInt(endTime));
-            
-            vestingInfo = {
-              totalAmount: ethers.formatUnits(totalAmount, tokenDecimals),
-              vestedAmount: ethers.formatUnits(released, tokenDecimals),
-              claimableAmount: ethers.formatUnits(releasable, tokenDecimals),
-              remainingAmount: ethers.formatUnits(totalAmount - released - releasable, tokenDecimals),
-              releasedAmount: ethers.formatUnits(released, tokenDecimals), 
-              startTime: start,
-              endTime: endTime
-            };
-            break;
-          } catch (e) {
-            console.warn("Error al probar ABI:", e);
-            continue;
-          }
-        }
-      } catch (e) {
-        console.warn("Error al probar ABI:", e);
-        // Continuamos con el siguiente ABI
-        continue;
-      }
-    }
-    
-    // Si no encontramos información de vesting, devolvemos array vacío
-    if (!vestingInfo) {
-      console.warn("No se pudo obtener información de vesting con ninguno de los ABIs probados");
+    // Si no se encontraron schedules, retornamos array vacío
+    if (!vestingSchedules || vestingSchedules.length === 0) {
+      console.log(`No se encontraron vesting schedules`);
       return [];
     }
     
-    // Crear objeto con la información de vesting
-    return [{
-      tokenAddress,
-      tokenSymbol,
-      tokenName,
-      vestingContract: vestingContractAddress,
-      ...vestingInfo
-    }];
+    // Procesar los schedules obtenidos
+    const vestingInfoList: VestingInfo[] = vestingSchedules.map((schedule: any, index: number) => {
+      return {
+        contractAddress: vestingContractAddress,
+        tokenName: tokenName,
+        tokenSymbol: tokenSymbol,
+        tokenDecimals: tokenDecimals,
+        totalAmount: schedule.amountTotal ? ethers.formatUnits(schedule.amountTotal, tokenDecimals) : '0',
+        vestedAmount: '0',
+        claimableAmount: '0',
+        remainingAmount: schedule.amountTotal && schedule.released ? ethers.formatUnits(BigInt(schedule.amountTotal) - BigInt(schedule.released), tokenDecimals) : '0',
+        releasedAmount: schedule.released ? ethers.formatUnits(schedule.released, tokenDecimals) : '0',
+        startTime: schedule.start ? Number(schedule.start) : 0,
+        endTime: schedule.start && schedule.duration ? Number(schedule.start) + Number(schedule.duration) : 0,
+        cliffTime: schedule.cliff ? Number(schedule.cliff) : 0,
+        phase: schedule.phase || `Fase ${index + 1}`,
+        isRevoked: schedule.revoked || false
+      };
+    });
+    
+    return vestingInfoList;
   } catch (error) {
-    console.error('Error al obtener información de vesting desde la blockchain:', error);
-    // Si hay un error específico con el contrato, podemos devolver un array vacío
-    // para indicar que no hay información de vesting disponible
+    console.error(`Error al obtener información de vesting para ${vestingContractAddress}:`, error);
     return [];
   }
 }
+
+// #endregion
+
+//=============================================================================
+// #region VESTINGS
+// Funciones utilizadas para interactuar con contratos de vesting
+//=============================================================================
 
 /**
  * Verifica si todos los tokens han sido vested en un contrato de vesting específico
@@ -1108,36 +757,154 @@ export async function checkVestingContractStatus(
         // Intentar obtener información básica del contrato
         try {
           // Verificar qué métodos están disponibles en el ABI
-          const abiMethods = contractABI.filter((item: any) => item.type === 'function').map((item: any) => item.name);
+          const abiMethods = contractABI.filter((item: any) => item.type === 'function').map((item: any) => item.name || (item.name && item.name.name) || item);
           console.log("Métodos disponibles en el ABI:", abiMethods);
           
           // Determinar el tipo de contrato de vesting basado en los métodos disponibles
-          if (abiMethods.some((fn: any) => typeof fn === 'object' && fn.name === 'getVestingSchedulesCount') && abiMethods.some((fn: any) => typeof fn === 'object' && fn.name === 'getVestingScheduleById')) {
+          const hasMethod = (methodName: string) => {
+            return abiMethods.some((fn: any) => {
+              if (typeof fn === 'string') return fn === methodName;
+              if (typeof fn === 'object' && fn.name) return fn.name === methodName;
+              return false;
+            });
+          };
+          
+          if (hasMethod('getVestingSchedulesCount') && hasMethod('getVestingScheduleById')) {
             result.contractType = 'VestingSchedules';
-          } else if (abiMethods.some((fn: any) => typeof fn === 'object' && fn.name === 'getVestingListByHolder')) {
+          } else if (hasMethod('getVestingListByHolder')) {
             result.contractType = 'Vottun';
-          } else if (abiMethods.some((fn: any) => typeof fn === 'object' && fn.name === 'vestingSchedules')) {
+          } else if (hasMethod('vestingSchedules')) {
             result.contractType = 'OpenZeppelin';
+          } else {
+            // Intentar determinar el tipo basado en métodos disponibles
+            if (hasMethod('releasable') || hasMethod('released') || hasMethod('vestedAmount')) {
+              result.contractType = 'GenericVesting';
+            } else if (hasMethod('getVestingSchedule') || hasMethod('getVestingSchedules')) {
+              result.contractType = 'CustomVesting';
+            } else {
+              result.contractType = 'UnknownVesting';
+            }
           }
           
           console.log("Tipo de contrato detectado:", result.contractType);
           
+          // Función segura para llamar a métodos del contrato
+          const safeCall = async (methodName: string, args: any[] = [], targetContract = contract) => {
+            try {
+              if (targetContract && typeof targetContract[methodName] === 'function') {
+                return await targetContract[methodName](...args);
+              }
+              return null;
+            } catch (e) {
+              console.warn(`Error al llamar a ${methodName}:`, e);
+              return null;
+            }
+          };
+
           // Intentar obtener la dirección del token usando diferentes métodos
           const tokenMethods = ['token', 'getToken', 'tokenAddress'];
           for (const method of tokenMethods) {
-            if (abiMethods.some((fn: any) => typeof fn === 'object' && fn.name === method)) {
-              try {
-                result.tokenAddress = await contract[method]();
-                console.log(`Dirección del token obtenida con ${method}():`, result.tokenAddress);
-                break;
-              } catch (e) {
-                console.warn(`Error al obtener dirección del token con ${method}():`, e);
+            try {
+              if (hasMethod(method)) {
+                const tokenAddr = await safeCall(method);
+                if (tokenAddr && ethers.isAddress(tokenAddr)) {
+                  result.tokenAddress = tokenAddr;
+                  console.log(`Dirección del token obtenida con ${method}():`, result.tokenAddress);
+                  break;
+                }
               }
+            } catch (e) {
+              console.warn(`Error al obtener dirección del token con ${method}():`, e);
             }
           }
           
-          // Si no pudimos obtener la dirección del token, intentamos buscar transferencias de tokens
-          if (!result.tokenAddress) {
+          // Obtener información del token si tenemos la dirección
+          if (result.tokenAddress) {
+            try {
+              const tokenContract = new ethers.Contract(
+                result.tokenAddress,
+                ERC20_ABI,
+                provider
+              );
+              
+              // Obtener símbolo, nombre y decimales del token
+              result.tokenSymbol = await safeCall('symbol', [], tokenContract) || 'UNKNOWN';
+              result.tokenName = await safeCall('name', [], tokenContract) || 'Unknown Token';
+              result.tokenDecimals = await safeCall('decimals', [], tokenContract) || 18;
+              
+              console.log(`Información del token obtenida: ${result.tokenName} (${result.tokenSymbol}), ${result.tokenDecimals} decimales`);
+              
+              // Obtener el balance actual del contrato de vesting
+              try {
+                const balance = await safeCall('balanceOf', [normalizedContractAddress], tokenContract);
+                if (balance) {
+                  result.lastTokenBalance = ethers.formatUnits(balance, result.tokenDecimals);
+                  console.log(`Balance actual del contrato: ${result.lastTokenBalance} ${result.tokenSymbol}`);
+                }
+                
+                // Obtener total vested usando diferentes métodos
+                const totalVestedMethods = [
+                  'totalVestedAmount',
+                  'vestingSchedulesTotalAmount',
+                  'totalVested',
+                  'totalAmount'
+                ];
+                
+                for (const method of totalVestedMethods) {
+                  try {
+                    const total = await safeCall(method);
+                    if (total && BigInt(total) > 0) {
+                      result.totalVested = ethers.formatUnits(total, result.tokenDecimals);
+                      console.log(`Total vested obtenido con ${method}: ${result.totalVested}`);
+                      break;
+                    }
+                  } catch (e) {
+                    console.warn(`Error al obtener total vested con ${method}:`, e);
+                  }
+                }
+                
+                // Obtener total liberado usando diferentes métodos
+                const totalReleasedMethods = [
+                  'totalReleased',
+                  'released',
+                  'totalWithdrawn',
+                  'totalClaimed'
+                ];
+                
+                for (const method of totalReleasedMethods) {
+                  try {
+                    const released = await safeCall(method);
+                    if (released !== null && released !== undefined) {
+                      result.totalReleased = ethers.formatUnits(released, result.tokenDecimals);
+                      console.log(`Total liberado obtenido con ${method}: ${result.totalReleased}`);
+                      break;
+                    }
+                  } catch (e) {
+                    console.warn(`Error al obtener total liberado con ${method}:`, e);
+                  }
+                }
+                
+                // Calcular tokens restantes
+                if (result.totalVested && result.totalReleased) {
+                  const vested = ethers.parseUnits(result.totalVested, result.tokenDecimals);
+                  const released = ethers.parseUnits(result.totalReleased, result.tokenDecimals);
+                  const remaining = vested - released;
+                  result.remainingToVest = ethers.formatUnits(remaining, result.tokenDecimals);
+                  console.log(`Tokens restantes: ${result.remainingToVest}`);
+                  
+                  // Verificar si todos los tokens han sido vested
+                  result.allTokensVested = BigInt(remaining.toString()) === BigInt(0);
+                }
+                
+              } catch (e) {
+                console.warn('Error al obtener información de vesting:', e);
+              }
+              
+            } catch (e) {
+              console.warn('Error al obtener información del token:', e);
+            }
+          } else {
+            // Si no pudimos obtener la dirección del token, intentamos buscar transferencias de tokens
             try {
               // Obtener historial de transferencias de tokens para el contrato
               const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
@@ -1149,13 +916,13 @@ export async function checkVestingContractStatus(
                 params: {
                   module: 'account',
                   action: 'tokentx',
-                  address: normalizedContractAddress,
-                  sort: 'asc', // Ordenar por antigüedad para ver primero las más antiguas
+                  address: normalizedContractAddress.toLowerCase(),
+                  sort: 'desc', // Ordenar por antigüedad para ver primero las más antiguas
                   apikey: apiKey || 'YourApiKeyToken' // Usar clave API por defecto si no hay una configurada
                 }
               });
               
-              if (response.data.status === '1' && Array.isArray(response.data.result) && response.data.result.length > 0) {
+              if (response.data.status === '1' && Array.isArray(response.data.result)) {
                 // Obtener fecha de creación (primera transacción)
                 const firstTx = response.data.result[0];
                 if (firstTx && firstTx.timeStamp) {
@@ -1260,18 +1027,29 @@ export async function checkVestingContractStatus(
               
               try {
                 result.tokenName = await tokenContract.name();
-                result.tokenSymbol = await tokenContract.symbol();
-                result.tokenDecimals = await tokenContract.decimals();
-                console.log("Información del token obtenida:", result.tokenName, result.tokenSymbol, result.tokenDecimals);
               } catch (e) {
-                console.warn("Error al obtener información del token:", e);
-                // Usamos valores por defecto si no podemos obtener la información
-                if (!result.tokenName) result.tokenName = "Token Desconocido";
-                if (!result.tokenSymbol) result.tokenSymbol = "???";
+                console.log("No se pudo obtener el nombre del token");
               }
+              try {
+                result.tokenSymbol = await tokenContract.symbol();
+              } catch (e) {
+                console.log("No se pudo obtener el símbolo del token");
+              }
+              try {
+                result.tokenDecimals = await tokenContract.decimals();
+              } catch (e) {
+                console.log("No se pudo obtener los decimales del token, usando valor por defecto: 18");
+              }
+              console.log("Información del token obtenida:", result.tokenName, result.tokenSymbol, result.tokenDecimals);
             } catch (e) {
-              console.warn("Error al crear contrato de token:", e);
+              console.warn("Error al obtener información del token:", e);
+              // Mantenemos los valores por defecto
+              result.tokenName = "Token Desconocido";
+              result.tokenSymbol = "???";
+              result.tokenDecimals = 18;
             }
+          } else {
+            console.warn("No se pudo crear contrato de token: dirección inválida o nula", result.tokenAddress);
           }
           
           // Intentar obtener el número de schedules de vesting usando diferentes métodos
@@ -1427,7 +1205,7 @@ export async function checkVestingContractStatus(
                   module: 'account',
                   action: 'tokentx',
                   address: normalizedContractAddress.toLowerCase(),
-                  sort: 'asc',
+                  sort: 'asc', // Ordenar por antigüedad para ver primero las más antiguas
                   apikey: apiKey
                 }
               });
@@ -1477,7 +1255,7 @@ export async function checkVestingContractStatus(
                       remaining: '0',
                       releasable: '0',
                       startTime: Math.floor(firstTx.timestamp / 1000),
-                      endTime: daysDiff > 30 ? Math.floor(lastTx.timestamp / 1000) : Math.floor(firstTx.timestamp / 1000) + 365 * 24 * 60 * 60, // 1 año por defecto
+                      endTime: daysDiff > 30 ? Math.floor(lastTx.timestamp / 1000) : Math.floor(firstTx.timestamp / 1000) + 31536000, // 1 año por defecto
                       transactions: transactions.length,
                       isEstimated: true
                     };
@@ -1591,8 +1369,9 @@ export async function checkVestingContractStatus(
                       claimed: ethers.formatUnits(schedule.released || BigInt(0), result.tokenDecimals),
                       startTime: Number(schedule.start || schedule.startTime || 0),
                       endTime: Number(schedule.end || schedule.endTime || 0),
-                      ...(schedule.cliff && { cliff: Number(schedule.cliff) }),
-                      ...(schedule.slicePeriodSeconds && { slicePeriodSeconds: Number(schedule.slicePeriodSeconds) })
+                      cliffTime: schedule.cliff ? Number(schedule.cliff) : 0,
+                      phase: schedule.phase || `Fase ${i + 1}`,
+                      isRevoked: schedule.revoked || false
                     };
                     
                     // Calcular remaining
@@ -1676,7 +1455,11 @@ export async function checkVestingContractStatus(
     
     return result;
   } catch (error) {
-    console.error(`Error al verificar el estado del contrato de vesting ${vestingContractAddress}:`, error);
+    if (error instanceof Error) {
+      console.error(`Error al verificar el estado del contrato de vesting ${vestingContractAddress}:`, error.message);
+    } else {
+      console.error(`Error desconocido al verificar el contrato de vesting ${vestingContractAddress}`);
+    }
     // Devolver un objeto con el error
     return {
       contractAddress: vestingContractAddress,
@@ -1709,77 +1492,402 @@ async function getBeneficiariesFromTransferHistory(
   network: string
 ): Promise<string[]> {
   try {
-    const networkConfig = NETWORKS[network as keyof typeof NETWORKS];
-    const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
-    
-    const response = await axios.get(networkConfig.explorerApiUrl, {
-      params: {
-        module: 'account',
-        action: 'tokentx',
-        address: contractAddress.toLowerCase(),
-        sort: 'desc',
-        apikey: apiKey
-      }
-    });
-    
-    if (response.data.status === '1' && Array.isArray(response.data.result)) {
-      // Extraer direcciones únicas que han recibido tokens del contrato
-      const beneficiaries = new Set<string>();
-      
-      // Guardar la información de cada transacción para analizar múltiples vestings
-      const vestingTransactions: Record<string, any[]> = {};
-      
-      response.data.result.forEach((tx: any) => {
-        if (tx.from.toLowerCase() === contractAddress.toLowerCase()) {
-          const beneficiary = tx.to.toLowerCase();
-          beneficiaries.add(beneficiary);
-          
-          // Guardar la transacción para este beneficiario
-          if (!vestingTransactions[beneficiary]) {
-            vestingTransactions[beneficiary] = [];
-          }
-          vestingTransactions[beneficiary].push(tx);
-        }
-      });
-      
-      console.log("Transacciones de vesting por beneficiario:", vestingTransactions);
-      
-      // Analizar si hay beneficiarios con múltiples vestings
-      // Si un beneficiario tiene múltiples transacciones separadas por más de 1 día,
-      // es posible que tenga múltiples vestings
-      const beneficiariesWithMultipleVestings: string[] = [];
-      
-      Object.entries(vestingTransactions).forEach(([beneficiary, transactions]) => {
-        if (transactions.length > 1) {
-          // Ordenar transacciones por timestamp
-          transactions.sort((a, b) => parseInt(a.timeStamp) - parseInt(b.timeStamp));
-          
-          // Verificar si hay transacciones separadas por más de 1 día (86400 segundos)
-          for (let i = 1; i < transactions.length; i++) {
-            const timeDiff = parseInt(transactions[i].timeStamp) - parseInt(transactions[i-1].timeStamp);
-            if (timeDiff > 86400) {
-              // Es probable que sean vestings diferentes
-              beneficiariesWithMultipleVestings.push(beneficiary);
-              console.log(`Posible múltiple vesting para ${beneficiary}: ${transactions.length} transacciones, diferencia de tiempo: ${timeDiff} segundos`);
-              break;
-            }
-          }
-        }
-      });
-      
-      if (beneficiariesWithMultipleVestings.length > 0) {
-        console.log("Beneficiarios con posibles múltiples vestings:", beneficiariesWithMultipleVestings);
-      }
-      
-      return Array.from(beneficiaries);
+    const data = await callEtherscanV2Api({
+      module: 'account',
+      action: 'tokentx',
+      address: contractAddress.toLowerCase(),
+      sort: 'desc',
+      page: '1',
+      offset: '1000', // Límite de resultados por página
+      startblock: '0',
+      endblock: '99999999',
+    }, network);
+
+    if (!data.result || !Array.isArray(data.result)) {
+      throw new Error('Formato de respuesta inesperado de la API V2');
     }
+
+    // Extraer direcciones únicas de beneficiarios (destinatarios de transferencias)
+    const beneficiaries = new Set<string>();
     
-    return [];
-  } catch (e) {
-    console.warn("Error al obtener beneficiarios:", e);
+    for (const tx of data.result) {
+      try {
+        // Solo nos interesan las transferencias de salida (from = contrato)
+        if (tx.from && tx.from.toLowerCase() === contractAddress.toLowerCase() && tx.to) {
+          beneficiaries.add(tx.to.toLowerCase());
+        }
+      } catch (error) {
+        console.warn('Error al procesar transacción:', error);
+      }
+    }
+
+    return Array.from(beneficiaries);
+  } catch (error) {
+    console.error('Error al obtener beneficiarios del historial de transferencias:', error);
     return [];
   }
 }
+
+// #endregion
+
+//=============================================================================
+// #region PESTAÑA: INFORMACIÓN DE SUMINISTRO
+// Funciones para obtener información del suministro de tokens
+//=============================================================================
+
+
+// Caché para la información de suministro de tokens
+let tokenSupplyCache: {
+  data: TokenSupplyInfo | null;
+  timestamp: number;
+  isLoading: boolean;
+  promise: Promise<TokenSupplyInfo> | null;
+} = {
+  data: null,
+  timestamp: 0,
+  isLoading: false,
+  promise: null
+};
+
+/**
+ * Tipo para los callbacks de progreso
+ */
+export type ProgressCallback = (stage: string, progress: number) => void;
+
+// Variable para controlar si hay una petición global en curso
+let globalRequestInProgress = false;
+
+// Variables para controlar las peticiones individuales
+let totalSupplyRequestInProgress = false;
+let circulatingSupplyRequestInProgress = false;
+
+// Contador para evitar peticiones duplicadas en modo estricto de React
+let requestCounter = 0;
+
+/**
+ * Obtiene la información del suministro de tokens desde los endpoints de Vottun
+ * @param onProgress Callback opcional para reportar el progreso
+ * @returns Objeto con el total supply, circulating supply y locked supply
+ */
+export async function getTokenSupplyInfo(onProgress?: ProgressCallback): Promise<TokenSupplyInfo> {
+  // Verificar si ya tenemos datos en caché y si son recientes (menos de 5 minutos)
+  const now = Date.now();
+  const cacheAge = now - tokenSupplyCache.timestamp;
+  const CACHE_MAX_AGE = 300000; // 5 minutos en milisegundos (aumentado para reducir peticiones)
+
+  // Si tenemos datos en caché y son recientes, devolverlos inmediatamente
+  if (tokenSupplyCache.data && cacheAge < CACHE_MAX_AGE) {
+    console.log('Devolviendo datos de caché (edad:', Math.round(cacheAge/1000), 'segundos):', tokenSupplyCache.data);
+    
+    // Si hay un callback de progreso, indicar que se están usando datos en caché
+    if (onProgress) {
+      onProgress('usando_cache', 100);
+    }
+    
+    return tokenSupplyCache.data;
+  }
+
+  // Verificar si hay una petición global en curso
+  if (globalRequestInProgress) {
+    
+    // Si hay un callback de progreso, indicar que se está esperando
+    if (onProgress) {
+      onProgress('esperando_peticion', 10);
+    }
+    
+    // Esperar a que termine la petición global (máximo 10 segundos)
+    for (let i = 0; i < 10; i++) {
+      if (!globalRequestInProgress) break;
+      
+      if (onProgress) {
+        onProgress('esperando_peticion', 10 + (i * 9)); // Progreso de 10% a 100%
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
+    }
+    
+    // Después de esperar, si hay datos en caché, devolverlos
+    if (tokenSupplyCache.data) {
+      return tokenSupplyCache.data;
+    }
+  }
+
+  // Marcar que hay una petición global en curso y generar un ID único para esta petición
+  const currentRequestId = ++requestCounter;
+  globalRequestInProgress = true;
+  
+  try {
+    // Iniciar nueva petición
+    tokenSupplyCache.isLoading = true;
+    
+    const result = await fetchTokenSupplyData(onProgress);
+    
+    // Actualizar la caché con los nuevos datos
+    tokenSupplyCache.data = result;
+    tokenSupplyCache.timestamp = now;
+    return result;
+  } catch (error) {
+    console.error('Error al obtener datos de suministro:', error);
+    // Si hay un error y tenemos datos en caché (aunque sean antiguos), los devolvemos
+    if (tokenSupplyCache.data) {
+      console.log('Devolviendo datos antiguos de caché debido a error');
+      return tokenSupplyCache.data;
+    }
+    // Si no hay datos en caché, devolvemos valores por defecto
+    return {
+      totalSupply: '0',
+      circulatingSupply: '0',
+      lockedSupply: '0',
+      lastUpdated: new Date().toISOString()
+    };
+  } finally {
+    // Limpiar el estado de carga y la variable global
+    tokenSupplyCache.isLoading = false;
+    globalRequestInProgress = false;
+  }
+}
+
+// Función para realizar peticiones a la API con reintentos
+async function fetchWithRetry(url: string, maxRetries = 3, delayMs = 1000) {
+  let lastError;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      console.log(`Intento #${attempt + 1} para ${url}`);
+      const response = await axios.get(url);
+      return response;
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`Error en intento #${attempt + 1} para ${url}:`, error.message);
+      
+      // Si no es el último intento, esperar antes de reintentar
+      if (attempt < maxRetries - 1) {
+        const waitTime = delayMs * Math.pow(2, attempt); // Espera exponencial
+        console.log(`Esperando ${waitTime}ms antes del siguiente intento...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+  
+  // Si llegamos aquí, es porque agotamos los reintentos
+  throw lastError;
+}
+
+/**
+ * Función interna para hacer las peticiones a la API de Vottun
+ * @param onProgress Callback opcional para reportar el progreso
+ */
+async function fetchTokenSupplyData(onProgress?: ProgressCallback): Promise<TokenSupplyInfo> {
+  try {
+    // Indicar inicio del proceso
+    if (onProgress) {
+      onProgress('iniciando', 0);
+    }
+    
+    // Obtener total supply (con protección contra peticiones duplicadas)
+    if (onProgress) {
+      onProgress('cargando_total_supply', 10);
+    }
+    
+    let totalSupplyResponse;
+    if (!totalSupplyRequestInProgress) {
+      totalSupplyRequestInProgress = true;
+      try {
+        // Usar la función de reintento
+        totalSupplyResponse = await fetchWithRetry('https://intapi.vottun.tech/tkn/v1/total-supply');
+      } catch (error) {
+        console.error('Error después de múltiples intentos para total-supply:', error);
+        throw error;
+      } finally {
+        // Asegurarse de que la bandera se restablezca incluso si hay un error
+        setTimeout(() => {
+          totalSupplyRequestInProgress = false;
+        }, 5000); // Esperar 5 segundos antes de permitir otra petición
+      }
+    } else {
+      console.log('Ya hay una petición de total supply en curso, esperando...');
+      // Esperar a que termine la petición en curso (máximo 5 segundos)
+      for (let i = 0; i < 5; i++) {
+        if (!totalSupplyRequestInProgress) break;
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
+      }
+      // Si después de esperar sigue en curso, usar el valor por defecto
+      if (totalSupplyRequestInProgress) {
+        console.warn('Tiempo de espera agotado para la petición de total supply, usando valor por defecto');
+        throw new Error('Tiempo de espera agotado para la petición de total supply');
+      }
+      // Intentar de nuevo con reintentos
+      try {
+        totalSupplyResponse = await fetchWithRetry('https://intapi.vottun.tech/tkn/v1/total-supply');
+      } catch (error) {
+        console.error('Error después de múltiples intentos para total-supply (reintento):', error);
+        throw error;
+      }
+    }
+
+    // Verificar si la respuesta tiene la estructura esperada
+    let totalSupply = '0';
+    if (totalSupplyResponse.data !== null && totalSupplyResponse.data !== undefined) {
+      // Detectar el tipo de respuesta y extraer el valor
+      if (typeof totalSupplyResponse.data === 'object' && totalSupplyResponse.data.totalSupply) {
+        // Si es un objeto con propiedad totalSupply
+        totalSupply = totalSupplyResponse.data.totalSupply.toString();
+      } else if (typeof totalSupplyResponse.data === 'string') {
+        // Si la API devuelve directamente un string
+        totalSupply = totalSupplyResponse.data;
+      } else if (typeof totalSupplyResponse.data === 'number') {
+        // Si la API devuelve directamente un número
+        totalSupply = totalSupplyResponse.data.toString();
+      } else {
+        // Intentar convertir a string como último recurso
+        try {
+          totalSupply = String(totalSupplyResponse.data);
+        } catch (e) {
+          console.error('No se pudo convertir la respuesta a string:', e);
+        }
+      }
+    }
+    
+    // Verificar que el valor obtenido sea un número válido
+    if (totalSupply && !isNaN(parseFloat(totalSupply))) {
+    } else {
+      console.warn('El valor de total supply no es un número válido:', totalSupply);
+      totalSupply = '0';
+    }
+    
+    // Añadir un delay de 5 segundos para evitar errores de rate limit
+    
+    // Implementar contador de progreso durante la espera
+    const WAIT_TIME = 5000; // 5 segundos en milisegundos
+    const INTERVAL = 100; // Actualizar cada 100ms
+    const STEPS = WAIT_TIME / INTERVAL;
+    
+    if (onProgress) {
+      onProgress('cargando_datos', 25); // 25% después de obtener total supply
+    }
+    
+    // Esperar con actualizaciones de progreso
+    await new Promise<void>(resolve => {
+      let elapsed = 0;
+      const interval = setInterval(() => {
+        elapsed += INTERVAL;
+        const progress = Math.min(25 + Math.floor((elapsed / WAIT_TIME) * 25), 50); // De 25% a 50%
+        
+        if (onProgress) {
+          onProgress('esperando', progress);
+        }
+        
+        if (elapsed >= WAIT_TIME) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, INTERVAL);
+    });
+    
+    // Obtener circulating supply (con protección contra peticiones duplicadas)
+    let circulatingSupply = '0';
+    try {
+      if (onProgress) {
+        onProgress('cargando_circulating_supply', 60);
+      }
+      
+      let circulatingSupplyResponse;
+      if (!circulatingSupplyRequestInProgress) {
+        circulatingSupplyRequestInProgress = true;
+        try {
+          // Usar la función de reintento
+          circulatingSupplyResponse = await fetchWithRetry('https://intapi.vottun.tech/tkn/v1/circulating-supply');
+        } catch (error) {
+          console.error('Error después de múltiples intentos para circulating-supply:', error);
+          throw error;
+        } finally {
+          // Asegurarse de que la bandera se restablezca incluso si hay un error
+          setTimeout(() => {
+            circulatingSupplyRequestInProgress = false;
+          }, 5000); // Esperar 5 segundos antes de permitir otra petición
+        }
+      } else {
+        console.log('Ya hay una petición de circulating supply en curso, esperando...');
+        // Esperar a que termine la petición en curso (máximo 5 segundos)
+        for (let i = 0; i < 5; i++) {
+          if (!circulatingSupplyRequestInProgress) break;
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
+        }
+        // Si después de esperar sigue en curso, usar el valor por defecto
+        if (circulatingSupplyRequestInProgress) {
+          console.warn('Tiempo de espera agotado para la petición de circulating supply, usando valor por defecto');
+          throw new Error('Tiempo de espera agotado para la petición de circulating supply');
+        }
+        // Intentar de nuevo con reintentos
+        try {
+          circulatingSupplyResponse = await fetchWithRetry('https://intapi.vottun.tech/tkn/v1/circulating-supply');
+        } catch (error) {
+          console.error('Error después de múltiples intentos para circulating-supply (reintento):', error);
+          throw error;
+        }
+      }
+
+      
+      // Verificar si la respuesta tiene la estructura esperada
+      if (circulatingSupplyResponse.data !== null && circulatingSupplyResponse.data !== undefined) {
+        if (typeof circulatingSupplyResponse.data === 'object' && circulatingSupplyResponse.data.circulatingSupply) {
+          circulatingSupply = circulatingSupplyResponse.data.circulatingSupply.toString();
+        } else if (typeof circulatingSupplyResponse.data === 'string') {
+          circulatingSupply = circulatingSupplyResponse.data;
+        } else if (typeof circulatingSupplyResponse.data === 'number') {
+          circulatingSupply = circulatingSupplyResponse.data.toString();
+        } else {
+          try {
+            circulatingSupply = String(circulatingSupplyResponse.data);
+          } catch (e) {
+            console.error('No se pudo convertir la respuesta a string:', e);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error al obtener circulating supply:', error);
+      // Si falla, continuamos con el valor por defecto
+    }
+    
+    // Asegurarse de que los valores sean numéricos para el cálculo
+    const totalSupplyNum = parseFloat(totalSupply) || 0;
+    const circulatingSupplyNum = parseFloat(circulatingSupply) || 0;
+    const lockedSupply = (totalSupplyNum - circulatingSupplyNum).toFixed(2);
+    
+    // Crear el objeto de respuesta
+    const supplyInfo: TokenSupplyInfo = {
+      totalSupply: totalSupplyNum.toString(),
+      circulatingSupply: circulatingSupplyNum.toString(),
+      lockedSupply,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    // Indicar que el proceso ha finalizado
+    if (onProgress) {
+      onProgress('completado', 100);
+    }
+    
+
+    return supplyInfo;
+  } catch (error) {
+    console.error('Error al obtener la información del suministro:', error);
+    
+    // En caso de error, devolver valores por defecto en lugar de propagar el error
+    return {
+      totalSupply: '0',
+      circulatingSupply: '0',
+      lockedSupply: '0',
+      lastUpdated: new Date().toISOString()
+    };
+  }
+}
+
+// #endregion
+
+//=============================================================================
+// #region FUNCIONES AUXILIARES
+// Funciones de utilidad usadas por múltiples pestañas
+//=============================================================================
 
 /**
  * Obtiene el ABI de un contrato desde BaseScan
@@ -1862,7 +1970,21 @@ async function getContractABI(contractAddress: string, network: string) {
     console.error('Error al obtener ABI después de múltiples intentos:', lastError);
     return null;
   } catch (error) {
-    console.error('Error al obtener ABI desde BaseScan:', error);
+    if (error instanceof Error) {
+      console.error('Error al obtener ABI desde BaseScan:', error.message);
+    } else {
+      console.error('Error desconocido al obtener ABI desde BaseScan');
+    }
     return null;
   }
 }
+
+// Definición de ABI genérico para contratos de vesting
+const GENERIC_VESTING_ABI = [
+  "function getVestingSchedule(address beneficiary) view returns (tuple(uint256 start, uint256 cliff, uint256 duration, uint256 slicePeriodSeconds, bool revocable, uint256 amountTotal, uint256 released, bool revoked))",
+  "function getVestingSchedulesTotalAmount() view returns (uint256)",
+  "function getWithdrawnAmount(address beneficiary) view returns (uint256)",
+  "function release(address beneficiary)"
+];
+
+// #endregion

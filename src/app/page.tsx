@@ -14,12 +14,20 @@ export default function Home() {
           en diferentes blockchains, como Base y Base Testnet.
         </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-blue-50 p-4 rounded-md">
             <h2 className="text-xl font-semibold mb-2">Explorador de Tokens</h2>
             <p className="mb-4">Consulta los tokens enviados a una wallet y filtra por tipos específicos.</p>
             <Link href="/explorer/tokens" className="btn-primary">
               Ir al Explorador
+            </Link>
+          </div>
+          
+          <div className="bg-purple-50 p-4 rounded-md">
+            <h2 className="text-xl font-semibold mb-2">Resumen de Vestings</h2>
+            <p className="mb-4">Verifica el estado de los contratos de vesting y los tokens liberables.</p>
+            <Link href="/explorer/vestings" className="btn-primary">
+              Ver Vestings
             </Link>
           </div>
           
