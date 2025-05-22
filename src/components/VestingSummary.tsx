@@ -29,13 +29,18 @@ interface VestingContractSummary {
   releasableTokens?: string;
   claimedTokens?: string;
   beneficiaries?: any[];
+  totalBeneficiaries?: number; // Número total de beneficiarios
+  validBeneficiaries?: number; // Número de beneficiarios con datos válidos
+  errorBeneficiaries?: number; // Número de beneficiarios con errores
   lastUpdated: number;
   error?: string;
 }
 
 const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContractAddress = '', hideSearchBar = false }) => {
   const [contractAddress, setContractAddress] = useState<string>(initialContractAddress);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loadingBasic, setLoadingBasic] = useState<boolean>(false);
+  const [loadingDetails, setLoadingDetails] = useState<boolean>(false);
+  const [showDetails, setShowDetails] = useState<boolean>(false); // Estado para controlar si se muestran los detalles
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<VestingContractSummary | null>(null);
   const [expandedBeneficiaries, setExpandedBeneficiaries] = useState<Record<number, boolean>>({});
@@ -60,6 +65,36 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
     return explorers[network] || explorers['base'];
   };
 
+  // Función para cargar los detalles de beneficiarios
+  const loadBeneficiaryDetails = async () => {
+    if (!summary) return;
+    
+    setLoadingDetails(true);
+    setShowDetails(true);
+    
+    try {
+      // Obtener los detalles completos de los beneficiarios
+      const contractStatus = await checkVestingContractStatus(summary.contractAddress, network);
+      
+      // Actualizar el resumen con la información detallada
+      setSummary(prevSummary => {
+        if (!prevSummary) return null;
+        
+        return {
+          ...prevSummary,
+          beneficiaries: contractStatus.beneficiaries || [],
+          validBeneficiaries: contractStatus.validBeneficiaries,
+          errorBeneficiaries: contractStatus.errorBeneficiaries,
+        };
+      });
+    } catch (error) {
+      console.error('Error al cargar detalles de beneficiarios:', error);
+      setError('Error al cargar los detalles de beneficiarios');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
   // Función para buscar información del contrato de vesting
   const handleSearch = async () => {
     if (!contractAddress) {
@@ -72,16 +107,34 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
       return;
     }
 
-    setLoading(true);
+    // Resetear estados
+    setLoadingBasic(true);
+    setLoadingDetails(false);
+    setShowDetails(false);
     setError(null);
     setSummary(null);
 
     try {
-      // Usar la nueva función para verificar el estado del contrato de vesting
+      // Paso 1: Cargar la información básica del contrato
       const contractStatus = await checkVestingContractStatus(contractAddress, network);
       
-      // Crear un resumen con la información obtenida
-      const newSummary: VestingContractSummary = {
+      // Depurar los valores recibidos del backend
+      console.log("Valores recibidos del backend:", {
+        totalBeneficiaries: contractStatus.totalBeneficiaries,
+        beneficiaries: contractStatus.beneficiaries?.length || 0,
+        totalVested: contractStatus.totalVested,
+        totalReleased: contractStatus.totalReleased,
+        totalTokensIn: contractStatus.totalTokensIn,
+        totalTokensOut: contractStatus.totalTokensOut,
+        lockedTokens: contractStatus.lockedTokens,
+        releasableTokens: contractStatus.releasableTokens,
+        claimedTokens: contractStatus.claimedTokens
+      });
+      
+      // Paso 2: Mostrar solo el resumen básico inmediatamente
+      
+      // Actualizar el resumen con la información completa
+      const completeSummary: VestingContractSummary = {
         contractAddress: contractStatus.contractAddress,
         tokenAddress: contractStatus.tokenAddress || undefined,
         tokenName: contractStatus.tokenName || undefined,
@@ -101,25 +154,29 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
         releasableTokens: contractStatus.releasableTokens,
         claimedTokens: contractStatus.claimedTokens,
         beneficiaries: contractStatus.beneficiaries,
+        totalBeneficiaries: contractStatus.totalBeneficiaries,
+        validBeneficiaries: contractStatus.validBeneficiaries,
+        errorBeneficiaries: contractStatus.errorBeneficiaries,
         lastUpdated: Date.now(),
         error: contractStatus.error || undefined
       };
       
-      setSummary(newSummary);
+      setSummary(completeSummary);
       
       // Añadimos a historial solo si es un contrato válido
       if (contractStatus.isValid) {
         setSearchHistory(prev => {
           // Eliminar duplicados
           const filtered = prev.filter(item => item.contractAddress.toLowerCase() !== contractAddress.toLowerCase());
-          return [newSummary, ...filtered].slice(0, 5); // Mantener solo los últimos 5
+          return [completeSummary, ...filtered].slice(0, 5); // Mantener solo los últimos 5
         });
       }
     } catch (err) {
       console.error('Error al obtener información del contrato:', err);
       setError(`Error al obtener información del contrato: ${err instanceof Error ? err.message : 'Error desconocido'}`);
     } finally {
-      setLoading(false);
+      setLoadingBasic(false);
+      setLoadingDetails(false);
     }
   };
 
@@ -143,9 +200,17 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
         // Ya validamos la dirección arriba, así que no necesitamos volver a hacerlo
         console.log('Iniciando búsqueda para:', initialContractAddress);
 
-        setLoading(true);
+        // Resetear estados
+        setLoadingBasic(true);
+        setLoadingDetails(true);
         setError(null);
-        setSummary(null);
+        
+        // Mostrar inmediatamente la información básica
+        const initialSummary: VestingContractSummary = {
+          contractAddress: initialContractAddress,
+          lastUpdated: Date.now()
+        };
+        setSummary(initialSummary);
 
         try {
           // Usar la función para verificar el estado del contrato de vesting
@@ -190,7 +255,8 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
           console.error('Error al obtener información del contrato:', err);
           setError(`Error al obtener información del contrato: ${err instanceof Error ? err.message : 'Error desconocido'}`);
         } finally {
-          setLoading(false);
+          setLoadingBasic(false);
+          setLoadingDetails(false);
         }
       }
     };
@@ -215,12 +281,12 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
             />
             <button
               onClick={handleSearch}
-              disabled={loading}
+              disabled={loadingBasic || loadingDetails}
               className={`px-4 py-2 rounded-md text-white ${
-                loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+                (loadingBasic || loadingDetails) ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
-              {loading ? 'Buscando...' : 'Buscar'}
+              {(loadingBasic || loadingDetails) ? 'Buscando...' : 'Buscar'}
             </button>
           </div>
           {error && <p className="text-red-500 mt-2">{error}</p>}
@@ -230,8 +296,12 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
       {summary && (
         <div className="bg-gray-50 p-4 rounded-md mb-6">
           <h3 className="text-lg font-semibold mb-2">Información del Contrato</h3>
-          
-          {/* Información básica del contrato */}
+          {loadingBasic && (
+            <div className="flex justify-center items-center my-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+              <span className="ml-3 text-gray-600">Cargando información básica del contrato...</span>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-gray-600">Dirección del Contrato:</p>
@@ -316,28 +386,40 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                 <div>
                   <p className="text-sm text-gray-600">Total Vested:</p>
                   <p className="font-medium">
-                    {summary.totalVested ? parseFloat(summary.totalVested).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0'} {summary.tokenSymbol}
+                    {summary.totalVested ? parseFloat(summary.totalVested).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
+                     (summary.totalTokensIn ? parseFloat(summary.totalTokensIn).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0')} {summary.tokenSymbol}
                   </p>
                 </div>
                 
                 <div>
                   <p className="text-sm text-gray-600">Total Liberado:</p>
                   <p className="font-medium">
-                    {summary.totalReleased ? parseFloat(summary.totalReleased).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0'} {summary.tokenSymbol}
+                    {summary.totalReleased ? parseFloat(summary.totalReleased).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
+                     (summary.totalTokensOut ? parseFloat(summary.totalTokensOut).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0')} {summary.tokenSymbol}
                   </p>
                 </div>
                 
                 <div>
                   <p className="text-sm text-gray-600">Pendiente de Vesting:</p>
                   <p className="font-medium">
-                    {summary.remainingToVest ? parseFloat(summary.remainingToVest).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0'} {summary.tokenSymbol}
+                    {summary.remainingToVest ? parseFloat(summary.remainingToVest).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
+                     (summary.totalVested && summary.totalReleased ? 
+                      (parseFloat(summary.totalVested) - parseFloat(summary.totalReleased)).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
+                      (summary.totalTokensIn && summary.totalTokensOut ? 
+                        (parseFloat(summary.totalTokensIn) - parseFloat(summary.totalTokensOut)).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
+                        '0'))} {summary.tokenSymbol}
                   </p>
                 </div>
                 
                 <div>
                   <p className="text-sm text-gray-600">Tokens Bloqueados:</p>
                   <p className="font-medium text-orange-600">
-                    {summary.lockedTokens ? parseFloat(summary.lockedTokens).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0'} {summary.tokenSymbol}
+                    {summary.lockedTokens ? parseFloat(summary.lockedTokens).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
+                     (summary.totalVested && summary.totalReleased ? 
+                      (parseFloat(summary.totalVested) - parseFloat(summary.totalReleased)).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
+                      (summary.totalTokensIn && summary.totalTokensOut ? 
+                        (parseFloat(summary.totalTokensIn) - parseFloat(summary.totalTokensOut)).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
+                        '0'))} {summary.tokenSymbol}
                   </p>
                 </div>
                 
@@ -351,46 +433,130 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                 <div>
                   <p className="text-sm text-gray-600">Tokens Reclamados:</p>
                   <p className="font-medium text-green-600">
-                    {summary.claimedTokens ? parseFloat(summary.claimedTokens).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0'} {summary.tokenSymbol}
+                    {summary.claimedTokens ? parseFloat(summary.claimedTokens).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
+                     (summary.totalReleased ? parseFloat(summary.totalReleased).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
+                      (summary.totalTokensOut ? parseFloat(summary.totalTokensOut).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0'))} {summary.tokenSymbol}
                   </p>
                 </div>
               </div>
             </div>
           </div>
           
+          {/* Información de beneficiarios en el resumen */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Beneficiarios</h3>
+              <span className="text-xl font-bold text-blue-600">
+                {summary.beneficiaries ? summary.beneficiaries.length : (typeof summary.totalBeneficiaries === 'number' ? summary.totalBeneficiaries : '...')}
+              </span>
+            </div>
+            {!summary.beneficiaries && (
+              <p className="text-sm text-gray-600 mt-2">Cargando información de beneficiarios...</p>
+            )}
+          </div>
+
+          {/* Información del token */}
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold">Información del Token</h3>
+            {summary.tokenAddress && (
+              <div>
+                <p className="text-sm text-gray-600">Token:</p>
+                <p className="font-medium">
+                  {summary.tokenName} ({summary.tokenSymbol})
+                  <a
+                    href={`${getExplorerUrl(network)}/token/${summary.tokenAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 ml-2"
+                  >
+                    Ver
+                  </a>
+                </p>
+              </div>
+            )}
+          </div>
+          
           {/* Información de schedules */}
           <div className="mt-6">
             <h4 className="text-md font-semibold mb-2">Información de Schedules</h4>
             <div className="bg-white p-3 rounded-md border border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {summary.vestingSchedulesCount !== undefined && (
-                  <div>
-                    <p className="text-sm text-gray-600">Número de Schedules Activos:</p>
-                    <p className="font-medium">{summary.vestingSchedulesCount || 0}</p>
-                  </div>
-                )}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                {/* Schedules activos */}
+                <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-500 mb-1">Número de Schedules Activos:</h4>
+                  <p className="text-2xl font-bold">
+                    {summary.totalSchedulesCreated !== undefined ? summary.totalSchedulesCreated : '...'}
+                  </p>
+                  {summary.totalSchedulesCreated === 0 && summary.beneficiaries && summary.beneficiaries.length > 0 && (
+                    <p className="text-xs text-orange-500">Cargando schedules...</p>
+                  )}
+                </div>
                 
                 {summary.totalSchedulesCreated !== undefined && summary.totalSchedulesCreated > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-600">Total de Schedules Creados:</p>
-                    <p className="font-medium">{summary.totalSchedulesCreated || 0}</p>
+                  <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                    <h4 className="text-sm font-semibold text-gray-500 mb-1">Total de Schedules Creados:</h4>
+                    <p className="text-2xl font-bold">{summary.totalSchedulesCreated || 0}</p>
                   </div>
                 )}
               </div>
               
-              {/* Lista de beneficiarios */}
-              {summary?.beneficiaries && summary.beneficiaries.length > 0 && (
+              {/* Sección de beneficiarios */}
+              {summary?.beneficiaries && (
                 <div className="mt-4">
-                  <h3 className="text-lg font-semibold">Beneficiarios ({summary.beneficiaries.length})</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full bg-white border border-gray-300 mt-2">
-                      <thead>
-                        <tr className="bg-gray-100">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">
+                      Beneficiarios ({summary.totalBeneficiaries})
+                      {summary.validBeneficiaries !== undefined && (
+                        <span className="ml-2 text-sm font-normal">
+                          <span className="text-green-600">{summary.validBeneficiaries} válidos</span>
+                          {summary.errorBeneficiaries !== undefined && summary.errorBeneficiaries > 0 && (
+                            <span className="ml-2 text-red-600">{summary.errorBeneficiaries} con errores</span>
+                          )}
+                        </span>
+                      )}
+                    </h3>
+                    
+                    {/* Botón para cargar detalles */}
+                    <button 
+                      onClick={loadBeneficiaryDetails}
+                      disabled={loadingDetails}
+                      className={`px-4 py-2 rounded-md flex items-center ${loadingDetails ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                    >
+                      {loadingDetails ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Cargando...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+                          </svg>
+                          Cargar detalles de beneficiarios
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  {loadingDetails && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <p className="text-sm text-blue-600">Cargando información detallada de beneficiarios...</p>
+                    </div>
+                  )}
+                  
+                  {/* Tabla de beneficiarios (solo se muestra si se están cargando los detalles o ya se han cargado) */}
+                  {showDetails && (
+                    <div className="overflow-x-auto">
+                    <table className="min-w-full bg-white border border-gray-200 rounded-md">
+                      <thead className="bg-gray-50">
+                        <tr>
                           <th className="py-2 px-4 border-b text-left">Dirección</th>
-                          <th className="py-2 px-4 border-b text-right">Total Vesting</th>
-                          <th className="py-2 px-4 border-b text-right">Reclamado</th>
-                          <th className="py-2 px-4 border-b text-right">Pendiente</th>
-                          <th className="py-2 px-4 border-b text-right">Liberables</th>
+                          <th className="py-2 px-4 border-b text-center">Total Tokens</th>
+                          <th className="py-2 px-4 border-b text-center">Reclamados</th>
+                          <th className="py-2 px-4 border-b text-center">Pendientes</th>
+                          <th className="py-2 px-4 border-b text-center">Liberables</th>
                           <th className="py-2 px-4 border-b text-center">Detalles</th>
                         </tr>
                       </thead>
@@ -398,10 +564,12 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                         {summary.beneficiaries.map((beneficiary: any, index: number) => (
                           <React.Fragment key={index}>
                             {/* Fila principal del beneficiario con totales */}
-                            <tr className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b-2 border-gray-300`}>
+                            <tr className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b-2 border-gray-300 ${beneficiary.hasError ? 'bg-red-50' : ''} ${beneficiary.noVestings ? 'bg-yellow-50' : ''}`}>
                               <td className="py-2 px-4 font-mono text-sm font-semibold">
                                 {beneficiary.address}
                                 {beneficiary.vestings && <span className="ml-2 text-xs text-blue-500">({beneficiary.vestings.length} vestings)</span>}
+                                {beneficiary.hasError && <span className="ml-2 text-xs text-red-500">(Error: {beneficiary.error || 'Desconocido'})</span>}
+                                {beneficiary.noVestings && <span className="ml-2 text-xs text-yellow-500">(Sin vestings)</span>}
                               </td>
                               <td className="py-2 px-4 text-right font-semibold">
                                 {beneficiary.totalAmount ? parseFloat(beneficiary.totalAmount).toLocaleString(undefined, { maximumFractionDigits: 4 }) : 
@@ -478,6 +646,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                       </tbody>
                     </table>
                   </div>
+                  )}
                 </div>
               )}
             </div>

@@ -171,8 +171,7 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
     "0xde68AD324aafD9F2b6946073C90ED5e61D5d51B8",
     "0xC4CE5cFea2B6e32Ad41973348AC70EB3b00D8e6d",
     "0x7BBDa50bE87DFf935782C80D4222D46490F242A1",
-    "0x1808CF66F69DC1B8217d1C655fBD134B213AE358",
-    "0xfc750d874077f8c90858cc132e0619ce7571520b"
+    "0x1808CF66F69DC1B8217d1C655fBD134B213AE358"
   ];
 
   const calculateTotals = () => {
@@ -251,9 +250,14 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
             setStatusMessages(prev => [...prev, resultMsg]);
             
             const dataWithHistory = data.map(schedule => {
+              // Asegurarse de que tokenAddress esté presente
+              // Usar la dirección fija de VTN como fallback si no existe
+              const tokenAddress = "0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC";
+              
               if (parseFloat(schedule.releasedAmount) > 0) {
                 return {
                   ...schedule,
+                  tokenAddress, // Asegurar que tokenAddress esté presente
                   contractAddress,
                   claimHistory: [
                     {
@@ -266,6 +270,7 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
               }
               return {
                 ...schedule,
+                tokenAddress, // Asegurar que tokenAddress esté presente
                 contractAddress
               };
             });

@@ -4,16 +4,17 @@ import { ethers } from 'ethers';
  * Procesa la información de vesting para un beneficiario usando el método getVestingListByHolder
  * @param contract El contrato de vesting
  * @param beneficiaries Lista de direcciones de beneficiarios
- * @param contractABI ABI del contrato
+ * @param contractABI ABI del contrato (opcional)
  * @param tokenDecimals Decimales del token
  * @returns Información de vesting para cada beneficiario
  */
 export async function processVestingWithGetVestingListByHolder(
   contract: any,
   beneficiaries: string[],
-  contractABI: any[],
-  tokenDecimals: number
+  contractABI?: any[],
+  tokenDecimals: number = 18
 ) {
+  // Inicializar el objeto de resultado
   const result: any = {
     beneficiaries: [],
     totalSchedulesCreated: 0,
@@ -21,7 +22,10 @@ export async function processVestingWithGetVestingListByHolder(
     totalVested: '0',
     totalReleased: '0',
     remainingToVest: '0',
-    lockedTokens: '0'
+    lockedTokens: '0',
+    totalBeneficiaries: beneficiaries.length,
+    validBeneficiaries: 0,
+    errorBeneficiaries: 0
   };
 
   console.log("Usando getVestingListByHolder para obtener información exacta de vesting");
@@ -31,35 +35,69 @@ export async function processVestingWithGetVestingListByHolder(
   let totalReleasedAmount = 0;
   let totalReleasableAmount = 0;
   
-  // Limitar el número de beneficiarios a procesar para evitar bloqueos
-  const maxBeneficiariesToProcess = 10; // Limitar a 10 beneficiarios para evitar bloqueos
-  const beneficiariesToProcess = beneficiaries.slice(0, maxBeneficiariesToProcess);
+  // Contador para beneficiarios con datos válidos
+  let validBeneficiariesCount = 0;
+  let errorBeneficiariesCount = 0;
   
-  // Procesar cada beneficiario
-  for (const beneficiary of beneficiariesToProcess) {
-    try {
-      // Obtener la lista de vestings para este beneficiario con un timeout
-      let vestingList;
+  // Procesar beneficiarios en lotes para mostrar resultados parciales más rápido
+  const BATCH_SIZE = 10; // Procesar 10 beneficiarios a la vez
+  
+  // Dividir los beneficiarios en lotes
+  for (let i = 0; i < beneficiaries.length; i += BATCH_SIZE) {
+    const batch = beneficiaries.slice(i, i + BATCH_SIZE);
+    console.log(`Procesando lote de beneficiarios ${i+1} a ${Math.min(i+BATCH_SIZE, beneficiaries.length)} de ${beneficiaries.length}`);
+    
+    // Procesar cada beneficiario en el lote actual
+    for (const beneficiary of batch) {
       try {
-        // Establecer un timeout para la llamada al contrato
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout al obtener vestings')), 5000)
-        );
+        console.log(`Procesando beneficiario: ${beneficiary}`);
         
-        // Llamar al contrato con timeout
-        vestingList = await Promise.race([
-          contract.getVestingListByHolder(beneficiary),
-          timeoutPromise
-        ]);
+        // Crear un timeout para evitar que la llamada se quede esperando indefinidamente
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Timeout al obtener vestings')), 15000);
+        });
         
-        console.log(`Vestings para ${beneficiary}:`, vestingList);
-      } catch (timeoutError) {
-        console.warn(`Timeout al obtener vestings para ${beneficiary}:`, timeoutError);
-        continue; // Saltar a la siguiente iteración
-      }
-      
-      // Si hay vestings para este beneficiario
-      if (vestingList && vestingList.length > 0) {
+        // Intentar obtener la lista de vestings para este beneficiario
+        let vestingList;
+        try {
+          vestingList = await Promise.race([
+            contract.getVestingListByHolder(beneficiary),
+            timeoutPromise
+          ]);
+        } catch (timeoutError) {
+          console.warn(`Timeout al obtener vestings para ${beneficiary}:`, timeoutError);
+          // Añadir beneficiario con error por timeout
+          result.beneficiaries.push({ 
+            address: beneficiary,
+            error: 'Timeout al obtener vestings',
+            hasError: true,
+            totalAmount: "0",
+            totalClaimed: "0",
+            totalRemaining: "0",
+            totalReleasable: "0"
+          });
+          errorBeneficiariesCount++;
+          continue; // Saltar a la siguiente iteración
+        }
+        
+        // Si no hay vestings, agregar el beneficiario con una marca especial
+        if (!vestingList || vestingList.length === 0) {
+          console.log(`No se encontraron vestings para ${beneficiary}`);
+          result.beneficiaries.push({
+            address: beneficiary,
+            noVestings: true,
+            totalAmount: "0",
+            totalClaimed: "0",
+            totalRemaining: "0",
+            totalReleasable: "0"
+          });
+          continue;
+        }
+        
+        // Si hay vestings para este beneficiario
+        // Incrementar contador de beneficiarios válidos
+        validBeneficiariesCount++;
+        
         // Crear un objeto para almacenar la información agregada del beneficiario
         const aggregatedInfo: any = {
           address: beneficiary,
@@ -71,13 +109,13 @@ export async function processVestingWithGetVestingListByHolder(
         };
         
         // Procesar cada vesting
-        for (let i = 0; i < vestingList.length; i++) {
-          const vesting = vestingList[i];
+        for (let j = 0; j < vestingList.length; j++) {
+          const vesting = vestingList[j];
           
           // Extraer la información del vesting
           const scheduleInfo: any = {
             address: beneficiary,
-            scheduleId: i.toString(),
+            scheduleId: j.toString(),
             amount: ethers.formatUnits(vesting.amountTotal || BigInt(0), tokenDecimals),
             claimed: ethers.formatUnits(vesting.released || BigInt(0), tokenDecimals),
             startTime: Number(vesting.start || 0),
@@ -125,7 +163,7 @@ export async function processVestingWithGetVestingListByHolder(
           // Añadir este vesting a la lista de vestings del beneficiario
           aggregatedInfo.vestings.push(scheduleInfo);
           
-          console.log(`Vesting ${i} para ${beneficiary}: ${scheduleInfo.amount} tokens, liberables: ${scheduleInfo.releasable}`);
+          console.log(`Vesting ${j} para ${beneficiary}: ${scheduleInfo.amount} tokens, liberables: ${scheduleInfo.releasable}`);
         }
         
         // Convertir los totales a strings
@@ -136,29 +174,51 @@ export async function processVestingWithGetVestingListByHolder(
         
         // Añadir el beneficiario agregado a la lista
         result.beneficiaries.push(aggregatedInfo);
-      } else {
-        // Si no hay vestings, añadir solo la dirección
-        result.beneficiaries.push({ address: beneficiary });
+      } catch (e) {
+        console.error(`Error al procesar beneficiario ${beneficiary}:`, e);
+        // Añadir beneficiario con información mínima pero indicando que hubo un error
+        result.beneficiaries.push({ 
+          address: beneficiary,
+          error: e instanceof Error ? e.message : 'Error desconocido',
+          hasError: true,
+          totalAmount: "0",
+          totalClaimed: "0",
+          totalRemaining: "0",
+          totalReleasable: "0"
+        });
+        errorBeneficiariesCount++;
       }
-    } catch (e) {
-      console.warn(`Error al obtener vestings para ${beneficiary}:`, e);
-      result.beneficiaries.push({ address: beneficiary });
+    }
+    
+    // Actualizar el número total de schedules creados después de cada lote
+    result.totalSchedulesCreated = result.beneficiaries.reduce((total: number, beneficiary: any) => 
+      total + (beneficiary.vestings ? beneficiary.vestings.length : 0), 0);
+    console.log("Total de schedules obtenidos hasta ahora:", result.totalSchedulesCreated);
+    
+    // Actualizar contadores de beneficiarios después de cada lote
+    result.validBeneficiaries = validBeneficiariesCount;
+    result.errorBeneficiaries = errorBeneficiariesCount;
+    
+    // Actualizar totales globales después de cada lote
+    result.totalVested = totalVestedAmount.toString();
+    result.totalReleased = totalReleasedAmount.toString();
+    result.remainingToVest = (totalVestedAmount - totalReleasedAmount).toString();
+    result.lockedTokens = result.remainingToVest;
+    
+    if (totalReleasableAmount > 0) {
+      result.releasableTokens = totalReleasableAmount.toString();
     }
   }
   
-  // Actualizar el número total de schedules creados
-  result.totalSchedulesCreated = result.beneficiaries.reduce((total: number, beneficiary: any) => 
-    total + (beneficiary.vestings ? beneficiary.vestings.length : 0), 0);
-  console.log("Total de schedules obtenidos:", result.totalSchedulesCreated);
+  // Actualizar el número total de schedules creados al final
+  console.log("Total final de schedules obtenidos:", result.totalSchedulesCreated);
   
-  // Actualizar totales globales
-  result.totalVested = totalVestedAmount.toString();
-  result.totalReleased = totalReleasedAmount.toString();
-  result.remainingToVest = (totalVestedAmount - totalReleasedAmount).toString();
-  result.lockedTokens = result.remainingToVest;
+  // Establecer explícitamente el número total de beneficiarios
+  result.totalBeneficiaries = beneficiaries.length;
+  console.log(`Beneficiarios totales: ${result.totalBeneficiaries}, válidos: ${result.validBeneficiaries}, con error: ${result.errorBeneficiaries}`);
   
+  // Actualizar totales globales finales
   if (totalReleasableAmount > 0) {
-    result.releasableTokens = totalReleasableAmount.toString();
     console.log("Total de tokens liberables:", result.releasableTokens);
   }
   

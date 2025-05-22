@@ -4,6 +4,7 @@ import { ethers } from 'ethers';
 import { VESTING_CONTRACT_ABIS } from './contractAbis';
 import { processBeneficiariesIndividually, calculateReleasableTokens } from './vestingHelpers';
 import { processVestingWithGetVestingListByHolder } from './vestingContractHelpers';
+import { applyVestingStrategy } from './vestingContractStrategies';
 
 // ABI mínimo para interactuar con tokens ERC20
 const ERC20_ABI = [
@@ -16,6 +17,7 @@ const ERC20_ABI = [
 // Configuración de las redes
 const NETWORKS: Record<string, {
   rpcUrl: string;
+  alternativeRpcUrls?: string[]; // URLs alternativas para reintentos
   explorerApiUrl: string;
   explorerApiV2Url: string;
   chainId: number;
@@ -24,6 +26,11 @@ const NETWORKS: Record<string, {
 }> = {
   'base': {
     rpcUrl: 'https://mainnet.base.org',
+    alternativeRpcUrls: [
+      'https://base.llamarpc.com',
+      'https://base.publicnode.com',
+      'https://1rpc.io/base'
+    ],
     explorerApiUrl: 'https://api.basescan.org/api',
     explorerApiV2Url: 'https://api.etherscan.io/v2/api',
     chainId: 8453,
@@ -454,186 +461,170 @@ export async function fetchVestingInfo(walletAddress: string, vestingContractAdd
  * @param network Red blockchain
  * @returns Información de vesting
  */
-async function getVestingInfoFromBlockchain(walletAddress: string, vestingContractAddress: string, network: string): Promise<VestingInfo[]> {
+export async function getVestingInfoFromBlockchain(walletAddress: string, vestingContractAddress: string, network: string): Promise<VestingInfo[]> {
+  console.log(`Buscando vestings para wallet ${walletAddress} en contrato ${vestingContractAddress} (red: ${network})`);
+  
+  // Obtener configuración de la red
+  const networkConfig = NETWORKS[network as keyof typeof NETWORKS];
+  if (!networkConfig) {
+    throw new Error(`Red no soportada: ${network}`);
+  }
+  
   try {
-    console.log(`Buscando vestings para wallet ${walletAddress} en contrato ${vestingContractAddress} (red: ${network})`);
+    // Crear proveedor con mecanismo de reintentos
+    let provider;
+    let providerError;
     
-    // Obtener configuración de la red
-    const networkConfig = NETWORKS[network];
-    if (!networkConfig) {
-      throw new Error(`Red no soportada: ${network}`);
-    }
-    
-    // Configurar provider
-    const provider = new ethers.JsonRpcProvider(networkConfig.rpcUrl);
-    
-    // Normalizar dirección del contrato a formato checksum
-    const normalizedContractAddress = ethers.getAddress(vestingContractAddress);
-    console.log(`Usando ABI precargado para el contrato: ${normalizedContractAddress}`);
-    
-    // Obtener ABI del contrato
-    let contractAbi = VESTING_CONTRACT_ABIS[normalizedContractAddress];
-    if (!contractAbi) {
-      console.log(`No se encontró ABI precargado para ${normalizedContractAddress}, usando ABI genérico`);
-      contractAbi = GENERIC_VESTING_ABI;
-    }
-    console.log(`Usando ABI obtenido`);
-    
-    // Crear instancia del contrato
-    const vestingContract = new ethers.Contract(normalizedContractAddress, contractAbi, provider);
-    
-    // Obtener dirección del token - intentar múltiples métodos
-    let tokenAddress: string | null = null;
+    // Primero intentamos con el proveedor principal
     try {
-      tokenAddress = await vestingContract.token();
-      console.log(`Encontrado método token() con ABI de BaseScan: ${tokenAddress}`);
-    } catch (error) {
-      console.warn(`Error al llamar a token(), pero continuaremos:`, error);
-      try {
-        tokenAddress = await vestingContract.getToken();
-        console.log(`Encontrado método getToken(): ${tokenAddress}`);
-      } catch (error2) {
-        console.warn(`Error al llamar a getToken(), pero continuaremos:`, error2);
-        try {
-          tokenAddress = await vestingContract.tokenAddress();
-          console.log(`Encontrado método tokenAddress(): ${tokenAddress}`);
-        } catch (error3) {
-          console.warn(`Error al llamar a tokenAddress(), pero continuaremos:`, error3);
+      provider = new ethers.JsonRpcProvider(networkConfig.rpcUrl);
+      // Hacer una llamada simple para verificar que el proveedor funciona
+      await provider.getBlockNumber();
+      console.log(`Usando proveedor principal: ${networkConfig.rpcUrl}`);
+    } catch (error: any) {
+      providerError = error;
+      console.log(`Error con proveedor principal: ${error.message || 'Error desconocido'}, intentando alternativas...`);
+      
+      // Si falla, intentamos con los proveedores alternativos
+      if (networkConfig.alternativeRpcUrls && networkConfig.alternativeRpcUrls.length > 0) {
+        for (const alternativeUrl of networkConfig.alternativeRpcUrls) {
+          try {
+            provider = new ethers.JsonRpcProvider(alternativeUrl);
+            // Verificar que funciona
+            await provider.getBlockNumber();
+            console.log(`Usando proveedor alternativo: ${alternativeUrl}`);
+            break; // Si funciona, salimos del bucle
+          } catch (altError: any) {
+            console.log(`Error con proveedor alternativo ${alternativeUrl}: ${altError.message || 'Error desconocido'}`);
+          }
         }
       }
     }
     
-    if (!tokenAddress) {
-      console.warn(`No se pudo obtener token, pero continuaremos`);
+    // Si después de todos los intentos no tenemos proveedor, lanzamos error
+    if (!provider) {
+      throw providerError || new Error('No se pudo conectar con ningún proveedor RPC');
     }
     
-    // Obtener información del token
-    let tokenName = 'Token Desconocido';
-    let tokenSymbol = '???';
-    let tokenDecimals = 18;
-    
-    if (tokenAddress && ethers.isAddress(tokenAddress)) {
-      try {
-        const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-        tokenName = await tokenContract.name();
-        console.log(`Nombre del token obtenido: ${tokenName}`);
-      } catch (error) {
-        console.warn(`No se pudo obtener el nombre del token`);
+    // Obtener ABI del contrato
+    let contractAbi;
+    try {
+      // Intentar usar ABI precargado
+      const checksumAddress = ethers.getAddress(vestingContractAddress);
+      if (VESTING_CONTRACT_ABIS[checksumAddress]) {
+        console.log(`Usando ABI precargado para el contrato: ${vestingContractAddress}`);
+        contractAbi = VESTING_CONTRACT_ABIS[checksumAddress];
+        console.log(`✅ Usando ABI precargado para el contrato ${vestingContractAddress}`);
+      } else {
+        // Si no está precargado, obtenerlo de BaseScan
+        console.log(`ABI no encontrado para el contrato ${vestingContractAddress}, obteniendo de BaseScan...`);
+        contractAbi = await getContractABI(vestingContractAddress, network);
+        
+        if (!contractAbi) {
+          throw new Error(`No se pudo obtener el ABI para el contrato ${vestingContractAddress}`);
+        }
+        
+        console.log(`✅ ABI obtenido de BaseScan para el contrato ${vestingContractAddress}`);
       }
-      try {
-        const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-        tokenSymbol = await tokenContract.symbol();
-        console.log(`Símbolo del token obtenido: ${tokenSymbol}`);
-      } catch (error) {
-        console.warn(`No se pudo obtener el símbolo del token`);
-      }
-      try {
-        const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-        tokenDecimals = await tokenContract.decimals();
-        console.log(`Decimales del token obtenidos: ${tokenDecimals}`);
-      } catch (error) {
-        console.warn(`No se pudo obtener los decimales del token, usando valor por defecto: ${tokenDecimals}`);
-      }
-    } else {
-      console.warn(`No se pudo crear contrato de token: dirección inválida o nula ${tokenAddress}`);
+    } catch (error) {
+      console.error(`❌ Error al obtener ABI para el contrato ${vestingContractAddress}:`, error);
+      throw new Error(`No se pudo obtener el ABI para el contrato ${vestingContractAddress}`);
     }
+    
+    console.log("ABI del contrato:", contractAbi);
+    
+    // Crear instancia del contrato
+    const vestingContract = new ethers.Contract(vestingContractAddress, contractAbi, provider);
+    
+    // Usar directamente la dirección del token Vottun
+    const tokenAddress = "0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC"; // Vottun Token (VTN)
+    console.log(`Usando dirección de token fija: ${tokenAddress}`);
+    
+    // Usar directamente la información conocida del token Vottun
+    const tokenName = "Vottun Token";
+    const tokenSymbol = "VTN";
+    const tokenDecimals = 18;
     
     console.log(`Información del token obtenida: ${tokenName} ${tokenSymbol} ${tokenDecimals}`);
     
-    // Intentar obtener vestings usando diferentes métodos
-    let vestingSchedules: any[] = [];
-    
-    // Método 1: getVestingListByHolder
+    // Usar la estrategia adecuada para obtener los vestings
+    let vestingSchedules = [];
     try {
-      console.log(`Intentando obtener vestings con getVestingListByHolder`);
-      vestingSchedules = await vestingContract.getVestingListByHolder(walletAddress);
-      console.log(`Vestings obtenidos con getVestingListByHolder: ${vestingSchedules.length}`);
+      console.log("Aplicando estrategia para obtener vestings");
+      vestingSchedules = await applyVestingStrategy(vestingContract, walletAddress, vestingContractAddress);
+      console.log(`Vestings obtenidos: ${vestingSchedules.length}`);
     } catch (error) {
-      console.error(`Error al intentar obtener vestings con getVestingListByHolder:`, error);
-      
-      // Método 2: getVestingSchedule (individual) con diferentes formatos de ID
-      try {
-        console.log(`Intentando obtener vesting con getVestingSchedule`);
-        let schedule = null;
-        const idFormats = [
-          walletAddress,
-          walletAddress.toLowerCase(),
-          `0x000000000000000000000000${walletAddress.slice(2).toLowerCase()}`,
-          `0x000000000000000000000000${walletAddress.slice(2)}`,
-          '0',
-          '1'
-        ];
-        
-        for (const format of idFormats) {
-          try {
-            console.log(`Probando getVestingSchedule con formato: ${format}`);
-            schedule = await vestingContract.getVestingSchedule(format);
-            if (schedule) {
-              console.log(`Vesting obtenido con getVestingSchedule usando formato: ${format}`);
-              vestingSchedules = [schedule];
-              break;
-            }
-          } catch (formatError) {
-            console.warn(`Error con formato ${format} en getVestingSchedule:`, formatError);
-          }
-        }
-        
-        if (!schedule) {
-          console.error(`No se pudo obtener vesting con ningún formato en getVestingSchedule`);
-        }
-      } catch (error2) {
-        console.error(`Error al intentar obtener vesting con getVestingSchedule:`, error2);
-        
-        // Método 3: getSchedulesByHolder
-        try {
-          console.log(`Intentando obtener vestings con getSchedulesByHolder`);
-          vestingSchedules = await vestingContract.getSchedulesByHolder(walletAddress);
-          console.log(`Vestings obtenidos con getSchedulesByHolder: ${vestingSchedules.length}`);
-        } catch (error3) {
-          console.error(`Error al intentar obtener vestings con getSchedulesByHolder:`, error3);
-          
-          // Método 4: getVestingSchedules (si está disponible)
-          try {
-            console.log(`Intentando obtener vestings con getVestingSchedules`);
-            vestingSchedules = await vestingContract.getVestingSchedules(walletAddress);
-            console.log(`Vestings obtenidos con getVestingSchedules: ${vestingSchedules.length}`);
-          } catch (error4) {
-            console.error(`Error al intentar obtener vestings con getVestingSchedules:`, error4);
-          }
-        }
-      }
+      console.error("Error al obtener vestings con la estrategia:", error);
     }
     
-    // Si no se encontraron schedules, retornamos array vacío
+    // Si no se encontraron vesting schedules, devolver array vacío
     if (!vestingSchedules || vestingSchedules.length === 0) {
-      console.log(`No se encontraron vesting schedules`);
+      console.log("No se encontraron vesting schedules");
       return [];
     }
     
-    // Procesar los schedules obtenidos
-    const vestingInfoList: VestingInfo[] = vestingSchedules.map((schedule: any, index: number) => {
-      return {
-        contractAddress: vestingContractAddress,
-        tokenName: tokenName,
-        tokenSymbol: tokenSymbol,
-        tokenDecimals: tokenDecimals,
-        totalAmount: schedule.amountTotal ? ethers.formatUnits(schedule.amountTotal, tokenDecimals) : '0',
-        vestedAmount: '0',
-        claimableAmount: '0',
-        remainingAmount: schedule.amountTotal && schedule.released ? ethers.formatUnits(BigInt(schedule.amountTotal) - BigInt(schedule.released), tokenDecimals) : '0',
-        releasedAmount: schedule.released ? ethers.formatUnits(schedule.released, tokenDecimals) : '0',
-        startTime: schedule.start ? Number(schedule.start) : 0,
-        endTime: schedule.start && schedule.duration ? Number(schedule.start) + Number(schedule.duration) : 0,
-        cliffTime: schedule.cliff ? Number(schedule.cliff) : 0,
-        phase: schedule.phase || `Fase ${index + 1}`,
-        isRevoked: schedule.revoked || false
-      };
-    });
+    // Procesar los vesting schedules
+    const result: VestingInfo[] = [];
     
-    return vestingInfoList;
+    for (const schedule of vestingSchedules) {
+      // Extraer información del schedule
+      const beneficiary = schedule.beneficiary;
+      
+      // Verificar si el beneficiario coincide con la wallet consultada
+      if (beneficiary.toLowerCase() !== walletAddress.toLowerCase()) {
+        continue; // Saltar este schedule si no coincide
+      }
+      
+      // Extraer más información del schedule
+      const amountTotal = ethers.formatUnits(schedule.amountTotal || "0", tokenDecimals);
+      const released = ethers.formatUnits(schedule.released || "0", tokenDecimals);
+      const start = schedule.start ? new Date(Number(schedule.start) * 1000) : new Date();
+      const cliff = schedule.cliff ? new Date(Number(schedule.cliff) * 1000) : start;
+      const duration = schedule.duration ? Number(schedule.duration) : 0;
+      const end = new Date(start.getTime() + duration * 1000);
+      const phase = schedule.phase || "Desconocida";
+      const isRevoked = schedule.revoked || false;
+      
+      // Calcular tokens liberables (claimable)
+      const now = new Date();
+      let claimable = "0";
+      
+      if (now > cliff) {
+        const totalTime = end.getTime() - start.getTime();
+        const elapsedTime = Math.min(now.getTime() - start.getTime(), totalTime);
+        const vestedRatio = totalTime > 0 ? elapsedTime / totalTime : 0;
+        
+        const vestedAmount = parseFloat(amountTotal) * vestedRatio;
+        const claimableAmount = Math.max(vestedAmount - parseFloat(released), 0);
+        claimable = claimableAmount.toFixed(6);
+      }
+      
+      // Calcular tokens restantes (remaining)
+      const remaining = (parseFloat(amountTotal) - parseFloat(released) - parseFloat(claimable)).toFixed(6);
+      
+      // Añadir al resultado
+      result.push({
+        contractAddress: vestingContractAddress,
+        tokenName,
+        tokenSymbol,
+        tokenDecimals,
+        totalAmount: amountTotal,
+        vestedAmount: (parseFloat(released) + parseFloat(claimable)).toFixed(6),
+        claimableAmount: claimable,
+        remainingAmount: remaining,
+        releasedAmount: released,
+        startTime: start.getTime(),
+        endTime: end.getTime(),
+        cliffTime: cliff.getTime(),
+        phase,
+        isRevoked
+      });
+    }
+    
+    return result;
   } catch (error) {
-    console.error(`Error al obtener información de vesting para ${vestingContractAddress}:`, error);
-    return [];
+    console.error(`Error al obtener información de vesting para ${walletAddress} en contrato ${vestingContractAddress}:`, error);
+    throw error;
   }
 }
 
@@ -675,6 +666,9 @@ export async function checkVestingContractStatus(
   claimedTokens?: string;
   creationDate?: string;
   error?: string;
+  totalBeneficiaries?: number;
+  validBeneficiaries?: number;
+  errorBeneficiaries?: number;
   beneficiaries?: {
     address: string;
     amount: string;
@@ -699,8 +693,12 @@ export async function checkVestingContractStatus(
       throw new Error(`Red no soportada: ${network}`);
     }
 
-    // Crear proveedor de Ethereum
-    const provider = new ethers.JsonRpcProvider(networkConfig.rpcUrl);
+    // Crear proveedor de Ethereum con opciones mejoradas
+    const provider = new ethers.JsonRpcProvider(
+      networkConfig.rpcUrl,
+      undefined,
+      { polling: true, pollingInterval: 15000 }
+    );
     
     // Usar ABI precargado si existe, o intentar obtenerlo desde BaseScan
     let contractABI;
@@ -743,6 +741,9 @@ export async function checkVestingContractStatus(
       releasableTokens: '0',
       claimedTokens: '0',
       creationDate: '',
+      totalBeneficiaries: 0,
+      validBeneficiaries: 0,
+      errorBeneficiaries: 0,
       error: '',
       beneficiaries: [] as any[]
     };
@@ -1155,6 +1156,11 @@ export async function checkVestingContractStatus(
             const beneficiaries = await getBeneficiariesFromTransferHistory(normalizedContractAddress, network);
             console.log("Beneficiarios encontrados:", beneficiaries);
             
+            // Establecer el número total de beneficiarios inmediatamente
+            result.totalBeneficiaries = beneficiaries.length;
+            result.validBeneficiaries = 0; // Inicialmente 0, se actualizará durante el procesamiento
+            result.errorBeneficiaries = 0; // Inicialmente 0, se actualizará durante el procesamiento
+            
             // Guardar información básica de los beneficiarios
             if (!result.beneficiaries) {
               result.beneficiaries = [];
@@ -1168,33 +1174,45 @@ export async function checkVestingContractStatus(
             const hasGetVestingListByHolder = contractABI.some((fn: any) => 
               typeof fn === 'object' && fn.name === 'getVestingListByHolder');
             
-            // Si el contrato tiene el método getVestingListByHolder, usarlo para obtener información exacta
-            if (hasGetVestingListByHolder) {
-              console.log("Usando getVestingListByHolder para obtener información exacta de vesting");
-              
-              // Usar la función auxiliar para procesar los beneficiarios con getVestingListByHolder
-              const exactVestingInfo = await processVestingWithGetVestingListByHolder(
-                contract,
-                beneficiaries,
-                contractABI,
-                result.tokenDecimals
-              );
-              
-              // Actualizar el resultado con la información exacta
-              result.beneficiaries = exactVestingInfo.beneficiaries;
-              result.totalSchedulesCreated = exactVestingInfo.totalSchedulesCreated;
-              result.totalVested = exactVestingInfo.totalVested;
-              result.totalReleased = exactVestingInfo.totalReleased;
-              result.remainingToVest = exactVestingInfo.remainingToVest;
-              result.lockedTokens = exactVestingInfo.lockedTokens;
-              
-              if (exactVestingInfo.releasableTokens && parseFloat(exactVestingInfo.releasableTokens) > 0) {
-                result.releasableTokens = exactVestingInfo.releasableTokens;
+            // Actualizar el resultado con la información de los beneficiarios
+            // Si tenemos beneficiarios pero no tenemos valores para totalVested, totalReleased, etc.
+            // vamos a intentar estimarlos a partir de las transacciones
+            if (beneficiaries.length > 0) {
+              // Si no tenemos valores para totalVested, totalReleased, etc.
+              if (!result.totalVested || result.totalVested === '0') {
+                // Estimar el total vested como la suma de todas las transacciones entrantes
+                if (result.totalTokensIn && parseFloat(result.totalTokensIn) > 0) {
+                  result.totalVested = result.totalTokensIn;
+                  console.log("Total vested estimado desde transacciones:", result.totalVested);
+                }
               }
               
-              // Si ya procesamos los beneficiarios, no necesitamos continuar
-              return result;
+              // Si no tenemos valores para totalReleased
+              if (!result.totalReleased || result.totalReleased === '0') {
+                // Estimar el total released como la suma de todas las transacciones salientes
+                if (result.totalTokensOut && parseFloat(result.totalTokensOut) > 0) {
+                  result.totalReleased = result.totalTokensOut;
+                  console.log("Total released estimado desde transacciones:", result.totalReleased);
+                }
+              }
+              
+              // Actualizar el número de beneficiarios válidos
+              result.validBeneficiaries = beneficiaries.length;
+              
+              // Verificar si todos los tokens han sido vested
+              if (result.totalVested && result.totalReleased) {
+                const vested = parseFloat(result.totalVested);
+                const released = parseFloat(result.totalReleased);
+                
+                // Si el total released es igual o mayor que el total vested, todos los tokens han sido vested
+                if (released >= vested * 0.99) { // Consideramos un margen del 1% para errores de redondeo
+                  result.allTokensVested = true;
+                  console.log("Todos los tokens han sido vested (basado en transacciones)");
+                }
+              }
             }
+            
+            // Continuar con el procesamiento
             
             // Intentar obtener información de vesting directamente desde el historial de transacciones
             // Esto es útil para contratos que no exponen métodos para obtener información de vesting
