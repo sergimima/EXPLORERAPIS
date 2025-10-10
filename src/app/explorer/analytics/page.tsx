@@ -25,6 +25,29 @@ interface HolderInfo {
   label?: string;
 }
 
+interface PriceData {
+  price: number;
+  priceChange24h?: number;
+  priceChange7d?: number;
+}
+
+interface LiquidityData {
+  liquidity: number;
+  volume24h: number;
+  priceChange24h: number;
+  fdv?: number;
+  pairAddress?: string;
+  dexName?: string;
+}
+
+interface Alert {
+  type: 'whale_move' | 'accumulation' | 'distribution' | 'liquidity_change' | 'exchange_flow';
+  severity: 'low' | 'medium' | 'high';
+  message: string;
+  timestamp: number;
+  data?: any;
+}
+
 interface Statistics {
   totalTransfers: number;
   totalVolume: string;
@@ -32,12 +55,17 @@ interface Statistics {
   averageTransferSize: string;
   largeTransferCount: number;
   largeTransferThreshold: string;
+  netFlowToExchanges: string;
+  topHoldersConcentration: string;
 }
 
 interface AnalyticsData {
   transfers: TokenTransfer[];
   largeTransfers: TokenTransfer[];
   topHolders: HolderInfo[];
+  priceData: PriceData;
+  liquidityData: LiquidityData | null;
+  alerts: Alert[];
   statistics: Statistics;
   timeRange: {
     from: number;
@@ -219,6 +247,85 @@ export default function TokenAnalytics() {
           </button>
         </div>
       </div>
+
+      {/* Price & Liquidity Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md p-6 text-white">
+          <h3 className="text-sm font-medium text-blue-100 mb-2">Precio VTN</h3>
+          <p className="text-3xl font-bold">${data.priceData.price.toFixed(6)}</p>
+          {data.liquidityData?.priceChange24h !== undefined && (
+            <p className={`text-sm mt-2 ${data.liquidityData.priceChange24h >= 0 ? 'text-green-200' : 'text-red-200'}`}>
+              {data.liquidityData.priceChange24h >= 0 ? '↗' : '↘'} {Math.abs(data.liquidityData.priceChange24h).toFixed(2)}% (24h)
+            </p>
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-sm font-medium text-gray-600 mb-2">Liquidez {data.liquidityData?.dexName && `(${data.liquidityData.dexName})`}</h3>
+          {data.liquidityData ? (
+            <>
+              <p className="text-3xl font-bold text-green-600">${formatNumber(data.liquidityData.liquidity)}</p>
+              <p className="text-sm text-gray-500 mt-1">Vol 24h: ${formatNumber(data.liquidityData.volume24h)}</p>
+            </>
+          ) : (
+            <p className="text-lg text-gray-400">No disponible</p>
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-sm font-medium text-gray-600 mb-2">Net Flow a CEX</h3>
+          <p className={`text-3xl font-bold ${parseFloat(data.statistics.netFlowToExchanges) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+            {parseFloat(data.statistics.netFlowToExchanges) > 0 ? '↗' : '↙'} {formatNumber(Math.abs(parseFloat(data.statistics.netFlowToExchanges)))} VTN
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            {parseFloat(data.statistics.netFlowToExchanges) > 0 ? 'Presión de venta' : 'Menos presión'}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-sm font-medium text-gray-600 mb-2">Top 10 Concentración</h3>
+          <p className="text-3xl font-bold text-purple-600">{data.statistics.topHoldersConcentration}%</p>
+          <p className="text-xs text-gray-500 mt-1">del total supply</p>
+        </div>
+      </div>
+
+      {/* Alerts Section */}
+      {data.alerts && data.alerts.length > 0 && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <span className="mr-2">🚨</span> Alertas Recientes
+          </h3>
+          <div className="space-y-3">
+            {data.alerts.map((alert, index) => (
+              <div
+                key={index}
+                className={`p-4 rounded-lg border-l-4 ${
+                  alert.severity === 'high' ? 'bg-red-50 border-red-500' :
+                  alert.severity === 'medium' ? 'bg-yellow-50 border-yellow-500' :
+                  'bg-blue-50 border-blue-500'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <p className={`font-medium ${
+                    alert.severity === 'high' ? 'text-red-800' :
+                    alert.severity === 'medium' ? 'text-yellow-800' :
+                    'text-blue-800'
+                  }`}>
+                    {alert.message}
+                  </p>
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    alert.severity === 'high' ? 'bg-red-200 text-red-800' :
+                    alert.severity === 'medium' ? 'bg-yellow-200 text-yellow-800' :
+                    'bg-blue-200 text-blue-800'
+                  }`}>
+                    {alert.severity === 'high' ? 'ALTA' : alert.severity === 'medium' ? 'MEDIA' : 'BAJA'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

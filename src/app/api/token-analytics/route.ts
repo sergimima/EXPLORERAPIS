@@ -31,10 +31,36 @@ interface HolderInfo {
   label?: string;
 }
 
+interface PriceData {
+  price: number;
+  priceChange24h?: number;
+  priceChange7d?: number;
+}
+
+interface LiquidityData {
+  liquidity: number;
+  volume24h: number;
+  priceChange24h: number;
+  fdv?: number;
+  pairAddress?: string;
+  dexName?: string;
+}
+
+interface Alert {
+  type: 'whale_move' | 'accumulation' | 'distribution' | 'liquidity_change' | 'exchange_flow';
+  severity: 'low' | 'medium' | 'high';
+  message: string;
+  timestamp: number;
+  data?: any;
+}
+
 interface AnalyticsData {
   transfers: TokenTransfer[];
   largeTransfers: TokenTransfer[];
   topHolders: HolderInfo[];
+  priceData: PriceData;
+  liquidityData: LiquidityData | null;
+  alerts: Alert[];
   statistics: {
     totalTransfers: number;
     totalVolume: string;
@@ -42,6 +68,8 @@ interface AnalyticsData {
     averageTransferSize: string;
     largeTransferCount: number;
     largeTransferThreshold: string;
+    netFlowToExchanges: string;
+    topHoldersConcentration: string;
   };
   timeRange: {
     from: number;
@@ -101,6 +129,61 @@ async function fetchTransferHistory(
   } catch (error) {
     console.error('[fetchTransferHistory] Exception:', error);
     return [];
+  }
+}
+
+// Función para obtener precio actual desde QuikNode
+async function getCurrentPrice(): Promise<PriceData> {
+  const quiknodeUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://quick-old-patina.base-mainnet.quiknode.pro/1d225d2d7f2fa80e9ea072e82f151f5dcf221d52';
+  
+  try {
+    const response = await fetch(`${quiknodeUrl}/addon/1051/v1/prices/${VTN_TOKEN_ADDRESS}?target=aero`);
+    const data = await response.json();
+    
+    if (data.price) {
+      console.log(`[getCurrentPrice] ✅ Current price: $${data.price}`);
+      return {
+        price: data.price,
+      };
+    }
+    
+    throw new Error('Price not available');
+  } catch (error) {
+    console.error('[getCurrentPrice] ❌ Error fetching price:', error);
+    return { price: 0 };
+  }
+}
+
+// Función para obtener datos de liquidez desde DEX Screener (GRATIS)
+async function getLiquidityData(): Promise<LiquidityData | null> {
+  try {
+    console.log('[getLiquidityData] Fetching from DEX Screener...');
+    const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${VTN_TOKEN_ADDRESS}`);
+    const data = await response.json();
+    
+    if (data.pairs && data.pairs.length > 0) {
+      // Buscar el par principal (mayor liquidez en Base)
+      const basePairs = data.pairs.filter((p: any) => p.chainId === 'base');
+      const mainPair = basePairs.sort((a: any, b: any) => b.liquidity.usd - a.liquidity.usd)[0];
+      
+      if (mainPair) {
+        console.log(`[getLiquidityData] ✅ Found pair on ${mainPair.dexId}: $${mainPair.liquidity.usd.toFixed(2)} liquidity`);
+        return {
+          liquidity: mainPair.liquidity.usd || 0,
+          volume24h: mainPair.volume.h24 || 0,
+          priceChange24h: mainPair.priceChange.h24 || 0,
+          fdv: mainPair.fdv || 0,
+          pairAddress: mainPair.pairAddress,
+          dexName: mainPair.dexId,
+        };
+      }
+    }
+    
+    console.warn('[getLiquidityData] ⚠️ No pairs found on Base');
+    return null;
+  } catch (error) {
+    console.error('[getLiquidityData] ❌ Error:', error);
+    return null;
   }
 }
 
@@ -227,6 +310,117 @@ async function getTopHolders(tokenAddress: string): Promise<HolderInfo[]> {
   }
 }
 
+// Función para calcular flujo neto hacia exchanges
+function calculateNetFlowToExchanges(transfers: TokenTransfer[]): string {
+  let netFlow = BigInt(0);
+  
+  transfers.forEach(transfer => {
+    const fromIsExchange = isExchangeAddress(transfer.from);
+    const toIsExchange = isExchangeAddress(transfer.to);
+    const value = BigInt(transfer.value);
+    
+    if (toIsExchange && !fromIsExchange) {
+      // Tokens ENTRANDO a exchange (presión de venta)
+      netFlow += value;
+    } else if (fromIsExchange && !toIsExchange) {
+      // Tokens SALIENDO de exchange (menos presión de venta)
+      netFlow -= value;
+    }
+  });
+  
+  return ethers.formatUnits(netFlow, 18);
+}
+
+// Función para generar alertas basadas en los datos
+function generateAlerts(
+  transfers: TokenTransfer[],
+  largeTransfers: TokenTransfer[],
+  topHolders: HolderInfo[],
+  netFlow: string
+): Alert[] {
+  const alerts: Alert[] = [];
+  const now = Math.floor(Date.now() / 1000);
+  
+  // Alerta: Movimientos grandes recientes (últimas 2 horas)
+  const recentLargeTransfers = largeTransfers.filter(t => now - t.timestamp < 7200); // 2 horas
+  if (recentLargeTransfers.length >= 3) {
+    const totalAmount = recentLargeTransfers.reduce((sum, t) => sum + parseFloat(t.valueFormatted), 0);
+    alerts.push({
+      type: 'whale_move',
+      severity: 'high',
+      message: `${recentLargeTransfers.length} transferencias grandes en las últimas 2h (${totalAmount.toFixed(0)} VTN)`,
+      timestamp: now,
+      data: { count: recentLargeTransfers.length, amount: totalAmount }
+    });
+  }
+  
+  // Alerta: Flujo neto alto hacia exchanges
+  const netFlowNum = parseFloat(netFlow);
+  if (Math.abs(netFlowNum) > 50000) {
+    const severity = Math.abs(netFlowNum) > 200000 ? 'high' : 'medium';
+    if (netFlowNum > 0) {
+      alerts.push({
+        type: 'exchange_flow',
+        severity,
+        message: `⚠️ ${netFlowNum.toFixed(0)} VTN enviados a exchanges (presión de venta)`,
+        timestamp: now,
+        data: { netFlow: netFlowNum }
+      });
+    } else {
+      alerts.push({
+        type: 'exchange_flow',
+        severity: 'low',
+        message: `✅ ${Math.abs(netFlowNum).toFixed(0)} VTN retirados de exchanges (menos presión)`,
+        timestamp: now,
+        data: { netFlow: netFlowNum }
+      });
+    }
+  }
+  
+  // Alerta: Alta concentración en top holders
+  const top10Concentration = topHolders.slice(0, 10).reduce((sum, h) => sum + parseFloat(h.percentage), 0);
+  if (top10Concentration > 70) {
+    alerts.push({
+      type: 'distribution',
+      severity: 'medium',
+      message: `Top 10 holders controlan ${top10Concentration.toFixed(1)}% del supply (alta concentración)`,
+      timestamp: now,
+      data: { concentration: top10Concentration }
+    });
+  }
+  
+  // Alerta: Acumulación por ballenas (holder individual con múltiples compras grandes recientes)
+  const holderActivity = new Map<string, number>();
+  recentLargeTransfers.forEach(t => {
+    if (!isExchangeAddress(t.to)) {
+      const current = holderActivity.get(t.to) || 0;
+      holderActivity.set(t.to, current + parseFloat(t.valueFormatted));
+    }
+  });
+  
+  holderActivity.forEach((amount, address) => {
+    if (amount > 100000) {
+      const holder = topHolders.find(h => h.address.toLowerCase() === address.toLowerCase());
+      alerts.push({
+        type: 'accumulation',
+        severity: 'medium',
+        message: `🐋 Ballena acumulando: ${amount.toFixed(0)} VTN recibidos por ${holder?.label || formatAddress(address)}`,
+        timestamp: now,
+        data: { address, amount }
+      });
+    }
+  });
+  
+  return alerts.sort((a, b) => {
+    const severityOrder = { high: 0, medium: 1, low: 2 };
+    return severityOrder[a.severity] - severityOrder[b.severity];
+  });
+}
+
+function formatAddress(address: string): string {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -286,6 +480,30 @@ export async function GET(request: NextRequest) {
       .filter(tx => tx.isLargeTransfer)
       .slice(0, 100); // Top 100 transferencias grandes
 
+    // Obtener top holders
+    console.log('Calculating top holders...');
+    const topHolders = await getTopHolders(VTN_TOKEN_ADDRESS);
+
+    // Calcular net flow a exchanges
+    console.log('Calculating net flow to exchanges...');
+    const netFlowToExchanges = calculateNetFlowToExchanges(transfers);
+    console.log(`[Analytics] Net flow to exchanges: ${netFlowToExchanges} VTN`);
+
+    // Calcular concentración de top holders
+    const topHoldersConcentration = topHolders.slice(0, 10).reduce((sum, h) => sum + parseFloat(h.percentage), 0);
+
+    // Obtener precio actual y liquidez (en paralelo)
+    console.log('Fetching price and liquidity data...');
+    const [priceData, liquidityData] = await Promise.all([
+      getCurrentPrice(),
+      getLiquidityData()
+    ]);
+
+    // Generar alertas
+    console.log('Generating alerts...');
+    const alerts = generateAlerts(transfers, largeTransfers, topHolders, netFlowToExchanges);
+    console.log(`[Analytics] Generated ${alerts.length} alerts`);
+
     // Calcular estadísticas
     const statistics = {
       totalTransfers: transfers.length,
@@ -296,16 +514,17 @@ export async function GET(request: NextRequest) {
         : '0',
       largeTransferCount: largeTransfers.length,
       largeTransferThreshold: threshold,
+      netFlowToExchanges,
+      topHoldersConcentration: topHoldersConcentration.toFixed(2),
     };
-
-    // Obtener top holders
-    console.log('Calculating top holders...');
-    const topHolders = await getTopHolders(VTN_TOKEN_ADDRESS);
 
     const analyticsData: AnalyticsData = {
       transfers: transfers.slice(0, 1000), // Limitar a 1000 más recientes
       largeTransfers,
       topHolders: topHolders, // Todos los que devuelva Moralis (50)
+      priceData,
+      liquidityData,
+      alerts,
       statistics,
       timeRange: {
         from: timeThreshold,
