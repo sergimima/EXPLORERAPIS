@@ -22,7 +22,7 @@ export default function Home() {
               Ir al Explorador
             </Link>
           </div>
-          
+
           <div className="bg-purple-50 p-4 rounded-md">
             <h2 className="text-xl font-semibold mb-2">Resumen de Vestings</h2>
             <p className="mb-4">Verifica el estado de los contratos de vesting y los tokens liberables.</p>
@@ -30,7 +30,15 @@ export default function Home() {
               Ver Vestings
             </Link>
           </div>
-          
+
+          <div className="bg-orange-50 p-4 rounded-md">
+            <h2 className="text-xl font-semibold mb-2">Análisis de Token VTN</h2>
+            <p className="mb-4">Analiza movimientos grandes, holders y actividad del token para entender fluctuaciones de precio.</p>
+            <Link href="/explorer/analytics" className="btn-primary">
+              Ver Análisis
+            </Link>
+          </div>
+
           <div className="bg-green-50 p-4 rounded-md">
             <h2 className="text-xl font-semibold mb-2">Documentación API</h2>
             <p className="mb-4">Consulta la documentación de nuestras APIs para integrarlas en tus proyectos.</p>
