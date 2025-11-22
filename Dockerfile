@@ -17,10 +17,7 @@ RUN npm install --legacy-peer-deps --no-audit --no-fund
 # Copiar código
 COPY . .
 
-# Generar Prisma Client
-RUN npx prisma generate
-
-# Compilar Next.js
+# Compilar Next.js (prisma generate se ejecuta automáticamente en el script de build)
 RUN npm run build
 
 # Runtime
