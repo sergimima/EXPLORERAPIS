@@ -3,15 +3,35 @@ FROM node:18-alpine AS builder
 ARG NODE_ENV=production
 ENV NODE_ENV=$NODE_ENV
 
-RUN apk add --no-cache git python3 make g++
+# Instalar dependencias del sistema necesarias para compilar módulos nativos
+RUN apk add --no-cache \
+    git \
+    python3 \
+    make \
+    g++ \
+    libc6-compat
 
 WORKDIR /app
 
-# Copiamos los archivos de lock para aprovechar la caché de npm
-COPY package*.json ./
+# Copiar package.json primero (puede que no exista package-lock.json)
+COPY package.json ./
+
+# Si existe package-lock.json, copiarlo también
+COPY package-lock.json* ./
+
+# Verificar que package.json existe
+RUN test -f package.json || (echo "ERROR: package.json no encontrado" && exit 1)
+
+# Configurar npm para mejor manejo de errores y timeouts
+RUN npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm config set audit false && \
+    npm config set fund false
+
 # Instala **todas** las dependencias (incluye dev) para poder compilar Next
-# Usamos npm install en lugar de npm ci para ser más tolerante con lock files desactualizados
-RUN npm install
+# Usamos --legacy-peer-deps para evitar problemas de peer dependencies
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 # Copiamos el resto del código necesario para el build
 COPY . .
@@ -39,7 +59,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Instala solo las dependencias de producción
-RUN npm install --omit=dev --ignore-scripts
+RUN npm install --omit=dev --ignore-scripts --legacy-peer-deps --no-audit --no-fund
 
 EXPOSE 4200
 
