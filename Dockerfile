@@ -1,10 +1,7 @@
-FROM node:18-alpine AS builder
+FROM node:18 AS builder
 
 ARG NODE_ENV=production
 ENV NODE_ENV=$NODE_ENV
-
-# Instalar dependencias del sistema
-RUN apk add --no-cache git python3 make g++ libc6-compat
 
 WORKDIR /app
 
@@ -27,7 +24,7 @@ COPY . .
 RUN npm run build
 
 # Runtime
-FROM node:18-alpine AS runtime
+FROM node:18 AS runtime
 
 WORKDIR /app
 

@@ -55,6 +55,109 @@ const NETWORKS: Record<string, {
   }
 };
 
+//=============================================================================
+// #region FUNCIONES DE CACHÉ DE TRANSFERENCIAS (usando API route)
+//=============================================================================
+
+/**
+ * Guarda transferencias en la base de datos usando la API
+ */
+async function saveTransfersToCache(
+  transfers: any[],
+  contractAddress: string,
+  tokenAddress: string,
+  network: string
+) {
+  try {
+    const response = await fetch('/api/transfers-cache', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transfers,
+        contractAddress,
+        tokenAddress,
+        network
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Error al guardar transferencias');
+    }
+
+    const data = await response.json();
+    console.log(`✓ Guardadas ${data.saved} transferencias nuevas en caché`);
+    return data.saved;
+  } catch (error) {
+    console.error('Error al guardar transferencias en caché:', error);
+    return 0;
+  }
+}
+
+/**
+ * Obtiene la última transferencia guardada para un contrato
+ */
+async function getLastCachedTransferTimestamp(
+  contractAddress: string,
+  tokenAddress: string,
+  network: string
+): Promise<Date | null> {
+  try {
+    const params = new URLSearchParams({
+      action: 'getLastTimestamp',
+      contractAddress,
+      tokenAddress,
+      network
+    });
+
+    const response = await fetch(`/api/transfers-cache?${params}`);
+    if (!response.ok) {
+      throw new Error('Error al obtener último timestamp');
+    }
+
+    const data = await response.json();
+    return data.timestamp ? new Date(data.timestamp * 1000) : null;
+  } catch (error) {
+    console.error('Error al obtener última transferencia de caché:', error);
+    return null;
+  }
+}
+
+/**
+ * Obtiene todas las transferencias desde la base de datos para un contrato
+ */
+async function getCachedTransfers(
+  contractAddress: string,
+  tokenAddress: string,
+  network: string
+): Promise<any[]> {
+  try {
+    const params = new URLSearchParams({
+      action: 'getTransfers',
+      contractAddress,
+      tokenAddress,
+      network
+    });
+
+    const response = await fetch(`/api/transfers-cache?${params}`);
+    if (!response.ok) {
+      throw new Error('Error al obtener transferencias');
+    }
+
+    const data = await response.json();
+    console.log(`✓ Obtenidas ${data.transfers.length} transferencias desde caché`);
+    return data.transfers;
+  } catch (error) {
+    console.error('Error al obtener transferencias de caché:', error);
+    return [];
+  }
+}
+
+// #endregion
+
+//=============================================================================
+// #region FUNCIONES AUXILIARES DE API
+//=============================================================================
+
 // Función auxiliar para realizar llamadas a la API V2 de Etherscan
 async function callEtherscanV2Api(params: Record<string, string | number>, network: string) {
   const networkConfig = NETWORKS[network as keyof typeof NETWORKS];
@@ -811,262 +914,277 @@ export async function checkVestingContractStatus(
             }
           };
 
-          // Intentar obtener la dirección del token usando diferentes métodos
-          const tokenMethods = ['token', 'getToken', 'tokenAddress'];
-          for (const method of tokenMethods) {
+          // Usar directamente la información conocida del token VTN (hardcoded)
+          const vottunTokenAddress = "0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC";
+          result.tokenAddress = vottunTokenAddress;
+          result.tokenSymbol = 'VTN';
+          result.tokenName = 'Vottun Token';
+          result.tokenDecimals = 18;
+          console.log(`Usando información hardcoded del token: ${result.tokenName} (${result.tokenSymbol})`);
+
+          // Obtener el balance actual del contrato de vesting
+          try {
+            console.log(`Intentando obtener el balance del token para el contrato: ${normalizedContractAddress}`);
+
+            const tokenContract = new ethers.Contract(vottunTokenAddress, ERC20_ABI, provider);
+
+            // Intentar obtener el balance usando ethers.js con manejo de errores mejorado
             try {
-              if (hasMethod(method)) {
-                const tokenAddr = await safeCall(method);
-                if (tokenAddr && ethers.isAddress(tokenAddr)) {
-                  result.tokenAddress = tokenAddr;
-                  console.log(`Dirección del token obtenida con ${method}():`, result.tokenAddress);
-                  break;
+              // Verificar si el método balanceOf existe en el contrato del token
+              if (typeof tokenContract.balanceOf === 'function') {
+                console.log(`Método balanceOf encontrado en el contrato del token. Intentando obtener balance...`);
+
+                // Llamar al método balanceOf con un timeout para evitar bloqueos
+                const balancePromise = tokenContract.balanceOf(normalizedContractAddress);
+
+                // Establecer un timeout de 5 segundos para la llamada
+                const timeoutPromise = new Promise((_, reject) => {
+                  setTimeout(() => reject(new Error('Timeout al obtener balance')), 5000);
+                });
+
+                // Usar Promise.race para manejar el timeout
+                const balance = await Promise.race([balancePromise, timeoutPromise]);
+
+                if (balance !== null && balance !== undefined) {
+                  result.lastTokenBalance = ethers.formatUnits(balance, result.tokenDecimals);
+                  console.log(`Balance obtenido correctamente: ${result.lastTokenBalance} ${result.tokenSymbol}`);
+                } else {
+                  throw new Error('Balance nulo o indefinido');
                 }
+              } else {
+                throw new Error('Método balanceOf no encontrado en el contrato del token');
+              }
+            } catch (balanceError: any) {
+              console.warn(`Error al obtener balance con ethers.js: ${balanceError.message || 'Error desconocido'}`);
+              console.log(`Usando '0' como valor predeterminado para el balance.`);
+              result.lastTokenBalance = "0";
+            }
+
+            console.log(`Balance actual del contrato: ${result.lastTokenBalance} ${result.tokenSymbol}`);
+          } catch (e) {
+            console.warn('Error al obtener balance del token:', e);
+          }
+
+          // Obtener total vested usando diferentes métodos del contrato
+          const totalVestedMethods = [
+            'totalVestedAmount',
+            'vestingSchedulesTotalAmount',
+            'totalVested',
+            'totalAmount'
+          ];
+
+          for (const method of totalVestedMethods) {
+            try {
+              const total = await safeCall(method);
+              if (total && BigInt(total) > 0) {
+                result.totalVested = ethers.formatUnits(total, result.tokenDecimals);
+                console.log(`Total vested obtenido con ${method}: ${result.totalVested}`);
+                break;
               }
             } catch (e) {
-              console.warn(`Error al obtener dirección del token con ${method}():`, e);
+              console.warn(`Error al obtener total vested con ${method}:`, e);
             }
           }
 
-          // Obtener información del token si tenemos la dirección
-          if (result.tokenAddress) {
+          // Obtener total liberado usando diferentes métodos del contrato
+          const totalReleasedMethods = [
+            'totalReleasedAmount',
+            'getWithdrawnAmount',
+            'totalReleased',
+            'released'
+          ];
+
+          for (const method of totalReleasedMethods) {
             try {
-              // Usar el ABI completo del contrato si está disponible, o el ABI simplificado si no lo está
-              const tokenABI = VESTING_CONTRACT_ABIS[result.tokenAddress] || ERC20_ABI;
-              console.log(`Usando ABI ${VESTING_CONTRACT_ABIS[result.tokenAddress] ? 'completo' : 'simplificado'} para el token ${result.tokenAddress}`);
-
-              const tokenContract = new ethers.Contract(
-                result.tokenAddress,
-                tokenABI,
-                provider
-              );
-
-              // Usar directamente la información conocida del token Vottun en lugar de intentar obtenerla dinámicamente
-              // Esto evita errores CALL_EXCEPTION al llamar a symbol() y name()
-              result.tokenSymbol = 'VTN';
-              result.tokenName = 'Vottun Token';
-              result.tokenDecimals = 18;
-
-              console.log(`Información del token obtenida: ${result.tokenName} (${result.tokenSymbol}), ${result.tokenDecimals} decimales`);
-
-              // Obtener el balance actual del contrato de vesting
-              try {
-                console.log(`Intentando obtener el balance del token para el contrato: ${normalizedContractAddress}`);
-
-                // Intentar obtener el balance usando ethers.js con manejo de errores mejorado
-                try {
-                  // Verificar si el método balanceOf existe en el contrato del token
-                  if (typeof tokenContract.balanceOf === 'function') {
-                    console.log(`Método balanceOf encontrado en el contrato del token. Intentando obtener balance...`);
-
-                    // Llamar al método balanceOf con un timeout para evitar bloqueos
-                    const balancePromise = tokenContract.balanceOf(normalizedContractAddress);
-
-                    // Establecer un timeout de 5 segundos para la llamada
-                    const timeoutPromise = new Promise((_, reject) => {
-                      setTimeout(() => reject(new Error('Timeout al obtener balance')), 5000);
-                    });
-
-                    // Usar Promise.race para manejar el timeout
-                    const balance = await Promise.race([balancePromise, timeoutPromise]);
-
-                    if (balance !== null && balance !== undefined) {
-                      result.lastTokenBalance = ethers.formatUnits(balance, result.tokenDecimals);
-                      console.log(`Balance obtenido correctamente: ${result.lastTokenBalance} ${result.tokenSymbol}`);
-                    } else {
-                      throw new Error('Balance nulo o indefinido');
-                    }
-                  } else {
-                    throw new Error('Método balanceOf no encontrado en el contrato del token');
-                  }
-                } catch (balanceError: any) {
-                  console.warn(`Error al obtener balance con ethers.js: ${balanceError.message || 'Error desconocido'}`);
-                  console.log(`Usando '0' como valor predeterminado para el balance.`);
-                  result.lastTokenBalance = "0";
-                }
-
-                console.log(`Balance actual del contrato: ${result.lastTokenBalance} ${result.tokenSymbol}`);
-
-
-                // Obtener total vested usando diferentes métodos
-                const totalVestedMethods = [
-                  'totalVestedAmount',
-                  'vestingSchedulesTotalAmount',
-                  'totalVested',
-                  'totalAmount'
-                ];
-
-                for (const method of totalVestedMethods) {
-                  try {
-                    const total = await safeCall(method);
-                    if (total && BigInt(total) > 0) {
-                      result.totalVested = ethers.formatUnits(total, result.tokenDecimals);
-                      console.log(`Total vested obtenido con ${method}: ${result.totalVested}`);
-                      break;
-                    }
-                  } catch (e) {
-                    console.warn(`Error al obtener total vested con ${method}:`, e);
-                  }
-                }
-
-                // Obtener total liberado usando diferentes métodos
-                const totalReleasedMethods = [
-                  'totalReleasedAmount',
-                  'getWithdrawnAmount',
-                  'totalReleased',
-                  'released'
-                ];
-
-                for (const method of totalReleasedMethods) {
-                  try {
-                    const released = await safeCall(method);
-                    if (released && BigInt(released) > 0) {
-                      result.totalReleased = ethers.formatUnits(released, result.tokenDecimals);
-                      console.log(`Total liberado obtenido con ${method}: ${result.totalReleased}`);
-                      break;
-                    }
-                  } catch (e) {
-                    console.warn(`Error al obtener total liberado con ${method}:`, e);
-                  }
-                }
-
-                // Calcular tokens restantes
-                if (result.totalVested && result.totalReleased) {
-                  const vested = ethers.parseUnits(result.totalVested, result.tokenDecimals);
-                  const released = ethers.parseUnits(result.totalReleased, result.tokenDecimals);
-                  const remaining = vested - released;
-                  result.remainingToVest = ethers.formatUnits(remaining, result.tokenDecimals);
-                  console.log(`Tokens restantes: ${result.remainingToVest}`);
-
-                  // Verificar si todos los tokens han sido vested
-                  result.allTokensVested = BigInt(remaining.toString()) === BigInt(0);
-                }
-
-              } catch (e) {
-                console.warn('Error al obtener información de vesting:', e);
+              const released = await safeCall(method);
+              if (released && BigInt(released) > 0) {
+                result.totalReleased = ethers.formatUnits(released, result.tokenDecimals);
+                console.log(`Total liberado obtenido con ${method}: ${result.totalReleased}`);
+                break;
               }
-
             } catch (e) {
-              console.warn('Error al obtener información del token:', e);
+              console.warn(`Error al obtener total liberado con ${method}:`, e);
             }
-          } else {
-            // Si no pudimos obtener la dirección del token, intentamos buscar transferencias de tokens
-            try {
-              // Obtener historial de transferencias de tokens para el contrato
-              const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
-              if (!apiKey) {
-                console.warn('No se ha configurado la clave API de Basescan');
+          }
+
+          // Calcular tokens restantes si tenemos los valores del contrato
+          if (result.totalVested && result.totalReleased) {
+            const vested = ethers.parseUnits(result.totalVested, result.tokenDecimals);
+            const released = ethers.parseUnits(result.totalReleased, result.tokenDecimals);
+            const remaining = vested - released;
+            result.remainingToVest = ethers.formatUnits(remaining, result.tokenDecimals);
+            console.log(`Tokens restantes: ${result.remainingToVest}`);
+
+            // Verificar si todos los tokens han sido vested
+            result.allTokensVested = BigInt(remaining.toString()) === BigInt(0);
+          }
+
+          // IMPORTANTE: Obtener historial de transferencias para calcular totalTokensIn y totalTokensOut
+          // Usar caché de BD y sincronizar solo nuevas transferencias desde Moralis
+          let allTransfers: any[] = []; // Declarar fuera del try para acceso global
+          try {
+            console.log("=== INICIO: Obteniendo historial de transferencias ===");
+            console.log("Contrato a consultar:", normalizedContractAddress.toLowerCase());
+            console.log("Token VTN:", vottunTokenAddress.toLowerCase());
+
+            // 1. Obtener transferencias desde caché
+            allTransfers = await getCachedTransfers(
+              normalizedContractAddress,
+              vottunTokenAddress,
+              network
+            );
+
+            // 2. Verificar si hay que sincronizar nuevas transferencias
+            const lastTimestamp = await getLastCachedTransferTimestamp(
+              normalizedContractAddress,
+              vottunTokenAddress,
+              network
+            );
+
+            console.log(`Última transferencia en caché: ${lastTimestamp ? lastTimestamp.toISOString() : 'ninguna'}`);
+
+            // 3. Obtener nuevas transferencias desde Moralis
+            const moralisApiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
+            if (!moralisApiKey) {
+              console.warn('No se ha configurado la clave API de Moralis, usando solo caché');
+            } else {
+              console.log("Sincronizando nuevas transferencias desde Moralis...");
+
+              let newTransfers: any[] = [];
+              let cursor: string | null = null;
+              let pageCount = 0;
+              const maxPages = 50; // Permitir más páginas para sincronización completa
+
+              do {
+                pageCount++;
+
+                const params: any = {
+                  chain: 'base',
+                  limit: 100
+                };
+
+                if (cursor) {
+                  params.cursor = cursor;
+                }
+
+                const response = await axios.get(
+                  `https://deep-index.moralis.io/api/v2.2/${normalizedContractAddress.toLowerCase()}/erc20/transfers`,
+                  {
+                    headers: {
+                      'X-API-Key': moralisApiKey
+                    },
+                    params
+                  }
+                );
+
+                if (Array.isArray(response.data.result)) {
+                  // Si hay timestamp de última caché, filtrar solo las más recientes
+                  let pageTransfers = response.data.result;
+
+                  if (lastTimestamp) {
+                    pageTransfers = pageTransfers.filter((tx: any) =>
+                      new Date(tx.block_timestamp) > lastTimestamp
+                    );
+
+                    // Si ya no hay transferencias nuevas, parar
+                    if (pageTransfers.length === 0) {
+                      break;
+                    }
+                  }
+
+                  newTransfers = newTransfers.concat(pageTransfers);
+                }
+
+                cursor = response.data.cursor || null;
+
+                // Pequeña pausa entre llamadas
+                if (cursor) {
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+              } while (cursor && pageCount < maxPages);
+
+              // 4. Guardar nuevas transferencias en caché
+              if (newTransfers.length > 0) {
+                await saveTransfersToCache(
+                  newTransfers,
+                  normalizedContractAddress,
+                  vottunTokenAddress,
+                  network
+                );
+
+                // Agregar a allTransfers
+                allTransfers = newTransfers.concat(allTransfers);
+              } else {
+                console.log("✓ No hay transferencias nuevas para sincronizar");
+              }
+            }
+
+
+            // Procesar resultados de Moralis
+            if (allTransfers.length > 0) {
+
+              // Obtener fecha de creación (primera transacción - la más antigua)
+              const firstTx = allTransfers[allTransfers.length - 1]; // Moralis devuelve más recientes primero
+              if (firstTx && firstTx.block_timestamp) {
+                result.creationDate = new Date(firstTx.block_timestamp).toISOString();
               }
 
-              const response = await axios.get(networkConfig.explorerApiUrl, {
-                params: {
-                  module: 'account',
-                  action: 'tokentx',
-                  address: normalizedContractAddress.toLowerCase(),
-                  sort: 'desc', // Ordenar por antigüedad para ver primero las más antiguas
-                  apikey: apiKey || 'YourApiKeyToken' // Usar clave API por defecto si no hay una configurada
+              // Analizar todas las transferencias para calcular totales
+              let incomingAmount = 0;
+              let outgoingAmount = 0;
+              let vtnTransactionsCount = 0;
+
+              // Procesar todas las transferencias - Moralis ya filtra por dirección
+              allTransfers.forEach((tx: any) => {
+                // Moralis devuelve address (token), from_address, to_address, value
+                // Filtrar solo transferencias del token VTN
+                if (tx.address?.toLowerCase() === vottunTokenAddress.toLowerCase()) {
+                  vtnTransactionsCount++;
+                  const amount = parseFloat(ethers.formatUnits(tx.value, result.tokenDecimals));
+
+                  // Tokens entrantes al contrato
+                  if (tx.to_address?.toLowerCase() === normalizedContractAddress.toLowerCase()) {
+                    incomingAmount += amount;
+                  }
+                  // Tokens salientes del contrato (claims o transferencias)
+                  else if (tx.from_address?.toLowerCase() === normalizedContractAddress.toLowerCase()) {
+                    outgoingAmount += amount;
+                  }
                 }
               });
 
-              if (response.data.status === '1' && Array.isArray(response.data.result)) {
-                // Obtener fecha de creación (primera transacción)
-                const firstTx = response.data.result[0];
-                if (firstTx && firstTx.timeStamp) {
-                  const timestamp = parseInt(firstTx.timeStamp) * 1000;
-                  result.creationDate = new Date(timestamp).toISOString();
-                  console.log("Fecha de creación del contrato:", result.creationDate);
-                }
 
-                // Asumimos que el token más frecuente es el token de vesting
-                const tokenCounts: Record<string, number> = {};
-                response.data.result.forEach((tx: any) => {
-                  const tokenAddr = tx.contractAddress.toLowerCase();
-                  tokenCounts[tokenAddr] = (tokenCounts[tokenAddr] || 0) + 1;
-                });
+              // Actualizar totales
+              result.totalTokensIn = incomingAmount.toString();
+              result.totalTokensOut = outgoingAmount.toString();
+              result.claimedTokens = outgoingAmount.toString();
 
-                // Encontrar el token más frecuente
-                let maxCount = 0;
-                let mostFrequentToken = '';
 
-                for (const [token, count] of Object.entries(tokenCounts)) {
-                  if (count > maxCount) {
-                    maxCount = count;
-                    mostFrequentToken = token;
-                  }
-                }
 
-                if (mostFrequentToken) {
-                  result.tokenAddress = mostFrequentToken;
+              // Calcular locked tokens como la diferencia entre IN y OUT
+              const lockedAmount = incomingAmount - outgoingAmount;
+              result.lockedTokens = lockedAmount.toString();
 
-                  // Obtener información del token
-                  const tokenTx = response.data.result.find((tx: any) => tx.contractAddress.toLowerCase() === mostFrequentToken);
-                  if (tokenTx) {
-                    result.tokenName = tokenTx.tokenName || "Token Desconocido";
-                    result.tokenSymbol = tokenTx.tokenSymbol || "???";
-                    result.tokenDecimals = parseInt(tokenTx.tokenDecimal) || 18;
-                  }
-                }
-
-                // Analizar todas las transferencias para calcular totales
-                let incomingAmount = 0;
-                let outgoingAmount = 0;
-
-                // Mapeo para rastrear direcciones que han recibido tokens (beneficiarios)
-                const beneficiaries: Record<string, {
-                  received: number;
-                  claimed: number;
-                }> = {};
-
-                // Procesar todas las transferencias del token principal
-                if (result.tokenAddress) {
-                  response.data.result.forEach((tx: any) => {
-                    if (tx.contractAddress.toLowerCase() === result.tokenAddress.toLowerCase()) {
-                      const amount = parseFloat(ethers.formatUnits(tx.value, result.tokenDecimals));
-
-                      // Tokens entrantes al contrato
-                      if (tx.to.toLowerCase() === normalizedContractAddress.toLowerCase()) {
-                        incomingAmount += amount;
-                      }
-                      // Tokens salientes del contrato (claims o transferencias)
-                      else if (tx.from.toLowerCase() === normalizedContractAddress.toLowerCase()) {
-                        outgoingAmount += amount;
-
-                        // Registrar beneficiario
-                        const beneficiary = tx.to.toLowerCase();
-                        if (!beneficiaries[beneficiary]) {
-                          beneficiaries[beneficiary] = { received: 0, claimed: amount };
-                        } else {
-                          beneficiaries[beneficiary].claimed += amount;
-                        }
-                      }
-                    }
-                  });
-
-                  // Actualizar totales
-                  result.totalTokensIn = incomingAmount.toString();
-                  result.totalTokensOut = outgoingAmount.toString();
-                  result.claimedTokens = outgoingAmount.toString(); // Por ahora, asumimos que todas las salidas son claims
-
-                  // Estimar el número total de schedules creados basado en beneficiarios únicos
-                  result.totalSchedulesCreated = Object.keys(beneficiaries).length;
-
-                  console.log("Total de tokens recibidos:", incomingAmount);
-                  console.log("Total de tokens enviados:", outgoingAmount);
-                  console.log("Número estimado de beneficiarios:", result.totalSchedulesCreated);
-                }
+              // Si no obtuvimos totalVested del contrato, usar totalTokensIn como estimación
+              if (!result.totalVested || result.totalVested === '0') {
+                result.totalVested = result.totalTokensIn;
               }
-            } catch (e) {
-              console.warn("Error al obtener transferencias de tokens:", e);
+
+              // Si no obtuvimos totalReleased del contrato, usar totalTokensOut como estimación
+              if (!result.totalReleased || result.totalReleased === '0') {
+                result.totalReleased = result.totalTokensOut;
+              }
+            } else {
+              console.warn("No se encontraron transferencias");
+            }
+            console.log("=== FIN: Historial de transferencias ===");
+          } catch (e: any) {
+            console.error("❌ Error al obtener transferencias de tokens:", e);
+            if (e.response?.data) {
+              console.error("Detalle del error Moralis:", e.response.data);
             }
           }
-
-          // Si tenemos la dirección del token, intentamos obtener su información
-          // Usar directamente la información conocida del token Vottun en lugar de intentar obtenerla dinámicamente
-          // Esto evita errores CALL_EXCEPTION y problemas con direcciones inválidas
-          result.tokenName = "Vottun Token";
-          result.tokenSymbol = "VTN";
-          result.tokenDecimals = 18;
-          console.log("Usando información fija del token:", result.tokenName, result.tokenSymbol, result.tokenDecimals);
 
           // Intentar obtener el número de schedules de vesting usando diferentes métodos
           if (contractABI.some((fn: any) => typeof fn === 'object' && fn.name === 'getVestingSchedulesCount')) {
@@ -1086,114 +1204,6 @@ export async function checkVestingContractStatus(
               console.warn("Error al obtener número de vestings:", e);
             }
           }
-
-          // Intentar obtener el monto total en vesting usando diferentes métodos
-          const totalAmountMethods = ['getVestingSchedulesTotalAmount', 'getTotalVestingAmount', 'totalVestingAmount'];
-          for (const method of totalAmountMethods) {
-            if (contractABI.some((fn: any) => typeof fn === 'object' && fn.name === method)) {
-              try {
-                const totalAmount = await contract[method]();
-                result.totalVested = ethers.formatUnits(totalAmount, result.tokenDecimals);
-                console.log(`Monto total en vesting (${method}):`, result.totalVested);
-                break;
-              } catch (e) {
-                console.warn(`Error al obtener monto total en vesting con ${method}:`, e);
-              }
-            }
-          }
-
-          // Intentar obtener el último balance de tokens
-          if (contractABI.some((fn: any) => typeof fn === 'object' && fn.name === 'getLastTokenBalance')) {
-            try {
-              const lastBalance = await contract.getLastTokenBalance();
-              result.lastTokenBalance = ethers.formatUnits(lastBalance, result.tokenDecimals);
-              console.log("Último balance de tokens:", result.lastTokenBalance);
-            } catch (e) {
-              console.warn("Error al obtener último balance de tokens:", e);
-            }
-          }
-
-          // Intentar obtener el monto liberado usando diferentes métodos
-          const releasedMethods = ['getTotalReleased', 'totalReleased', 'getReleasedAmount'];
-          for (const method of releasedMethods) {
-            if (contractABI.some((fn: any) => typeof fn === 'object' && fn.name === method)) {
-              try {
-                const releasedAmount = await contract[method]();
-                result.totalReleased = ethers.formatUnits(releasedAmount, result.tokenDecimals);
-                console.log(`Monto total liberado (${method}):`, result.totalReleased);
-                break;
-              } catch (e) {
-                console.warn(`Error al obtener monto liberado con ${method}:`, e);
-              }
-            }
-          }
-
-          // Verificar si ya tenemos un balance válido antes de intentar obtenerlo de nuevo
-          if (!result.lastTokenBalance || result.lastTokenBalance === "0") {
-            // Intentar obtener el balance del token usando ethers.js
-            try {
-              // Usar la dirección del token Vottun que ya tenemos definida
-              const vottunTokenAddress = "0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC";
-              console.log(`Intentando obtener el balance del token para la dirección: ${vottunTokenAddress}`);
-
-              // Usar el ABI de ERC20 para el token
-              const tokenABI = ERC20_ABI;
-
-              // Crear instancia del contrato de token
-              const tokenContract = new ethers.Contract(
-                vottunTokenAddress,
-                tokenABI,
-                provider
-              );
-
-              // Verificar si el método balanceOf existe en el contrato del token
-              if (typeof tokenContract.balanceOf === 'function') {
-                console.log(`Método balanceOf encontrado en el contrato del token. Intentando obtener balance...`);
-
-                // Llamar al método balanceOf con un timeout para evitar bloqueos
-                // Usar la dirección original sin normalizar, igual que en test.js
-                const balancePromise = tokenContract.balanceOf(vestingContractAddress);
-
-                // Establecer un timeout de 10 segundos para la llamada
-                const timeoutPromise = new Promise((_, reject) => {
-                  setTimeout(() => reject(new Error('Timeout al obtener balance')), 10000);
-                });
-
-                // Usar Promise.race para manejar el timeout
-                const balance = await Promise.race([balancePromise, timeoutPromise]);
-
-                if (balance !== null && balance !== undefined) {
-                  result.lastTokenBalance = ethers.formatUnits(balance, result.tokenDecimals);
-                  console.log(`Balance obtenido correctamente: ${result.lastTokenBalance} ${result.tokenSymbol}`);
-                } else {
-                  throw new Error('Balance nulo o indefinido');
-                }
-              } else {
-                throw new Error('Método balanceOf no encontrado en el contrato del token');
-              }
-            } catch (balanceError: any) {
-              console.warn(`Error al obtener balance con ethers.js: ${balanceError.message || 'Error desconocido'}`);
-
-              // Solo establecer el balance a 0 si no tenemos un valor previo
-              if (!result.lastTokenBalance) {
-                console.log(`Usando '0' como valor predeterminado para el balance.`);
-                result.lastTokenBalance = "0";
-              } else {
-                console.log(`Manteniendo el balance previo: ${result.lastTokenBalance}`);
-              }
-            }
-          } else {
-            console.log(`Ya tenemos un balance válido: ${result.lastTokenBalance} ${result.tokenSymbol}`);
-          }
-
-          // Si tenemos el monto total y no tenemos el monto liberado, usamos un valor predeterminado
-          if (result.totalVested !== '0' && result.totalReleased === '0') {
-            // No podemos calcular el monto liberado sin el balance actual
-            console.log("No se puede calcular el monto liberado sin el balance actual.");
-          }
-
-          // No podemos verificar si todos los tokens han sido vested sin el balance actual
-          console.log("No se puede verificar si todos los tokens han sido vested sin el balance actual.");
 
           // Obtener los beneficiarios y sus schedules
           try {
@@ -1258,149 +1268,126 @@ export async function checkVestingContractStatus(
 
             // Continuar con el procesamiento
 
-            // Intentar obtener información de vesting directamente desde el historial de transacciones
+            // Intentar obtener información de vesting directamente desde el historial de transferencias cacheadas
             // Esto es útil para contratos que no exponen métodos para obtener información de vesting
-            try {
-              const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
-              const response = await axios.get(networkConfig.explorerApiUrl, {
-                params: {
-                  module: 'account',
-                  action: 'tokentx',
-                  address: normalizedContractAddress.toLowerCase(),
-                  sort: 'asc', // Ordenar por antigüedad para ver primero las más antiguas
-                  apikey: apiKey
+            // Usar las transferencias ya cacheadas (allTransfers) en lugar de llamar a BaseScan
+            console.log(`Procesando ${allTransfers.length} transferencias cacheadas para obtener info de beneficiarios`);
+
+            // Agrupar transacciones por beneficiario
+            const transactionsByBeneficiary: Record<string, any[]> = {};
+
+            allTransfers.forEach((tx: any) => {
+              if (tx.from_address.toLowerCase() === normalizedContractAddress.toLowerCase()) {
+                const beneficiary = tx.to_address.toLowerCase();
+                if (!transactionsByBeneficiary[beneficiary]) {
+                  transactionsByBeneficiary[beneficiary] = [];
                 }
-              });
-
-              if (response.data.status === '1' && Array.isArray(response.data.result)) {
-                // Agrupar transacciones por beneficiario
-                const transactionsByBeneficiary: Record<string, any[]> = {};
-
-                response.data.result.forEach((tx: any) => {
-                  if (tx.from.toLowerCase() === normalizedContractAddress.toLowerCase()) {
-                    const beneficiary = tx.to.toLowerCase();
-                    if (!transactionsByBeneficiary[beneficiary]) {
-                      transactionsByBeneficiary[beneficiary] = [];
-                    }
-                    transactionsByBeneficiary[beneficiary].push({
-                      timestamp: parseInt(tx.timeStamp) * 1000,
-                      amount: ethers.formatUnits(tx.value, result.tokenDecimals),
-                      hash: tx.hash
-                    });
-                  }
+                transactionsByBeneficiary[beneficiary].push({
+                  timestamp: new Date(tx.block_timestamp).getTime(),
+                  amount: ethers.formatUnits(tx.value, result.tokenDecimals),
+                  hash: tx.transaction_hash
                 });
-
-                // Procesar cada beneficiario
-                for (const beneficiary of beneficiaries) {
-                  const transactions = transactionsByBeneficiary[beneficiary] || [];
-
-                  // Si hay transacciones para este beneficiario
-                  if (transactions.length > 0) {
-                    // Ordenar transacciones por timestamp
-                    transactions.sort((a, b) => a.timestamp - b.timestamp);
-
-                    // Calcular el total reclamado
-                    const totalClaimed = transactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
-
-                    // Estimar fechas de inicio y fin basadas en la primera y última transacción
-                    // Asumimos que la primera transacción es cercana al inicio del vesting
-                    // y la última transacción es cercana al fin del vesting si han pasado más de 30 días
-                    const firstTx = transactions[0];
-                    const lastTx = transactions[transactions.length - 1];
-                    const daysDiff = (lastTx.timestamp - firstTx.timestamp) / (1000 * 60 * 60 * 24);
-
-                    // Crear información del schedule
-                    const scheduleInfo: any = {
-                      address: beneficiary,
-                      claimed: totalClaimed.toString(),
-                      amount: '0', // No podemos saber el monto total solo desde las transacciones
-                      remaining: '0',
-                      releasable: '0',
-                      startTime: Math.floor(firstTx.timestamp / 1000),
-                      endTime: daysDiff > 30 ? Math.floor(lastTx.timestamp / 1000) : Math.floor(firstTx.timestamp / 1000) + 31536000, // 1 año por defecto
-                      transactions: transactions.length,
-                      isEstimated: true
-                    };
-
-                    // Estimar el monto total basado en el patrón de transacciones
-                    // Si las transacciones son regulares, podemos estimar un patrón de vesting
-                    if (transactions.length >= 3) {
-                      // Calcular intervalos entre transacciones
-                      const intervals = [];
-                      for (let i = 1; i < transactions.length; i++) {
-                        intervals.push(transactions[i].timestamp - transactions[i - 1].timestamp);
-                      }
-
-                      // Calcular el intervalo promedio
-                      const avgInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
-
-                      // Si el intervalo promedio es consistente (variación < 20%)
-                      const variation = Math.max(...intervals) / Math.min(...intervals);
-                      if (variation < 1.2) {
-                        // Parece un vesting regular, estimamos el total
-                        const vestingDuration = scheduleInfo.endTime - scheduleInfo.startTime;
-                        const intervalSeconds = avgInterval / 1000;
-                        const estimatedTotalPayments = vestingDuration / intervalSeconds;
-                        const estimatedTotal = totalClaimed * (estimatedTotalPayments / transactions.length);
-
-                        scheduleInfo.amount = estimatedTotal.toString();
-                        scheduleInfo.remaining = (estimatedTotal - totalClaimed).toString();
-
-                        // Calcular tokens liberables basado en el tiempo
-                        const currentTime = Math.floor(Date.now() / 1000);
-                        if (currentTime > scheduleInfo.startTime) {
-                          const totalDuration = scheduleInfo.endTime - scheduleInfo.startTime;
-                          const elapsed = Math.min(currentTime - scheduleInfo.startTime, totalDuration);
-                          const percentComplete = elapsed / totalDuration;
-                          const shouldBeReleased = estimatedTotal * percentComplete;
-                          const releasable = Math.max(0, shouldBeReleased - totalClaimed);
-                          scheduleInfo.releasable = releasable.toString();
-                        }
-                      } else {
-                        // Vesting irregular, usamos una estimación más conservadora
-                        // Asumimos que el total es al menos el doble de lo reclamado
-                        const estimatedTotal = totalClaimed * 2;
-                        scheduleInfo.amount = estimatedTotal.toString();
-                        scheduleInfo.remaining = (estimatedTotal - totalClaimed).toString();
-                      }
-                    } else {
-                      // Pocas transacciones, usamos una estimación conservadora
-                      const estimatedTotal = totalClaimed * 2;
-                      scheduleInfo.amount = estimatedTotal.toString();
-                      scheduleInfo.remaining = (estimatedTotal - totalClaimed).toString();
-                    }
-
-                    // Añadir a la lista de beneficiarios
-                    result.beneficiaries.push(scheduleInfo);
-                    console.log(`Información estimada para ${beneficiary}: ${scheduleInfo.amount} tokens, reclamado: ${scheduleInfo.claimed}, liberables: ${scheduleInfo.releasable}`);
-                  } else {
-                    // Si no hay transacciones, añadimos solo la dirección
-                    result.beneficiaries.push({ address: beneficiary });
-                  }
-                }
-
-                // Actualizar el número total de schedules creados
-                result.totalSchedulesCreated = result.beneficiaries.length;
-                console.log("Total de schedules estimados:", result.totalSchedulesCreated);
-
-                // Calcular tokens liberables totales
-                let totalReleasable = 0;
-                for (const beneficiary of result.beneficiaries) {
-                  if (beneficiary.releasable) {
-                    totalReleasable += parseFloat(beneficiary.releasable);
-                  }
-                }
-
-                if (totalReleasable > 0) {
-                  result.releasableTokens = totalReleasable.toString();
-                  console.log("Total de tokens liberables estimados:", result.releasableTokens);
-                }
-
-                // Si ya procesamos los beneficiarios por transacciones, no necesitamos continuar
-                return result;
               }
-            } catch (e) {
-              console.warn("Error al obtener información desde transacciones:", e);
+            });
+
+            // Procesar cada beneficiario
+            for (const beneficiary of beneficiaries) {
+              const transactions = transactionsByBeneficiary[beneficiary] || [];
+
+              // Si hay transacciones para este beneficiario
+              if (transactions.length > 0) {
+                // Ordenar transacciones por timestamp
+                transactions.sort((a, b) => a.timestamp - b.timestamp);
+
+                // Calcular el total reclamado
+                const totalClaimed = transactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
+
+                // Estimar fechas de inicio y fin basadas en la primera y última transacción
+                const firstTx = transactions[0];
+                const lastTx = transactions[transactions.length - 1];
+                const daysDiff = (lastTx.timestamp - firstTx.timestamp) / (1000 * 60 * 60 * 24);
+
+                // Crear información del schedule
+                const scheduleInfo: any = {
+                  address: beneficiary,
+                  claimed: totalClaimed.toString(),
+                  amount: '0',
+                  remaining: '0',
+                  releasable: '0',
+                  start: Math.floor(firstTx.timestamp / 1000),
+                  end: daysDiff > 30 ? Math.floor(lastTx.timestamp / 1000) : Math.floor(firstTx.timestamp / 1000) + 31536000,
+                  transactions: transactions.length,
+                  isEstimated: true
+                };
+
+                // Estimar el monto total basado en el patrón de transacciones
+                if (transactions.length >= 3) {
+                  const intervals = [];
+                  for (let i = 1; i < transactions.length; i++) {
+                    intervals.push(transactions[i].timestamp - transactions[i - 1].timestamp);
+                  }
+
+                  const avgInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+                  const variation = Math.max(...intervals) / Math.min(...intervals);
+
+                  if (variation < 1.2) {
+                    const vestingDuration = scheduleInfo.end - scheduleInfo.start;
+                    const intervalSeconds = avgInterval / 1000;
+                    const estimatedTotalPayments = vestingDuration / intervalSeconds;
+                    const estimatedTotal = totalClaimed * (estimatedTotalPayments / transactions.length);
+
+                    scheduleInfo.amount = estimatedTotal.toString();
+                    scheduleInfo.remaining = (estimatedTotal - totalClaimed).toString();
+
+                    const currentTime = Math.floor(Date.now() / 1000);
+                    if (currentTime > scheduleInfo.start) {
+                      const totalDuration = scheduleInfo.end - scheduleInfo.start;
+                      const elapsed = Math.min(currentTime - scheduleInfo.start, totalDuration);
+                      const percentComplete = elapsed / totalDuration;
+                      const shouldBeReleased = estimatedTotal * percentComplete;
+                      const releasable = Math.max(0, shouldBeReleased - totalClaimed);
+                      scheduleInfo.releasable = releasable.toString();
+                    }
+                  } else {
+                    const estimatedTotal = totalClaimed * 2;
+                    scheduleInfo.amount = estimatedTotal.toString();
+                    scheduleInfo.remaining = (estimatedTotal - totalClaimed).toString();
+                  }
+                } else {
+                  const estimatedTotal = totalClaimed * 2;
+                  scheduleInfo.amount = estimatedTotal.toString();
+                  scheduleInfo.remaining = (estimatedTotal - totalClaimed).toString();
+                }
+
+                // Añadir a la lista de beneficiarios
+                result.beneficiaries.push(scheduleInfo);
+                console.log(`Información estimada para ${beneficiary}: ${scheduleInfo.amount} tokens, reclamado: ${scheduleInfo.claimed}, liberables: ${scheduleInfo.releasable}`);
+              } else {
+                // Si no hay transacciones, añadimos solo la dirección
+                result.beneficiaries.push({ address: beneficiary });
+              }
+            }
+
+            // Actualizar el número total de schedules creados
+            result.totalSchedulesCreated = result.beneficiaries.length;
+            console.log("Total de schedules estimados:", result.totalSchedulesCreated);
+
+            // Calcular tokens liberables totales
+            let totalReleasableFromTx = 0;
+            for (const beneficiary of result.beneficiaries) {
+              if (beneficiary.releasable) {
+                totalReleasableFromTx += parseFloat(beneficiary.releasable);
+              }
+            }
+
+            if (totalReleasableFromTx > 0) {
+              result.releasableTokens = totalReleasableFromTx.toString();
+              console.log("Total de tokens liberables estimados:", result.releasableTokens);
+            }
+
+            // Si ya procesamos los beneficiarios por transacciones, retornar
+            if (result.beneficiaries.length > 0) {
+              return result;
             }
 
             // Si el contrato soporta obtener schedules por índice, intentamos ese enfoque
@@ -1545,6 +1532,7 @@ export async function checkVestingContractStatus(
 
 /**
  * Obtiene los beneficiarios de un contrato de vesting a partir del historial de transferencias
+ * Usa Moralis API porque BaseScan requiere plan de pago para Base chain
  * @param contractAddress Dirección del contrato de vesting
  * @param network Red blockchain
  * @returns Array de direcciones de beneficiarios
@@ -1554,35 +1542,30 @@ async function getBeneficiariesFromTransferHistory(
   network: string
 ): Promise<string[]> {
   try {
-    const data = await callEtherscanV2Api({
-      module: 'account',
-      action: 'tokentx',
-      address: contractAddress.toLowerCase(),
-      sort: 'desc',
-      page: '1',
-      offset: '1000', // Límite de resultados por página
-      startblock: '0',
-      endblock: '99999999',
-    }, network);
+    // Reutilizar transferencias desde caché (ya sincronizadas en checkVestingContractStatus)
+    const vottunTokenAddress = "0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC";
 
-    if (!data.result || !Array.isArray(data.result)) {
-      throw new Error('Formato de respuesta inesperado de la API V2');
-    }
+    const transfers = await getCachedTransfers(
+      contractAddress,
+      vottunTokenAddress,
+      network
+    );
 
-    // Extraer direcciones únicas de beneficiarios (destinatarios de transferencias)
+    // Extraer direcciones únicas de beneficiarios (destinatarios de transferencias de salida)
     const beneficiaries = new Set<string>();
 
-    for (const tx of data.result) {
+    for (const tx of transfers) {
       try {
-        // Solo nos interesan las transferencias de salida (from = contrato)
-        if (tx.from && tx.from.toLowerCase() === contractAddress.toLowerCase() && tx.to) {
-          beneficiaries.add(tx.to.toLowerCase());
+        // Solo nos interesan las transferencias de salida (from_address = contrato)
+        if (tx.from_address?.toLowerCase() === contractAddress.toLowerCase() && tx.to_address) {
+          beneficiaries.add(tx.to_address.toLowerCase());
         }
       } catch (error) {
         console.warn('Error al procesar transacción:', error);
       }
     }
 
+    console.log(`✓ Encontrados ${beneficiaries.size} beneficiarios únicos desde caché`);
     return Array.from(beneficiaries);
   } catch (error) {
     console.error('Error al obtener beneficiarios del historial de transferencias:', error);

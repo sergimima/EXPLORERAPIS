@@ -148,3 +148,61 @@ model VestingCache {
   @@index([vestingContractAddress])
   @@map("vesting_cache")
 }
+
+// Tabla SEPARADA para transferencias de contratos de vesting
+model VestingTransferCache {
+  id            String   @id @default(cuid())
+  hash          String
+  tokenAddress  String
+  tokenSymbol   String?
+  tokenName     String?
+  decimals      Int      @default(18)
+  from          String
+  to            String
+  value         String
+  timestamp     Int
+  blockNumber   Int
+  network       String   @default("base")
+  vestingContract String // Dirección del contrato de vesting
+  cachedAt      DateTime @default(now())
+
+  @@unique([hash, vestingContract]) // Mismo hash puede estar en múltiples vestings
+  @@index([vestingContract, tokenAddress, timestamp])
+  @@index([vestingContract, network])
+  @@index([from])
+  @@index([to])
+  @@map("vesting_transfer_cache")
+}
+
+// Tabla para beneficiarios de contratos de vesting
+model VestingBeneficiaryCache {
+  id                  String   @id @default(cuid())
+  vestingContract     String   // Dirección del contrato de vesting
+  beneficiaryAddress  String   // Dirección del beneficiario
+  network             String   @default("base")
+
+  // Información del token
+  tokenAddress        String
+  tokenSymbol         String
+  tokenName           String
+
+  // Cantidades
+  totalAmount         String
+  vestedAmount        String
+  releasedAmount      String
+  claimableAmount     String
+  remainingAmount     String
+
+  // Tiempos
+  startTime           Int
+  endTime             Int
+
+  // Metadatos
+  cachedAt            DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([vestingContract, beneficiaryAddress, network])
+  @@index([vestingContract])
+  @@index([beneficiaryAddress])
+  @@map("vesting_beneficiary_cache")
+}

@@ -45,6 +45,8 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
   const [summary, setSummary] = useState<VestingContractSummary | null>(null);
   const [expandedBeneficiaries, setExpandedBeneficiaries] = useState<Record<number, boolean>>({});
   const [searchHistory, setSearchHistory] = useState<VestingContractSummary[]>([]);
+  const [beneficiariesLastUpdate, setBeneficiariesLastUpdate] = useState<Date | null>(null);
+  const [loadingBeneficiaries, setLoadingBeneficiaries] = useState<boolean>(false);
 
   // Función para verificar si una dirección es válida
   const isValidAddress = (address: string): boolean => {
@@ -67,19 +69,90 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
 
   // Función para cargar los detalles de beneficiarios
   const loadBeneficiaryDetails = async () => {
-    if (!summary) return;
-    
-    setLoadingDetails(true);
+    if (!summary || !contractAddress) return;
+
+    setLoadingBeneficiaries(true);
     setShowDetails(true);
-    
+
     try {
-      // Obtener los detalles completos de los beneficiarios
-      const contractStatus = await checkVestingContractStatus(summary.contractAddress, network);
-      
-      // Actualizar el resumen con la información detallada
+      // 1. Intentar cargar desde BD primero
+      const params = new URLSearchParams({
+        vestingContract: contractAddress,
+        network: network
+      });
+
+      const cacheResponse = await fetch(`/api/vesting-beneficiaries?${params}`);
+
+      if (cacheResponse.ok) {
+        const cacheData = await cacheResponse.json();
+
+        if (cacheData.beneficiaries && cacheData.beneficiaries.length > 0) {
+          // Hay datos en caché, usarlos
+          console.log(`✓ Cargados ${cacheData.count} beneficiarios desde BD`);
+
+          setSummary(prevSummary => {
+            if (!prevSummary) return null;
+            return {
+              ...prevSummary,
+              beneficiaries: cacheData.beneficiaries.map((b: any) => ({
+                address: b.beneficiaryAddress,
+                totalAmount: b.totalAmount,
+                vestedAmount: b.vestedAmount,
+                releasedAmount: b.releasedAmount,
+                claimableAmount: b.claimableAmount,
+                remainingAmount: b.remainingAmount,
+                startTime: b.startTime,
+                endTime: b.endTime
+              })),
+              validBeneficiaries: cacheData.count,
+              errorBeneficiaries: 0
+            };
+          });
+
+          setBeneficiariesLastUpdate(new Date(cacheData.lastUpdate));
+          setLoadingBeneficiaries(false);
+          return; // Terminar aquí si hay caché
+        }
+      }
+
+      // 2. Si no hay caché, consultar blockchain
+      console.log('No hay caché de beneficiarios, consultando blockchain...');
+      const contractStatus = await checkVestingContractStatus(contractAddress, network);
+
+      // 3. Guardar en BD
+      if (contractStatus.beneficiaries && contractStatus.beneficiaries.length > 0) {
+        const saveResponse = await fetch('/api/vesting-beneficiaries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vestingContract: contractAddress,
+            beneficiaries: contractStatus.beneficiaries.map((b: any) => ({
+              beneficiaryAddress: b.address,
+              totalAmount: b.amount || '0',
+              vestedAmount: b.vested || '0',
+              releasedAmount: b.claimed || '0',
+              claimableAmount: b.releasable || '0',
+              remainingAmount: b.remaining || '0',
+              startTime: b.start || 0,
+              endTime: b.end || 0
+            })),
+            network: network,
+            tokenAddress: contractStatus.tokenAddress || '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC',
+            tokenSymbol: contractStatus.tokenSymbol || 'VTN',
+            tokenName: contractStatus.tokenName || 'Vottun Token'
+          })
+        });
+
+        if (saveResponse.ok) {
+          const saveData = await saveResponse.json();
+          console.log(`✓ Guardados ${saveData.saved} beneficiarios en BD`);
+        }
+      }
+
+      // 4. Actualizar el resumen
       setSummary(prevSummary => {
         if (!prevSummary) return null;
-        
+
         return {
           ...prevSummary,
           beneficiaries: contractStatus.beneficiaries || [],
@@ -87,11 +160,53 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
           errorBeneficiaries: contractStatus.errorBeneficiaries,
         };
       });
+
+      setBeneficiariesLastUpdate(new Date());
     } catch (error) {
       console.error('Error al cargar detalles de beneficiarios:', error);
       setError('Error al cargar los detalles de beneficiarios');
     } finally {
-      setLoadingDetails(false);
+      setLoadingBeneficiaries(false);
+    }
+  };
+
+  // Función para limpiar caché y recargar desde cero
+  const handleClearCacheAndReload = async () => {
+    if (!contractAddress || !summary) return;
+
+    if (!confirm('¿Borrar caché y descargar TODO el historial desde cero? Esto puede tardar.')) {
+      return;
+    }
+
+    setLoadingBasic(true);
+    setError(null);
+
+    try {
+      // Borrar caché
+      const vottunTokenAddress = '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC';
+      const params = new URLSearchParams({
+        contractAddress: contractAddress,
+        tokenAddress: vottunTokenAddress,
+        network: network
+      });
+
+      const deleteResponse = await fetch(`/api/transfers-cache?${params}`, {
+        method: 'DELETE'
+      });
+
+      if (!deleteResponse.ok) {
+        throw new Error('Error al borrar caché');
+      }
+
+      const deleteData = await deleteResponse.json();
+      console.log(`✓ Borrados ${deleteData.deleted} registros de caché`);
+
+      // Recargar datos
+      await handleSearch();
+    } catch (error) {
+      console.error('Error al limpiar caché:', error);
+      setError('Error al limpiar caché y recargar');
+      setLoadingBasic(false);
     }
   };
 
@@ -267,7 +382,31 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
 
   return (
     <div className="bg-white shadow-md rounded-lg p-6">
-      <h2 className="text-2xl font-bold mb-6">Resumen de Contrato de Vesting</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Resumen de Contrato de Vesting</h2>
+        {summary && (
+          <div className="flex gap-2">
+            <button
+              onClick={handleSearch}
+              disabled={loadingBasic || loadingDetails}
+              className={`px-4 py-2 rounded-md text-white ${
+                (loadingBasic || loadingDetails) ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'
+              }`}
+            >
+              {(loadingBasic || loadingDetails) ? 'Refrescando...' : '🔄 Refrescar'}
+            </button>
+            <button
+              onClick={handleClearCacheAndReload}
+              disabled={loadingBasic || loadingDetails}
+              className={`px-4 py-2 rounded-md text-white ${
+                (loadingBasic || loadingDetails) ? 'bg-gray-400' : 'bg-red-600 hover:bg-red-700'
+              }`}
+            >
+              {(loadingBasic || loadingDetails) ? 'Borrando...' : '🗑️ Recargar desde cero'}
+            </button>
+          </div>
+        )}
+      </div>
       
       {!hideSearchBar && (
         <div className="mb-6">
@@ -516,29 +655,36 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                       )}
                     </h3>
                     
-                    {/* Botón para cargar detalles */}
-                    <button 
-                      onClick={loadBeneficiaryDetails}
-                      disabled={loadingDetails}
-                      className={`px-4 py-2 rounded-md flex items-center ${loadingDetails ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
-                    >
-                      {loadingDetails ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Cargando...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7"></path>
-                          </svg>
-                          Cargar detalles de beneficiarios
-                        </>
+                    {/* Botones para cargar/actualizar detalles */}
+                    <div className="flex gap-2 items-center">
+                      {beneficiariesLastUpdate && (
+                        <span className="text-sm text-gray-500">
+                          Última actualización: {beneficiariesLastUpdate.toLocaleString()}
+                        </span>
                       )}
-                    </button>
+                      <button
+                        onClick={loadBeneficiaryDetails}
+                        disabled={loadingBeneficiaries}
+                        className={`px-4 py-2 rounded-md flex items-center ${loadingBeneficiaries ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                      >
+                        {loadingBeneficiaries ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Cargando...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+                            </svg>
+                            {beneficiariesLastUpdate ? '🔄 Actualizar beneficiarios' : 'Cargar detalles de beneficiarios'}
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                   {loadingDetails && (
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
