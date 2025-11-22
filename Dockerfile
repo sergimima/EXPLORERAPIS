@@ -8,8 +8,14 @@ RUN apk add --no-cache git python3 make g++ libc6-compat
 
 WORKDIR /app
 
+# Verificar que npm y node están disponibles
+RUN node --version && npm --version
+
 # Copiar package files
 COPY package*.json ./
+
+# Verificar que los archivos se copiaron
+RUN ls -la package*.json
 
 # Instalar dependencias
 RUN npm install --legacy-peer-deps --no-audit --no-fund
