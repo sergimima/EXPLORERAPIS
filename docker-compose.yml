@@ -1,24 +1,34 @@
-version: '3.8'
+version: "3.9"
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: explorer-postgres
-    restart: unless-stopped
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: explorerapis_app
     ports:
-      - "5432:5432"
+      - "4200:4200"
+    env_file:
+      - .env.local            # opcional, también puedes usar `environment:` con variables explícitas
+    depends_on:
+      - db
+    restart: unless-stopped
+    # Si usas Prisma, ejecuta migraciones al iniciar:
+    # command: ["sh", "-c", "npx prisma migrate deploy && npm run dev -p 4200"]
+    # (descomenta la línea anterior si quieres que el contenedor aplique migrations automáticamente)
+
+  db:
+    image: postgres:15-alpine
+    container_name: explorerapis_db
     environment:
       POSTGRES_USER: explorer_user
-      POSTGRES_PASSWORD: explorer_password
-      POSTGRES_DB: explorer_db
+      POSTGRES_PASSWORD: explorer_pass
+      POSTGRES_DB: explorerdb
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U explorer_user -d explorer_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
 
 volumes:
-  postgres_data:
-    driver: local
+  pgdata:
