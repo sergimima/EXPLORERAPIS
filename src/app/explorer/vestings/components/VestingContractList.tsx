@@ -35,15 +35,14 @@ const VestingContractList: React.FC<VestingContractListProps> = ({ network, onSe
         {VESTING_CONTRACTS.map((contract) => (
           <div
             key={contract.address}
-            className={`p-4 rounded-lg shadow-md cursor-pointer transition-all duration-200 ${
-              selectedContract === contract.address
-                ? 'bg-blue-100 dark:bg-blue-900 border-2 border-blue-500'
-                : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
-            }`}
+            className={`p-4 rounded-lg shadow-md cursor-pointer transition-all duration-200 ${selectedContract === contract.address
+                ? 'bg-blue-100 border-2 border-blue-500'
+                : 'bg-white hover:bg-gray-50'
+              }`}
             onClick={() => handleSelectContract(contract.address)}
           >
             <h3 className="font-medium text-lg mb-2">{contract.name}</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 break-all">{contract.address}</p>
+            <p className="text-xs text-gray-500 break-all">{contract.address}</p>
           </div>
         ))}
       </div>

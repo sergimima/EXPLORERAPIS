@@ -23,7 +23,7 @@ const SupplyCard: React.FC<SupplyCardProps> = ({ title, value, description, icon
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 flex flex-col h-full">
+    <div className="bg-white bg-white rounded-lg shadow-md p-6 flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
           {title}
@@ -35,7 +35,7 @@ const SupplyCard: React.FC<SupplyCardProps> = ({ title, value, description, icon
           {displayValue()}
         </p>
         {description && (
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-2 text-sm text-gray-500 text-gray-500">
             {description}
           </p>
         )}
@@ -133,7 +133,7 @@ const TokenSupplyCard: React.FC = () => {
   if (loading) {
     return (
       <div className="mb-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-4">
+        <div className="bg-white bg-white rounded-lg shadow-md p-6 mb-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
               Cargando información del suministro
@@ -165,10 +165,10 @@ const TokenSupplyCard: React.FC = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 animate-pulse">
-                <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/2 mb-4"></div>
-                <div className="h-8 bg-gray-200 dark:bg-gray-600 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-5/6"></div>
+              <div key={i} className="bg-gray-100 bg-gray-100 rounded-lg p-4 animate-pulse">
+                <div className="h-4 bg-gray-200 bg-gray-200 rounded w-1/2 mb-4"></div>
+                <div className="h-8 bg-gray-200 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-gray-200 bg-gray-200 rounded w-5/6"></div>
               </div>
             ))}
           </div>
@@ -179,7 +179,7 @@ const TokenSupplyCard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+      <div className="bg-red-50 bg-red-50 border border-red-200 border-red-200 rounded-lg p-4 mb-6">
         <p className="text-red-600 dark:text-red-400">{error}</p>
       </div>
     );

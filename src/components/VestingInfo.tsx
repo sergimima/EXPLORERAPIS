@@ -202,13 +202,7 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
   
   const totals = calculateTotals();
 
-  const handleFetchAllVestingInfo = async () => {
-    // Si ya tenemos datos precargados, no necesitamos buscar de nuevo
-    if (preloadedData && preloadedData.length > 0) {
-      console.log("Usando datos precargados, no es necesario buscar de nuevo");
-      return;
-    }
-    
+  const fetchVestingData = async (forceRefresh: boolean = false) => {
     if (!walletAddress) {
       const errorMsg = 'Por favor, introduce una dirección de wallet válida';
       setError(errorMsg);
@@ -218,87 +212,81 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
 
     // Normalizar la dirección de wallet (convertir a minúsculas)
     const normalizedWalletAddress = walletAddress.toLowerCase();
-    console.log(`Iniciando búsqueda de vesting para wallet: ${normalizedWalletAddress} en red: ${network}`);
+    console.log(`Iniciando búsqueda de vesting para wallet: ${normalizedWalletAddress} en red: ${network}, force=${forceRefresh}`);
     setLoading(true);
     setError(null);
     setVestingSchedules([]);
     setVestingContractsByResults({});
     setProcessedContracts(0);
-    setStatusMessages([`Iniciando búsqueda para wallet: ${normalizedWalletAddress}`]);
-    
+    setStatusMessages([`Iniciando búsqueda para wallet: ${normalizedWalletAddress}${forceRefresh ? ' (actualizando desde blockchain)' : ''}`]);
+
     try {
+      // Usar API con caché en lugar de llamadas directas a blockchain
+      const response = await fetch(`/api/vesting-info?wallet=${normalizedWalletAddress}&network=${network}&force=${forceRefresh}`);
+
+      if (!response.ok) {
+        throw new Error('Error al obtener información de vesting');
+      }
+
+      const result = await response.json();
+      console.log('[VestingInfo] API response:', result);
+
+      if (!result.success || !result.vestingSchedules) {
+        throw new Error('Respuesta inválida de la API');
+      }
+
       const allSchedules: VestingScheduleWithHistory[] = [];
       const contractResults: Record<string, VestingScheduleWithHistory[]> = {};
-      
-      for (let i = 0; i < vestingContracts.length; i++) {
-        const contractAddress = vestingContracts[i];
-        setCurrentContract(contractAddress);
-        setProcessedContracts(i);
-        
-        const statusMsg = `Comprobando contrato ${i + 1} de ${vestingContracts.length}: ${contractAddress}`;
+
+      // Procesar los resultados de la API
+      for (const vestingData of result.vestingSchedules) {
+        const contractAddress = vestingData.vestingContractAddress;
+        const statusMsg = `✅ Encontrado vesting en ${vestingData.contractName || contractAddress}`;
         console.log(statusMsg);
         setStatusMessages(prev => [...prev, statusMsg]);
-        
-        try {
-          console.log(`Consultando contrato: ${contractAddress} para wallet: ${normalizedWalletAddress}`);
-          const data = await fetchVestingInfo(normalizedWalletAddress, contractAddress, network);
-          console.log(`Respuesta del contrato ${contractAddress}:`, data);
-          
-          if (data && data.length > 0) {
-            const resultMsg = `✅ Encontrados ${data.length} schedules en contrato ${contractAddress}`;
-            console.log(resultMsg);
-            setStatusMessages(prev => [...prev, resultMsg]);
-            
-            const dataWithHistory = data.map(schedule => {
-              // Asegurarse de que tokenAddress esté presente
-              // Usar la dirección fija de VTN como fallback si no existe
-              const tokenAddress = "0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC";
-              
-              if (parseFloat(schedule.releasedAmount) > 0) {
-                return {
-                  ...schedule,
-                  tokenAddress, // Asegurar que tokenAddress esté presente
-                  contractAddress,
-                  claimHistory: [
-                    {
-                      amount: schedule.releasedAmount,
-                      timestamp: Math.floor(Date.now() / 1000) - 86400 * 7, 
-                      transactionHash: '0x' + Math.random().toString(16).substring(2, 42)
-                    }
-                  ]
-                };
-              }
-              return {
-                ...schedule,
-                tokenAddress, // Asegurar que tokenAddress esté presente
-                contractAddress
-              };
-            });
-            
-            allSchedules.push(...dataWithHistory);
-            contractResults[contractAddress] = dataWithHistory;
-            
-            setVestingSchedules([...allSchedules]);
-            setVestingContractsByResults({...contractResults});
-          } else {
-            const emptyMsg = `⚠️ No se encontraron schedules en contrato ${contractAddress}`;
-            console.log(emptyMsg);
-            setStatusMessages(prev => [...prev, emptyMsg]);
-          }
-        } catch (err) {
-          const errorMsg = `❌ Error al consultar el contrato ${contractAddress}: ${err instanceof Error ? err.message : String(err)}`;
-          console.error(errorMsg);
-          setStatusMessages(prev => [...prev, errorMsg]);
+
+        // Convertir formato de BD a formato de componente
+        const schedule: VestingScheduleWithHistory = {
+          tokenName: vestingData.tokenName,
+          tokenSymbol: vestingData.tokenSymbol,
+          tokenAddress: vestingData.tokenAddress,
+          totalAmount: vestingData.totalAmount,
+          vestedAmount: vestingData.vestedAmount,
+          claimableAmount: vestingData.claimableAmount,
+          remainingAmount: vestingData.remainingAmount,
+          releasedAmount: vestingData.releasedAmount,
+          startTime: vestingData.startTime,
+          endTime: vestingData.endTime,
+          nextUnlockTime: vestingData.nextUnlockTime || undefined,
+          nextUnlockAmount: vestingData.nextUnlockAmount || undefined,
+          slicePeriodSeconds: vestingData.slicePeriodSeconds || undefined,
+          cliff: vestingData.cliff || undefined,
+          cliffEndTime: vestingData.cliffEndTime || undefined,
+          vestingId: vestingData.vestingId,
+          contractAddress: contractAddress,
+          claimHistory: parseFloat(vestingData.releasedAmount) > 0 ? [{
+            amount: vestingData.releasedAmount,
+            timestamp: Date.now() / 1000,
+            transactionHash: undefined
+          }] : []
+        };
+
+        allSchedules.push(schedule);
+
+        // Agrupar por contrato
+        if (!contractResults[contractAddress]) {
+          contractResults[contractAddress] = [];
         }
-        
-        // Pequeña pausa entre consultas para no sobrecargar la red
-        await new Promise(resolve => setTimeout(resolve, 200));
+        contractResults[contractAddress].push(schedule);
       }
-      
+
+      // Actualizar estados
+      setVestingSchedules(allSchedules);
+      setVestingContractsByResults(contractResults);
+      setProcessedContracts(result.vestingSchedules.length);
       setCurrentContract(null);
-      setProcessedContracts(vestingContracts.length);
-      
-      const finalMsg = `Búsqueda completada. Encontrados ${allSchedules.length} schedules en total.`;
+
+      const finalMsg = `Búsqueda completada. Encontrados ${allSchedules.length} schedules en total${result.fromCache ? ' (desde BD)' : ' (desde blockchain)'}.`;
       console.log(finalMsg);
       setStatusMessages(prev => [...prev, finalMsg]);
       
@@ -314,6 +302,19 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFetchAllVestingInfo = async () => {
+    // Si ya tenemos datos precargados, no necesitamos buscar de nuevo
+    if (preloadedData && preloadedData.length > 0) {
+      console.log("Usando datos precargados, no es necesario buscar de nuevo");
+      return;
+    }
+    await fetchVestingData(false);
+  };
+
+  const handleRefreshVestingInfo = async () => {
+    await fetchVestingData(true);
   };
 
   const toggleRowExpansion = (index: number) => {
@@ -346,13 +347,24 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
       
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
-          <button 
-            onClick={handleFetchAllVestingInfo}
-            disabled={loading || !walletAddress}
-            className="btn-primary"
-          >
-            {loading ? 'Cargando...' : 'Consultar Todos los Contratos de Vesting'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleFetchAllVestingInfo}
+              disabled={loading || !walletAddress}
+              className="btn-primary"
+            >
+              {loading ? 'Cargando...' : 'Consultar Todos los Contratos de Vesting'}
+            </button>
+
+            <button
+              onClick={handleRefreshVestingInfo}
+              disabled={loading || !walletAddress}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              title="Actualizar desde blockchain (fuerza búsqueda RPC)"
+            >
+              🔄 Actualizar
+            </button>
+          </div>
           
           {loading && (
             <div className="flex items-center">

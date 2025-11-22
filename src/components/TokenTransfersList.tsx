@@ -7,6 +7,7 @@ interface TokenTransfer {
   from: string;
   to: string;
   amount: string;
+  decimals: number;
   timestamp: number;
   transactionHash: string;
 }
@@ -15,12 +16,16 @@ interface TokenTransfersListProps {
   transfers: TokenTransfer[];
   isLoading: boolean;
   onAddressClick?: (address: string) => void;
+  onRefresh?: () => void;
+  onClearCache?: () => void;
 }
 
-const TokenTransfersList: React.FC<TokenTransfersListProps> = ({ 
-  transfers, 
+const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
+  transfers,
   isLoading,
-  onAddressClick 
+  onAddressClick,
+  onRefresh,
+  onClearCache
 }) => {
   if (isLoading) {
     return (
@@ -35,7 +40,28 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
   if (transfers.length === 0) {
     return (
       <div className="bg-white p-6 rounded-lg shadow-md">
-        <p className="text-center text-gray-500">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Transferencias de Tokens</h2>
+          <div className="flex space-x-2">
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium transition-colors"
+              >
+                Actualizar
+              </button>
+            )}
+            {onClearCache && (
+              <button
+                onClick={onClearCache}
+                className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium transition-colors"
+              >
+                Limpiar y Recargar
+              </button>
+            )}
+          </div>
+        </div>
+        <p className="text-center text-gray-500 py-8">
           No se encontraron transferencias de tokens para esta wallet.
         </p>
       </div>
@@ -50,7 +76,27 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-      <h2 className="text-xl font-semibold mb-4">Transferencias de Tokens</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold">Transferencias de Tokens</h2>
+        <div className="flex space-x-2">
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium transition-colors"
+            >
+              Actualizar
+            </button>
+          )}
+          {onClearCache && (
+            <button
+              onClick={onClearCache}
+              className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium transition-colors"
+            >
+              Limpiar y Recargar
+            </button>
+          )}
+        </div>
+      </div>
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
@@ -74,7 +120,7 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div 
+                <div
                   className="text-sm text-blue-600 hover:text-blue-900 cursor-pointer"
                   onClick={() => handleAddressClick(transfer.from)}
                   title="Haz clic para buscar esta dirección"
@@ -83,7 +129,7 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div 
+                <div
                   className="text-sm text-blue-600 hover:text-blue-900 cursor-pointer"
                   onClick={() => handleAddressClick(transfer.to)}
                   title="Haz clic para buscar esta dirección"
@@ -92,7 +138,7 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900">{transfer.amount}</div>
+                <div className="text-sm text-gray-900">{formatAmount(transfer.amount, transfer.decimals)}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm text-gray-900">
@@ -115,6 +161,31 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
       </table>
     </div>
   );
+};
+
+// Función auxiliar para formatear cantidades de tokens
+const formatAmount = (amount: string, decimals: number): string => {
+  try {
+    const value = BigInt(amount);
+    const divisor = BigInt(10 ** decimals);
+    const integerPart = value / divisor;
+    const remainder = value % divisor;
+
+    // Convertir el resto a decimal
+    const decimalStr = remainder.toString().padStart(decimals, '0');
+    // Tomar solo los primeros 4 decimales
+    const significantDecimals = decimalStr.substring(0, 4).replace(/0+$/, '');
+
+    // Formatear con separadores de miles
+    const formattedInteger = integerPart.toLocaleString('en-US');
+
+    if (significantDecimals) {
+      return `${formattedInteger}.${significantDecimals}`;
+    }
+    return formattedInteger;
+  } catch (error) {
+    return amount; // Si falla, mostrar el valor raw
+  }
 };
 
 // Función auxiliar para acortar direcciones

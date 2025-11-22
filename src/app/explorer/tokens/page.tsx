@@ -1,7 +1,9 @@
 'use client';
 
-import { useState} from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { fetchTokenTransfers } from '@/lib/blockchain';
+import { clearWalletCache } from '@/actions/wallet';
 import NetworkSelector from '@/components/NetworkSelector';
 import TokenTransfersList from '@/components/TokenTransfersList';
 import WalletInput from '@/components/WalletInput';
@@ -14,15 +16,31 @@ import VestingSummary from '@/components/VestingSummary';
 import { Network } from '@/lib/types';
 
 export default function TokenExplorer() {
+  const searchParams = useSearchParams();
   const [wallet, setWallet] = useState<string>('');
   const [network, setNetwork] = useState<Network>('base');
   const [tokenFilter, setTokenFilter] = useState<string>('');
+
+  // Leer parámetro wallet de la URL y autocompletar
+  useEffect(() => {
+    const walletParam = searchParams.get('wallet');
+    if (walletParam) {
+      setWallet(walletParam);
+      // Trigger auto-search después de que wallet se actualice
+      setTimeout(() => {
+        const searchButton = document.querySelector('button[type="submit"]') as HTMLButtonElement;
+        if (searchButton) {
+          searchButton.click();
+        }
+      }, 100);
+    }
+  }, [searchParams]);
 
   // Estados compartidos para almacenar los resultados de cada componente
   const [transfers, setTransfers] = useState<any[]>([]);
   const [tokenBalances, setTokenBalances] = useState<any[]>([]);
   const [vestingSchedules, setVestingSchedules] = useState<any[]>([]);
-  const [airdropData, setAirdropData] = useState<{tokens: any[], points: any[]}>({tokens: [], points: []});
+  const [airdropData, setAirdropData] = useState<{ tokens: any[], points: any[] }>({ tokens: [], points: [] });
 
   // Estados de carga separados para cada tipo de datos
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -73,7 +91,7 @@ export default function TokenExplorer() {
     setTransfers([]);
     setTokenBalances([]);
     setVestingSchedules([]);
-    setAirdropData({tokens: [], points: []});
+    setAirdropData({ tokens: [], points: [] });
 
     setIsLoading(true);
     setError(null);
@@ -91,14 +109,14 @@ export default function TokenExplorer() {
       const transfersPromise = fetchTokenTransfers(wallet, network, tokenFilter)
         .then(data => {
           setTransfers(data);
-          setDataFetched(prev => ({...prev, transfers: true}));
-          setLoadingStates(prev => ({...prev, transfers: false}));
+          setDataFetched(prev => ({ ...prev, transfers: true }));
+          setLoadingStates(prev => ({ ...prev, transfers: false }));
           console.log("Transferencias cargadas:", data.length);
           return data;
         })
         .catch(err => {
           console.error("Error al cargar transferencias:", err);
-          setLoadingStates(prev => ({...prev, transfers: false}));
+          setLoadingStates(prev => ({ ...prev, transfers: false }));
           return [];
         });
 
@@ -107,21 +125,21 @@ export default function TokenExplorer() {
         return module.fetchTokenBalances(wallet, network)
           .then(data => {
             setTokenBalances(data);
-            setDataFetched(prev => ({...prev, balances: true}));
-            setLoadingStates(prev => ({...prev, balances: false}));
+            setDataFetched(prev => ({ ...prev, balances: true }));
+            setLoadingStates(prev => ({ ...prev, balances: false }));
             console.log("Balances cargados:", data.length);
             return data;
           })
           .catch(err => {
             console.error("Error al cargar balances:", err);
-            setLoadingStates(prev => ({...prev, balances: false}));
+            setLoadingStates(prev => ({ ...prev, balances: false }));
             return [];
           });
       });
 
       // Ya no buscamos vesting automáticamente, solo marcamos como no cargado
-      setDataFetched(prev => ({...prev, vesting: false}));
-      setLoadingStates(prev => ({...prev, vesting: false}));
+      setDataFetched(prev => ({ ...prev, vesting: false }));
+      setLoadingStates(prev => ({ ...prev, vesting: false }));
       console.log("Vesting no cargado automáticamente, debe usar el botón específico");
 
       // Buscar airdrops (simulado, ya que no tenemos la función real)
@@ -129,10 +147,10 @@ export default function TokenExplorer() {
         .then(() => {
           // Aquí iría la llamada real a la API de airdrops
           // Por ahora, solo marcamos como cargado
-          setDataFetched(prev => ({...prev, airdrops: true}));
-          setLoadingStates(prev => ({...prev, airdrops: false}));
+          setDataFetched(prev => ({ ...prev, airdrops: true }));
+          setLoadingStates(prev => ({ ...prev, airdrops: false }));
           console.log("Airdrops cargados");
-          return {tokens: [], points: []};
+          return { tokens: [], points: [] };
         });
 
       // Esperar a que todas las promesas se resuelvan
@@ -163,7 +181,7 @@ export default function TokenExplorer() {
     setTransfers([]);
     setTokenBalances([]);
     setVestingSchedules([]);
-    setAirdropData({tokens: [], points: []});
+    setAirdropData({ tokens: [], points: [] });
 
     // Resetear los estados de datos cargados
     setDataFetched({
@@ -175,13 +193,60 @@ export default function TokenExplorer() {
 
     // Iniciar nueva búsqueda
     handleSearch();
+    handleSearch();
+  };
+
+  // Función para actualizar solo transferencias (incremental)
+  const handleRefreshTransfers = async () => {
+    if (!wallet) return;
+
+    setLoadingStates(prev => ({ ...prev, transfers: true }));
+
+    try {
+      const data = await fetchTokenTransfers(wallet, network, tokenFilter);
+      setTransfers(data);
+      setDataFetched(prev => ({ ...prev, transfers: true }));
+      console.log("Transferencias actualizadas:", data.length);
+    } catch (err) {
+      console.error("Error al actualizar transferencias:", err);
+    } finally {
+      setLoadingStates(prev => ({ ...prev, transfers: false }));
+    }
+  };
+
+  // Función para limpiar caché y recargar todo (full refresh)
+  const handleClearCache = async () => {
+    if (!wallet) return;
+
+    if (!confirm('¿Estás seguro de que quieres borrar el caché y recargar todas las transferencias? Esto puede tardar unos segundos.')) {
+      return;
+    }
+
+    setLoadingStates(prev => ({ ...prev, transfers: true }));
+
+    try {
+      // 1. Limpiar caché
+      await clearWalletCache(wallet);
+      console.log("Caché limpiado");
+
+      // 2. Recargar transferencias (esto buscará todo de nuevo en la API)
+      const data = await fetchTokenTransfers(wallet, network, tokenFilter);
+      setTransfers(data);
+      setDataFetched(prev => ({ ...prev, transfers: true }));
+      console.log("Transferencias recargadas:", data.length);
+    } catch (err) {
+      console.error("Error al limpiar caché y recargar:", err);
+      setError("Error al limpiar el caché. Por favor intenta de nuevo.");
+    } finally {
+      setLoadingStates(prev => ({ ...prev, transfers: false }));
+    }
   };
 
   // Componentes con datos precargados
   const balanceComponent = (
-    <TokenBalance 
-      walletAddress={wallet} 
-      network={network} 
+    <TokenBalance
+      walletAddress={wallet}
+      network={network}
       isLoading={loadingStates.balances}
       searchTriggered={searchCount}
       preloadedData={dataFetched.balances ? tokenBalances : undefined}
@@ -189,17 +254,19 @@ export default function TokenExplorer() {
   );
 
   const transfersComponent = (
-    <TokenTransfersList 
-      transfers={transfers} 
-      isLoading={loadingStates.transfers} 
+    <TokenTransfersList
+      transfers={transfers}
+      isLoading={loadingStates.transfers}
       onAddressClick={handleAddressClick}
+      onRefresh={handleRefreshTransfers}
+      onClearCache={handleClearCache}
     />
   );
 
   const vestingComponent = (
-    <VestingInfo 
-      walletAddress={wallet} 
-      network={network} 
+    <VestingInfo
+      walletAddress={wallet}
+      network={network}
       isLoading={loadingStates.vesting}
       searchTriggered={searchCount}
       preloadedData={dataFetched.vesting ? vestingSchedules : undefined}
@@ -207,9 +274,9 @@ export default function TokenExplorer() {
   );
 
   const airdropComponent = (
-    <AirdropAssignments 
-      walletAddress={wallet} 
-      network={network} 
+    <AirdropAssignments
+      walletAddress={wallet}
+      network={network}
       isLoading={loadingStates.airdrops}
       searchTriggered={searchCount}
       preloadedData={dataFetched.airdrops ? airdropData : undefined}
@@ -218,7 +285,7 @@ export default function TokenExplorer() {
 
   // Nuevo componente de resumen de vesting
   const vestingSummaryComponent = (
-    <VestingSummary 
+    <VestingSummary
       network={network}
     />
   );
@@ -244,7 +311,7 @@ export default function TokenExplorer() {
           <NetworkSelector value={network} onChange={setNetwork} />
           <TokenFilter value={tokenFilter} onChange={setTokenFilter} />
           <div className="flex items-end">
-            <button 
+            <button
               onClick={handleSearch}
               disabled={isLoading}
               className="btn-primary w-full"
@@ -259,13 +326,13 @@ export default function TokenExplorer() {
             {error}
           </div>
         )}
-        
+
         {isLoading && (
           <div className="mt-4 mb-4">
             <p className="text-sm text-gray-600 mb-2">Cargando datos para todas las pestañas... ({Math.round(loadingProgress)}%)</p>
             <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className="bg-blue-600 h-2.5 rounded-full" 
+              <div
+                className="bg-blue-600 h-2.5 rounded-full"
                 style={{ width: `${loadingProgress}%` }}
               ></div>
             </div>

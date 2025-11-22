@@ -1,0 +1,150 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================================================
+// FASE 1: Etiquetado y Caché Básico
+// ==================================================
+
+model KnownAddress {
+  id          String   @id @default(cuid())
+  address     String   @unique
+  name        String
+  type        AddressType
+  category    String?
+  description String?
+  tags        String[] // Array de tags: ["vesting", "important", "monitored"]
+  color       String?  // Color hex para UI
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([address])
+  @@index([type])
+  @@index([category])
+  @@map("known_addresses")
+}
+
+enum AddressType {
+  CONTRACT
+  WALLET
+  EXCHANGE
+  VESTING
+  TOKEN
+  UNKNOWN
+}
+
+model TokenSupplyCache {
+  id                String   @id @default(cuid())
+  tokenAddress      String
+  network           String
+  totalSupply       String
+  circulatingSupply String
+  lockedSupply      String
+  cachedAt          DateTime @default(now())
+  expiresAt         DateTime
+
+  @@unique([tokenAddress, network])
+  @@index([expiresAt])
+  @@map("token_supply_cache")
+}
+
+// Caché incremental de transferencias (solo agrega nuevos)
+model TransferCache {
+  id            String   @id @default(cuid())
+  hash          String   @unique  // Para evitar duplicados
+  tokenAddress  String
+  tokenSymbol   String?  // Nuevo: Para mostrar en el historial
+  tokenName     String?  // Nuevo: Para mostrar en el historial
+  decimals      Int      @default(18)  // Decimales del token para formatear cantidades
+  from          String
+  to            String
+  value         String
+  timestamp     Int      // Unix timestamp para ordenar y buscar últimos
+  blockNumber   Int
+  network       String   @default("base")
+  cachedAt      DateTime @default(now())
+
+  @@index([tokenAddress, timestamp])  // Para buscar transfers y último timestamp
+  @@index([tokenAddress, network])
+  @@index([from])
+  @@index([to])
+  @@index([hash])
+  @@map("transfer_cache")
+}
+
+// Snapshots periódicos de holders (reemplaza snapshot completo cada vez)
+model HolderSnapshot {
+  id           String   @id @default(cuid())
+  tokenAddress String
+  network      String   @default("base")
+  timestamp    DateTime @default(now())
+  holders      Holder[]
+
+  @@index([tokenAddress, network, timestamp])
+  @@map("holder_snapshots")
+}
+
+// Holders individuales dentro de un snapshot
+model Holder {
+  id         String   @id @default(cuid())
+  snapshotId String
+  address    String
+  balance    String
+  percentage Float
+  isContract Boolean  @default(false)
+  isExchange Boolean  @default(false)
+  label      String?  // Nombre si está en KnownAddress
+
+  snapshot   HolderSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([address])
+  @@index([snapshotId])
+  @@map("holders")
+}
+
+// Caché de información de vesting por wallet y contrato
+model VestingCache {
+  id                    String   @id @default(cuid())
+  walletAddress         String
+  vestingContractAddress String
+  network               String   @default("base")
+
+  // Información del token
+  tokenName             String
+  tokenSymbol           String
+  tokenAddress          String
+
+  // Cantidades
+  totalAmount           String
+  vestedAmount          String
+  claimableAmount       String
+  remainingAmount       String
+  releasedAmount        String
+
+  // Timestamps
+  startTime             Int
+  endTime               Int
+  nextUnlockTime        Int?
+  nextUnlockAmount      String?
+
+  // Configuración de vesting
+  slicePeriodSeconds    Int?
+  cliff                 Int?
+  cliffEndTime          Int?
+
+  // Metadatos de caché
+  cachedAt              DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([walletAddress, vestingContractAddress, network])
+  @@index([walletAddress])
+  @@index([vestingContractAddress])
+  @@map("vesting_cache")
+}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchTokenBalances } from '@/lib/blockchain';
+import { ethers } from 'ethers';
 import { Network } from '@/lib/types';
 import { getExplorerUrl } from '@/lib/utils';
 
@@ -7,7 +8,7 @@ interface TokenBalanceProps {
   walletAddress: string;
   network: Network;
   isLoading: boolean;
-  searchTriggered?: number; 
+  searchTriggered?: number;
   preloadedData?: TokenInfo[]; // Datos precargados desde el componente principal
 }
 
@@ -19,10 +20,10 @@ interface TokenInfo {
   decimals: number;
 }
 
-const TokenBalance: React.FC<TokenBalanceProps> = ({ 
-  walletAddress, 
-  network, 
-  isLoading, 
+const TokenBalance: React.FC<TokenBalanceProps> = ({
+  walletAddress,
+  network,
+  isLoading,
   searchTriggered = 0,
   preloadedData
 }) => {
@@ -37,21 +38,21 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
       tokenAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
       tokenSymbol: 'USDC',
       tokenName: 'USD Coin',
-      balance: '80000.0',
+      balance: '80000000000', // 80000.0 * 10^6
       decimals: 6
     },
     {
       tokenAddress: '0xfef6980d6d92bac3e99b5a8f2f58a6e1e4c7651a',
       tokenSymbol: 'ANTHRAX',
       tokenName: 'Anthrax',
-      balance: '3834.0',
+      balance: '3834000000000000000000', // 3834.0 * 10^18
       decimals: 18
     },
     {
       tokenAddress: '0xfef6980d6d92bac3e99b5a8f2f58a6e1e4c7651b',
       tokenSymbol: 'SMALLPOX',
       tokenName: 'Smallpox',
-      balance: '1278.0',
+      balance: '1278000000000000000000', // 1278.0 * 10^18
       decimals: 18
     }
   ];
@@ -72,7 +73,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
       console.log("Usando datos precargados, no es necesario buscar de nuevo");
       return;
     }
-    
+
     if (!walletAddress) {
       return;
     }
@@ -85,7 +86,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
       console.log(`Fetching token balances for wallet: ${walletAddress} on network: ${network}`);
       const data = await fetchTokenBalances(walletAddress, network);
       console.log('Token balances received:', data);
-      
+
       if (data && data.length > 0) {
         setTokenBalances(data);
         setShowMockData(false);
@@ -97,6 +98,8 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
     } catch (err: any) {
       setError(`Error al obtener los balances de tokens: ${err.message || 'Error desconocido'}`);
       console.error('Error fetching token balances:', err);
+
+      // En caso de error, mostrar datos de ejemplo para desarrollo
       setShowMockData(true);
       setTokenBalances(mockTokenBalances);
     } finally {
@@ -104,20 +107,19 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
     }
   };
 
-  // Cargar datos cuando cambia la wallet o la red, solo si no hay datos precargados
+  // Efecto para cargar datos cuando cambia la wallet o el contador de búsqueda
   useEffect(() => {
-    // Comentamos esta parte para evitar cargas automáticas al cambiar la wallet
-    // if (walletAddress && !isLoading && !preloadedData) {
-    //   handleFetchBalances();
-    // }
-  }, [walletAddress, network, isLoading, preloadedData]);
-
-  // Responder al botón de búsqueda global, solo si no hay datos precargados
-  useEffect(() => {
-    if (searchTriggered > 0 && !preloadedData) {
+    if (walletAddress) {
       handleFetchBalances();
     }
-  }, [searchTriggered, preloadedData]);
+  }, [walletAddress, network, searchTriggered]);
+
+  // Efecto para actualizar estado de carga basado en props
+  useEffect(() => {
+    if (isLoading !== undefined) {
+      setLoading(isLoading);
+    }
+  }, [isLoading]);
 
   if (isLoading) {
     return (
@@ -130,9 +132,9 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
+    <div className="bg-white p-6 rounded-lg shadow-md mb-8">
       <h2 className="text-xl font-semibold mb-4">Balance de Tokens</h2>
-      
+
       {loading ? (
         <div className="flex justify-center items-center h-40">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -144,7 +146,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
               {error}
             </div>
           )}
-          
+
           {tokenBalances.length > 0 ? (
             <table className="min-w-full bg-white">
               <thead>
@@ -167,9 +169,9 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
                             {token.tokenName} ({token.tokenSymbol})
                           </div>
                           <div className="text-sm text-gray-500">
-                            <a 
-                              href={`${getExplorerUrl(network)}/token/${token.tokenAddress}`} 
-                              target="_blank" 
+                            <a
+                              href={`${getExplorerUrl(network)}/token/${token.tokenAddress}`}
+                              target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-600 hover:text-blue-800"
                             >
@@ -180,7 +182,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
                       </div>
                     </td>
                     <td className="py-2 px-4 border-b border-gray-200 text-right text-sm font-medium">
-                      {parseFloat(token.balance).toLocaleString(undefined, {
+                      {parseFloat(ethers.formatUnits(token.balance, token.decimals)).toLocaleString(undefined, {
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 4
                       })}
@@ -192,11 +194,11 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
           ) : (
             <div className="text-center py-8">
               <p className="text-gray-500">No se encontraron tokens para esta wallet.</p>
-              <button 
+              <button
                 onClick={() => {
                   setShowMockData(true);
                   setTokenBalances(mockTokenBalances);
-                }} 
+                }}
                 className="text-blue-600 hover:text-blue-800 underline"
               >
                 Mostrar datos de ejemplo

@@ -14,7 +14,22 @@ export default function Home() {
           en diferentes blockchains, como Base y Base Testnet.
         </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Dashboard Unificado - Destacado */}
+          <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-6 rounded-lg text-white shadow-lg md:col-span-2">
+            <h2 className="text-2xl font-bold mb-3 flex items-center">
+              <span className="mr-2">🚀</span>
+              Dashboard Completo
+            </h2>
+            <p className="mb-4 text-blue-50">
+              Accede a todas las funcionalidades en un solo lugar: tokens, balances, vesting contracts y analytics avanzado.
+            </p>
+            <Link href="/dashboard" className="inline-block bg-white text-blue-600 font-semibold px-6 py-3 rounded-md hover:bg-blue-50 transition-colors">
+              Ir al Dashboard →
+            </Link>
+          </div>
+
+          {/* Accesos directos individuales */}
           <div className="bg-blue-50 p-4 rounded-md">
             <h2 className="text-xl font-semibold mb-2">Explorador de Tokens</h2>
             <p className="mb-4">Consulta los tokens enviados a una wallet y filtra por tipos específicos.</p>
