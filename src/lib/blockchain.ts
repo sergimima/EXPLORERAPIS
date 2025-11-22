@@ -1736,205 +1736,89 @@ async function fetchWithRetry(url: string, maxRetries = 3, delayMs = 1000) {
 }
 
 /**
- * Función interna para hacer las peticiones a la API de Vottun
+ * Función interna para obtener supply directamente de la blockchain
  * @param onProgress Callback opcional para reportar el progreso
  */
 async function fetchTokenSupplyData(onProgress?: ProgressCallback): Promise<TokenSupplyInfo> {
+  // Dirección del token VTN en Base
+  const VTN_TOKEN_ADDRESS = '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC';
+
+  // Direcciones de los 8 contratos de vesting
+  const VESTING_CONTRACTS = [
+    '0xa699Cf416FFe6063317442c3Fbd0C39742E971c5', // Vottun World
+    '0x3e0ef51811B647E00A85A7e5e495fA4763911982', // Investors
+    '0xE521B2929DD28a725603bCb6F4009FBb656C4b15', // Marketing
+    '0x3a7cf4cCC76bb23Cf15845B0d4f05BafF1D478cF', // Staking
+    '0x417Fc9c343210AA52F0b19dbf4EecBD786139BC1', // Liquidity
+    '0xFC750D874077F8c90858cC132e0619CE7571520b', // Promos
+    '0xde68AD324aafD9F2b6946073C90ED5e61D5d51B8', // Team
+    '0xC4CE5cFea2B6e32Ad41973348AC70EB3b00D8e6d'  // Reserve
+  ];
+
   try {
-    // Indicar inicio del proceso
     if (onProgress) {
       onProgress('iniciando', 0);
     }
 
-    // Obtener total supply (con protección contra peticiones duplicadas)
-    if (onProgress) {
-      onProgress('cargando_total_supply', 10);
-    }
+    // Obtener configuración de red y crear provider con RPC alternativo
+    const networkConfig = NETWORKS['base'];
+    // Usar QuickNode si está configurado, sino usar RPC alternativo público
+    const rpcUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://base.llamarpc.com';
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
 
-    let totalSupplyResponse;
-    if (!totalSupplyRequestInProgress) {
-      totalSupplyRequestInProgress = true;
-      try {
-        // Usar la función de reintento
-        totalSupplyResponse = await fetchWithRetry('https://intapi.vottun.tech/tkn/v1/total-supply');
-      } catch (error) {
-        console.error('Error después de múltiples intentos para total-supply:', error);
-        throw error;
-      } finally {
-        // Asegurarse de que la bandera se restablezca incluso si hay un error
-        setTimeout(() => {
-          totalSupplyRequestInProgress = false;
-        }, 5000); // Esperar 5 segundos antes de permitir otra petición
-      }
-    } else {
-      console.log('Ya hay una petición de total supply en curso, esperando...');
-      // Esperar a que termine la petición en curso (máximo 5 segundos)
-      for (let i = 0; i < 5; i++) {
-        if (!totalSupplyRequestInProgress) break;
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
-      }
-      // Si después de esperar sigue en curso, usar el valor por defecto
-      if (totalSupplyRequestInProgress) {
-        console.warn('Tiempo de espera agotado para la petición de total supply, usando valor por defecto');
-        throw new Error('Tiempo de espera agotado para la petición de total supply');
-      }
-      // Intentar de nuevo con reintentos
-      try {
-        totalSupplyResponse = await fetchWithRetry('https://intapi.vottun.tech/tkn/v1/total-supply');
-      } catch (error) {
-        console.error('Error después de múltiples intentos para total-supply (reintento):', error);
-        throw error;
-      }
-    }
+    // ABI mínimo para ERC20 (solo necesitamos totalSupply y balanceOf)
+    const ERC20_ABI = [
+      'function totalSupply() view returns (uint256)',
+      'function balanceOf(address) view returns (uint256)',
+      'function decimals() view returns (uint8)'
+    ];
 
-    // Verificar si la respuesta tiene la estructura esperada
-    let totalSupply = '0';
-    if (totalSupplyResponse.data !== null && totalSupplyResponse.data !== undefined) {
-      // Detectar el tipo de respuesta y extraer el valor
-      if (typeof totalSupplyResponse.data === 'object' && totalSupplyResponse.data.totalSupply) {
-        // Si es un objeto con propiedad totalSupply
-        totalSupply = totalSupplyResponse.data.totalSupply.toString();
-      } else if (typeof totalSupplyResponse.data === 'string') {
-        // Si la API devuelve directamente un string
-        totalSupply = totalSupplyResponse.data;
-      } else if (typeof totalSupplyResponse.data === 'number') {
-        // Si la API devuelve directamente un número
-        totalSupply = totalSupplyResponse.data.toString();
-      } else {
-        // Intentar convertir a string como último recurso
-        try {
-          totalSupply = String(totalSupplyResponse.data);
-        } catch (e) {
-          console.error('No se pudo convertir la respuesta a string:', e);
-        }
-      }
-    }
-
-    // Verificar que el valor obtenido sea un número válido
-    if (totalSupply && !isNaN(parseFloat(totalSupply))) {
-    } else {
-      console.warn('El valor de total supply no es un número válido:', totalSupply);
-      totalSupply = '0';
-    }
-
-    // Añadir un delay de 5 segundos para evitar errores de rate limit
-
-    // Implementar contador de progreso durante la espera
-    const WAIT_TIME = 5000; // 5 segundos en milisegundos
-    const INTERVAL = 100; // Actualizar cada 100ms
-    const STEPS = WAIT_TIME / INTERVAL;
+    // Crear contrato del token
+    const tokenContract = new ethers.Contract(VTN_TOKEN_ADDRESS, ERC20_ABI, provider);
 
     if (onProgress) {
-      onProgress('cargando_datos', 25); // 25% después de obtener total supply
+      onProgress('cargando_total_supply', 20);
     }
 
-    // Esperar con actualizaciones de progreso
-    await new Promise<void>(resolve => {
-      let elapsed = 0;
-      const interval = setInterval(() => {
-        elapsed += INTERVAL;
-        const progress = Math.min(25 + Math.floor((elapsed / WAIT_TIME) * 25), 50); // De 25% a 50%
+    // Obtener total supply
+    const totalSupplyRaw = await tokenContract.totalSupply();
+    const decimals = await tokenContract.decimals();
+    const totalSupply = ethers.formatUnits(totalSupplyRaw, decimals);
 
-        if (onProgress) {
-          onProgress('esperando', progress);
-        }
+    if (onProgress) {
+      onProgress('cargando_datos', 40);
+    }
 
-        if (elapsed >= WAIT_TIME) {
-          clearInterval(interval);
-          resolve();
-        }
-      }, INTERVAL);
-    });
+    // Obtener balance de cada contrato de vesting
+    let totalLocked = BigInt(0);
+    for (let i = 0; i < VESTING_CONTRACTS.length; i++) {
+      const balance = await tokenContract.balanceOf(VESTING_CONTRACTS[i]);
+      totalLocked += balance;
 
-    // Obtener circulating supply (con protección contra peticiones duplicadas)
-    let circulatingSupply = '0';
-    try {
       if (onProgress) {
-        onProgress('cargando_circulating_supply', 60);
+        const progress = 40 + Math.floor((i + 1) / VESTING_CONTRACTS.length * 50);
+        onProgress('cargando_circulating_supply', progress);
       }
-
-      let circulatingSupplyResponse;
-      if (!circulatingSupplyRequestInProgress) {
-        circulatingSupplyRequestInProgress = true;
-        try {
-          // Usar la función de reintento
-          circulatingSupplyResponse = await fetchWithRetry('https://intapi.vottun.tech/tkn/v1/circulating-supply');
-        } catch (error) {
-          console.error('Error después de múltiples intentos para circulating-supply:', error);
-          throw error;
-        } finally {
-          // Asegurarse de que la bandera se restablezca incluso si hay un error
-          setTimeout(() => {
-            circulatingSupplyRequestInProgress = false;
-          }, 5000); // Esperar 5 segundos antes de permitir otra petición
-        }
-      } else {
-        console.log('Ya hay una petición de circulating supply en curso, esperando...');
-        // Esperar a que termine la petición en curso (máximo 5 segundos)
-        for (let i = 0; i < 5; i++) {
-          if (!circulatingSupplyRequestInProgress) break;
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
-        }
-        // Si después de esperar sigue en curso, usar el valor por defecto
-        if (circulatingSupplyRequestInProgress) {
-          console.warn('Tiempo de espera agotado para la petición de circulating supply, usando valor por defecto');
-          throw new Error('Tiempo de espera agotado para la petición de circulating supply');
-        }
-        // Intentar de nuevo con reintentos
-        try {
-          circulatingSupplyResponse = await fetchWithRetry('https://intapi.vottun.tech/tkn/v1/circulating-supply');
-        } catch (error) {
-          console.error('Error después de múltiples intentos para circulating-supply (reintento):', error);
-          throw error;
-        }
-      }
-
-
-      // Verificar si la respuesta tiene la estructura esperada
-      if (circulatingSupplyResponse.data !== null && circulatingSupplyResponse.data !== undefined) {
-        if (typeof circulatingSupplyResponse.data === 'object' && circulatingSupplyResponse.data.circulatingSupply) {
-          circulatingSupply = circulatingSupplyResponse.data.circulatingSupply.toString();
-        } else if (typeof circulatingSupplyResponse.data === 'string') {
-          circulatingSupply = circulatingSupplyResponse.data;
-        } else if (typeof circulatingSupplyResponse.data === 'number') {
-          circulatingSupply = circulatingSupplyResponse.data.toString();
-        } else {
-          try {
-            circulatingSupply = String(circulatingSupplyResponse.data);
-          } catch (e) {
-            console.error('No se pudo convertir la respuesta a string:', e);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error al obtener circulating supply:', error);
-      // Si falla, continuamos con el valor por defecto
     }
 
-    // Asegurarse de que los valores sean numéricos para el cálculo
-    const totalSupplyNum = parseFloat(totalSupply) || 0;
-    const circulatingSupplyNum = parseFloat(circulatingSupply) || 0;
-    const lockedSupply = (totalSupplyNum - circulatingSupplyNum).toFixed(2);
+    // Calcular locked supply y circulating supply
+    const lockedSupply = ethers.formatUnits(totalLocked, decimals);
+    const totalSupplyNum = parseFloat(totalSupply);
+    const lockedSupplyNum = parseFloat(lockedSupply);
+    const circulatingSupply = (totalSupplyNum - lockedSupplyNum).toFixed(2);
 
-    // Crear el objeto de respuesta
-    const supplyInfo: TokenSupplyInfo = {
-      totalSupply: totalSupplyNum.toString(),
-      circulatingSupply: circulatingSupplyNum.toString(),
-      lockedSupply,
-      lastUpdated: new Date().toISOString()
-    };
-
-    // Indicar que el proceso ha finalizado
     if (onProgress) {
       onProgress('completado', 100);
     }
 
-
-    return supplyInfo;
+    return {
+      totalSupply: totalSupplyNum.toFixed(2),
+      circulatingSupply,
+      lockedSupply: lockedSupplyNum.toFixed(2),
+      lastUpdated: new Date().toISOString()
+    };
   } catch (error) {
-    console.error('Error al obtener la información del suministro:', error);
-
-    // En caso de error, devolver valores por defecto en lugar de propagar el error
+    console.error('Error al obtener supply desde blockchain:', error);
     return {
       totalSupply: '0',
       circulatingSupply: '0',
@@ -1943,7 +1827,6 @@ async function fetchTokenSupplyData(onProgress?: ProgressCallback): Promise<Toke
     };
   }
 }
-
 // #endregion
 
 //=============================================================================

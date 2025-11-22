@@ -495,7 +495,11 @@ export default function UnifiedExplorer() {
               </p>
               <div className="mt-4">
                 <button
-                  onClick={() => setShowContractDetails(true)}
+                  onClick={() => {
+                    console.log("🔍 Botón 'Buscar Contrato' clickeado. Dirección:", contractAddress);
+                    setShowContractDetails(true);
+                    console.log("✅ showContractDetails establecido a true");
+                  }}
                   disabled={!contractAddress}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
@@ -505,8 +509,18 @@ export default function UnifiedExplorer() {
             </div>
           </div>
 
+
+          {(() => {
+            console.log("🔍 Debug VestingSummary:");
+            console.log("  - showContractDetails:", showContractDetails);
+            console.log("  - contractAddress:", contractAddress);
+            console.log("  - Condición cumplida:", showContractDetails && contractAddress);
+            return null;
+          })()}
+
           {showContractDetails && contractAddress && (
             <div className="mt-8">
+              {console.log("✅ Renderizando VestingSummary")}
               <VestingSummary
                 network={network}
                 initialContractAddress={contractAddress}

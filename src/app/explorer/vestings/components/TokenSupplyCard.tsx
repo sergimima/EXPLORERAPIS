@@ -25,13 +25,13 @@ const SupplyCard: React.FC<SupplyCardProps> = ({ title, value, description, icon
   return (
     <div className="bg-white bg-white rounded-lg shadow-md p-6 flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+        <h3 className="text-lg font-medium text-gray-900">
           {title}
         </h3>
         {icon && <div className="text-blue-500">{icon}</div>}
       </div>
       <div className="flex-1">
-        <p className="text-2xl font-bold text-gray-900 dark:text-white">
+        <p className="text-2xl font-bold text-gray-900">
           {displayValue()}
         </p>
         {description && (
@@ -57,24 +57,24 @@ const TokenSupplyCard: React.FC = () => {
   useEffect(() => {
     // Generar un ID único para esta ejecución del efecto
     const currentRequestId = ++requestIdRef.current;
-    
-    
+
+
     const fetchSupplyInfo = async () => {
       // Si ya estamos obteniendo datos, no hacer nada
       if (fetchingRef.current) {
         return;
       }
       fetchingRef.current = true;
-      
+
       try {
         setLoading(true);
         setLoadingProgress(0);
         setLoadingStage('iniciando');
-        
+
         // Definir el callback de progreso
         const handleProgress = (stage: string, progress: number) => {
           setLoadingProgress(progress);
-          
+
           // Traducir las etapas a mensajes en español
           switch (stage) {
             case 'iniciando':
@@ -105,7 +105,7 @@ const TokenSupplyCard: React.FC = () => {
               setLoadingStage(`Cargando (${progress}%)...`);
           }
         };
-        
+
         // Llamar a getTokenSupplyInfo con el callback de progreso
         const data = await getTokenSupplyInfo(handleProgress);
         setSupplyInfo(data);
@@ -122,7 +122,7 @@ const TokenSupplyCard: React.FC = () => {
     };
 
     fetchSupplyInfo();
-    
+
     // Función de limpieza
     return () => {
       // No reseteamos fetchingRef.current aquí para evitar que se inicien nuevas peticiones
@@ -139,7 +139,7 @@ const TokenSupplyCard: React.FC = () => {
               Cargando información del suministro
             </h3>
           </div>
-          
+
           <div className="mb-4">
             <div className="relative pt-1">
               <div className="flex mb-2 items-center justify-between">
@@ -155,14 +155,14 @@ const TokenSupplyCard: React.FC = () => {
                 </div>
               </div>
               <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
-                <div 
-                  style={{ width: `${loadingProgress}%` }} 
+                <div
+                  style={{ width: `${loadingProgress}%` }}
                   className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-300"
                 ></div>
               </div>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
               <div key={i} className="bg-gray-100 bg-gray-100 rounded-lg p-4 animate-pulse">
@@ -199,7 +199,7 @@ const TokenSupplyCard: React.FC = () => {
           </svg>
         }
       />
-      
+
       <SupplyCard
         title="Circulating Supply"
         value={supplyInfo.circulatingSupply}
@@ -210,7 +210,7 @@ const TokenSupplyCard: React.FC = () => {
           </svg>
         }
       />
-      
+
       <SupplyCard
         title="Locked Supply (provisional, solo hace diferencia entre total y circulating)"
         value={supplyInfo.lockedSupply}
