@@ -9,13 +9,22 @@ services:
     ports:
       - "4200:4200"
     env_file:
-      - .env.local            # opcional, también puedes usar `environment:` con variables explícitas
+      - .env.local
+    environment:
+      # Variable de conexión a la base de datos desde docker-compose
+      DATABASE_URL: "postgresql://explorer_user:explorer_pass@db:5432/explorerdb?schema=public"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: unless-stopped
-    # Si usas Prisma, ejecuta migraciones al iniciar:
-    # command: ["sh", "-c", "npx prisma migrate deploy && npm run dev -p 4200"]
-    # (descomenta la línea anterior si quieres que el contenedor aplique migrations automáticamente)
+    # Ejecuta migraciones de Prisma al iniciar (opcional, descomenta si lo necesitas)
+    # command: ["sh", "-c", "npx prisma migrate deploy && npm start"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4200/api/test', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   db:
     image: postgres:15-alpine
@@ -29,6 +38,11 @@ services:
     ports:
       - "5433:5432"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U explorer_user -d explorerdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:

@@ -3,17 +3,22 @@ FROM node:18-alpine AS builder
 ARG NODE_ENV=production
 ENV NODE_ENV=$NODE_ENV
 
+RUN apk add --no-cache git python3 make g++
+
 WORKDIR /app
 
 # Copiamos los archivos de lock para aprovechar la caché de npm
 COPY package*.json ./
 # Instala **todas** las dependencias (incluye dev) para poder compilar Next
-RUN npm install
+RUN npm ci
 
-# Copiamos el resto del código
+# Copiamos el resto del código necesario para el build
 COPY . .
 
-# Compilamos (Next 14 necesita `next build`)
+# Genera Prisma Client
+RUN npx prisma generate
+
+# Compilamos (Next 14 necesita `next build`)
 RUN npm run build
 
 # -------------------------------------------------
@@ -23,16 +28,19 @@ FROM node:18-alpine AS runtime
 
 WORKDIR /app
 
+# Copiamos archivos compilados y necesarios
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/next.config.mjs ./
-COPY --from=builder /app/tsconfig.json ./
-COPY --from=builder .env.local ./.env.local   # opcional, puedes montar un secret en Docker‑Compose
+COPY --from=builder /app/next.config.js ./next.config.js
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Instala solo las dependencias de producción (ya están en node_modules)
-RUN npm ci --omit=dev
+# Instala solo las dependencias de producción
+RUN npm ci --omit=dev --ignore-scripts
 
 EXPOSE 4200
 
-CMD ["npm", "run", "dev", "--", "-p", "4200"]
+# Usa npm start para producción (next start)
+CMD ["npm", "start"]
