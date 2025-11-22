@@ -8,7 +8,7 @@ WORKDIR /app
 # Copiamos los archivos de lock para aprovechar la caché de npm
 COPY package*.json ./
 # Instala **todas** las dependencias (incluye dev) para poder compilar Next
-RUN npm ci
+RUN npm install
 
 # Copiamos el resto del código
 COPY . .
