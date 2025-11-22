@@ -10,7 +10,8 @@ WORKDIR /app
 # Copiamos los archivos de lock para aprovechar la caché de npm
 COPY package*.json ./
 # Instala **todas** las dependencias (incluye dev) para poder compilar Next
-RUN npm ci
+# Usamos npm install en lugar de npm ci para ser más tolerante con lock files desactualizados
+RUN npm install
 
 # Copiamos el resto del código necesario para el build
 COPY . .
@@ -38,7 +39,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Instala solo las dependencias de producción
-RUN npm ci --omit=dev --ignore-scripts
+RUN npm install --omit=dev --ignore-scripts
 
 EXPOSE 4200
 
