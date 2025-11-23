@@ -19,6 +19,9 @@ export async function GET(request: NextRequest) {
         vestingContract: vestingContract.toLowerCase(),
         network: network
       },
+      include: {
+        vestings: true  // Incluir schedules relacionados
+      },
       orderBy: { updatedAt: 'desc' }
     });
 
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Primero borrar beneficiarios existentes de este vesting
+    // Primero borrar beneficiarios existentes de este vesting (cascade borrará schedules)
     await prisma.vestingBeneficiaryCache.deleteMany({
       where: {
         vestingContract: vestingContract.toLowerCase(),
@@ -61,31 +64,46 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Guardar nuevos beneficiarios
-    const beneficiariesToSave = beneficiaries.map((b: any) => ({
-      vestingContract: vestingContract.toLowerCase(),
-      beneficiaryAddress: b.beneficiaryAddress?.toLowerCase() || '',
-      network: network || 'base',
-      tokenAddress: tokenAddress.toLowerCase(),
-      tokenSymbol: tokenSymbol,
-      tokenName: tokenName,
-      totalAmount: b.totalAmount || '0',
-      vestedAmount: b.vestedAmount || '0',
-      releasedAmount: b.releasedAmount || '0',
-      claimableAmount: b.claimableAmount || '0',
-      remainingAmount: b.remainingAmount || '0',
-      startTime: b.startTime || 0,
-      endTime: b.endTime || 0
-    }));
-
-    await prisma.vestingBeneficiaryCache.createMany({
-      data: beneficiariesToSave,
-      skipDuplicates: true
-    });
+    // Guardar nuevos beneficiarios CON sus schedules
+    let totalSaved = 0;
+    for (const b of beneficiaries) {
+      const beneficiary = await prisma.vestingBeneficiaryCache.create({
+        data: {
+          vestingContract: vestingContract.toLowerCase(),
+          beneficiaryAddress: b.beneficiaryAddress?.toLowerCase() || '',
+          network: network || 'base',
+          tokenAddress: tokenAddress.toLowerCase(),
+          tokenSymbol: tokenSymbol,
+          tokenName: tokenName,
+          totalAmount: b.totalAmount || '0',
+          vestedAmount: b.vestedAmount || '0',
+          releasedAmount: b.releasedAmount || '0',
+          claimableAmount: b.claimableAmount || '0',
+          remainingAmount: b.remainingAmount || '0',
+          startTime: b.startTime || 0,
+          endTime: b.endTime || 0,
+          vestings: b.vestings && Array.isArray(b.vestings) ? {
+            create: b.vestings.map((v: any) => ({
+              scheduleId: v.scheduleId || '',
+              phase: v.phase || '',
+              cliff: v.cliff || 0,
+              start: v.start || 0,
+              duration: v.duration || 0,
+              amountTotal: v.amount || v.amountTotal || '0',
+              claimFrequencyInSeconds: v.slicePeriodSeconds || v.claimFrequencyInSeconds || 0,
+              lastClaimDate: v.lastClaimDate || 0,
+              released: v.released || v.claimed || '0',
+              revoked: v.revoked || false
+            }))
+          } : undefined
+        }
+      });
+      totalSaved++;
+    }
 
     return NextResponse.json({
       success: true,
-      saved: beneficiariesToSave.length
+      saved: totalSaved
     });
   } catch (error) {
     console.error('[vesting-beneficiaries] Error saving:', error);

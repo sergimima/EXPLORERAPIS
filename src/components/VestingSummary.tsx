@@ -68,56 +68,84 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
   };
 
   // Función para cargar los detalles de beneficiarios
-  const loadBeneficiaryDetails = async () => {
+  const loadBeneficiaryDetails = async (forceRefresh = false) => {
     if (!summary || !contractAddress) return;
 
     setLoadingBeneficiaries(true);
     setShowDetails(true);
 
     try {
-      // 1. Intentar cargar desde BD primero
-      const params = new URLSearchParams({
-        vestingContract: contractAddress,
-        network: network
-      });
+      let shouldRefresh = forceRefresh;
 
-      const cacheResponse = await fetch(`/api/vesting-beneficiaries?${params}`);
+      // 1. Intentar cargar desde BD primero (solo si no es force refresh)
+      if (!forceRefresh) {
+        const params = new URLSearchParams({
+          vestingContract: contractAddress,
+          network: network
+        });
 
-      if (cacheResponse.ok) {
-        const cacheData = await cacheResponse.json();
+        const cacheResponse = await fetch(`/api/vesting-beneficiaries?${params}`);
 
-        if (cacheData.beneficiaries && cacheData.beneficiaries.length > 0) {
-          // Hay datos en caché, usarlos
-          console.log(`✓ Cargados ${cacheData.count} beneficiarios desde BD`);
+        if (cacheResponse.ok) {
+          const cacheData = await cacheResponse.json();
 
-          setSummary(prevSummary => {
-            if (!prevSummary) return null;
-            return {
-              ...prevSummary,
-              beneficiaries: cacheData.beneficiaries.map((b: any) => ({
-                address: b.beneficiaryAddress,
-                totalAmount: b.totalAmount,
-                vestedAmount: b.vestedAmount,
-                releasedAmount: b.releasedAmount,
-                claimableAmount: b.claimableAmount,
-                remainingAmount: b.remainingAmount,
-                startTime: b.startTime,
-                endTime: b.endTime
-              })),
-              validBeneficiaries: cacheData.count,
-              errorBeneficiaries: 0
-            };
-          });
+          if (cacheData.beneficiaries && cacheData.beneficiaries.length > 0) {
+            // Verificar si hay beneficiarios con datos en 0
+            const hasZeroData = cacheData.beneficiaries.some((b: any) =>
+              b.totalAmount === '0' && b.releasedAmount === '0' && b.claimableAmount === '0'
+            );
 
-          setBeneficiariesLastUpdate(new Date(cacheData.lastUpdate));
-          setLoadingBeneficiaries(false);
-          return; // Terminar aquí si hay caché
+            if (hasZeroData) {
+              console.log('⚠️ Encontrados beneficiarios con datos en 0, forzando actualización...');
+              shouldRefresh = true;
+            } else {
+              // Hay datos en caché válidos, usarlos
+              console.log(`✓ Cargados ${cacheData.count} beneficiarios desde BD`);
+
+              setSummary(prevSummary => {
+                if (!prevSummary) return null;
+                return {
+                  ...prevSummary,
+                  beneficiaries: cacheData.beneficiaries.map((b: any) => ({
+                    address: b.beneficiaryAddress,
+                    amount: b.totalAmount,
+                    claimed: b.releasedAmount,
+                    releasable: b.claimableAmount,
+                    remaining: b.remainingAmount,
+                    start: b.startTime,
+                    end: b.endTime,
+                    vestings: b.vestings && b.vestings.length > 0 ? b.vestings.map((v: any) => ({
+                      scheduleId: v.scheduleId,
+                      phase: v.phase,
+                      cliff: v.cliff,
+                      start: v.start,
+                      duration: v.duration,
+                      amount: v.amountTotal,
+                      slicePeriodSeconds: v.claimFrequencyInSeconds,
+                      lastClaimDate: v.lastClaimDate,
+                      released: v.released,
+                      revoked: v.revoked
+                    })) : undefined
+                  })),
+                  validBeneficiaries: cacheData.count,
+                  errorBeneficiaries: 0
+                  // totalSchedulesCreated ya viene del useEffect inicial (checkVestingContractStatus sin beneficiarios)
+                };
+              });
+
+              setBeneficiariesLastUpdate(new Date(cacheData.lastUpdate));
+              setLoadingBeneficiaries(false);
+              return; // Terminar aquí si hay caché válido
+            }
+          }
         }
       }
 
-      // 2. Si no hay caché, consultar blockchain
-      console.log('No hay caché de beneficiarios, consultando blockchain...');
+      // 2. Si no hay caché, tiene force refresh, o hay datos en 0 → consultar blockchain
+      console.log(shouldRefresh ? '🔄 Actualizando beneficiarios desde blockchain...' : 'No hay caché de beneficiarios, consultando blockchain...');
       const contractStatus = await checkVestingContractStatus(contractAddress, network);
+
+      console.log('Beneficiarios obtenidos de blockchain:', contractStatus.beneficiaries?.slice(0, 3)); // Primeros 3 para debug
 
       // 3. Guardar en BD
       if (contractStatus.beneficiaries && contractStatus.beneficiaries.length > 0) {
@@ -134,7 +162,8 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
               claimableAmount: b.releasable || '0',
               remainingAmount: b.remaining || '0',
               startTime: b.start || 0,
-              endTime: b.end || 0
+              endTime: b.end || 0,
+              vestings: b.vestings || undefined
             })),
             network: network,
             tokenAddress: contractStatus.tokenAddress || '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC',
@@ -165,6 +194,44 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
     } catch (error) {
       console.error('Error al cargar detalles de beneficiarios:', error);
       setError('Error al cargar los detalles de beneficiarios');
+    } finally {
+      setLoadingBeneficiaries(false);
+    }
+  };
+
+  // Función para actualizar un solo beneficiario
+  const refreshSingleBeneficiary = async (beneficiaryAddress: string) => {
+    if (!contractAddress || !summary) return;
+
+    setLoadingBeneficiaries(true);
+
+    try {
+      // Llamar a getVestingListByHolder para este beneficiario específico
+      const response = await fetch('/api/refresh-single-beneficiary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vestingContract: contractAddress,
+          beneficiaryAddress: beneficiaryAddress,
+          network: network,
+          tokenAddress: summary.tokenAddress || '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC',
+          tokenSymbol: summary.tokenSymbol || 'VTN',
+          tokenName: summary.tokenName || 'Vottun Token'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar beneficiario');
+      }
+
+      const data = await response.json();
+      console.log('✓ Beneficiario actualizado:', data);
+
+      // Recargar beneficiarios desde BD para reflejar los cambios
+      await loadBeneficiaryDetails(false);
+    } catch (error) {
+      console.error('Error al actualizar beneficiario:', error);
+      alert('Error al actualizar beneficiario');
     } finally {
       setLoadingBeneficiaries(false);
     }
@@ -328,8 +395,8 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
         setSummary(initialSummary);
 
         try {
-          // Usar la función para verificar el estado del contrato de vesting
-          const contractStatus = await checkVestingContractStatus(initialContractAddress, network);
+          // Usar la función para verificar el estado del contrato de vesting (SIN cargar beneficiarios)
+          const contractStatus = await checkVestingContractStatus(initialContractAddress, network, false);
           
           // Crear un resumen con la información obtenida
           const newSummary: VestingContractSummary = {
@@ -663,7 +730,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                         </span>
                       )}
                       <button
-                        onClick={loadBeneficiaryDetails}
+                        onClick={() => loadBeneficiaryDetails(false)}
                         disabled={loadingBeneficiaries}
                         className={`px-4 py-2 rounded-md flex items-center ${loadingBeneficiaries ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
                       >
@@ -684,6 +751,31 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                           </>
                         )}
                       </button>
+
+                      {beneficiariesLastUpdate && (
+                        <button
+                          onClick={() => loadBeneficiaryDetails(true)}
+                          disabled={loadingBeneficiaries}
+                          className={`px-4 py-2 rounded-md flex items-center ${loadingBeneficiaries ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+                        >
+                          {loadingBeneficiaries ? (
+                            <>
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Limpiando...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                              </svg>
+                              🗑️ Limpiar y recargar todo
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                   {loadingDetails && (
@@ -704,6 +796,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                           <th className="py-2 px-4 border-b text-center">Pendientes</th>
                           <th className="py-2 px-4 border-b text-center">Liberables</th>
                           <th className="py-2 px-4 border-b text-center">Detalles</th>
+                          <th className="py-2 px-4 border-b text-center">Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -735,7 +828,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                               </td>
                               <td className="py-2 px-4 text-center">
                                 {beneficiary.vestings && beneficiary.vestings.length > 0 ? (
-                                  <button 
+                                  <button
                                     className="text-blue-500 hover:text-blue-700 text-sm"
                                     onClick={() => {
                                       const expandedRows = {...expandedBeneficiaries};
@@ -749,35 +842,51 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                                   <span className="text-gray-400 text-sm">No hay vestings</span>
                                 )}
                               </td>
+                              <td className="py-2 px-4 text-center">
+                                <button
+                                  onClick={() => refreshSingleBeneficiary(beneficiary.address)}
+                                  disabled={loadingBeneficiaries}
+                                  className="text-blue-500 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                  title="Actualizar datos de este beneficiario"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                  </svg>
+                                </button>
+                              </td>
                             </tr>
                             
                             {/* Filas de detalle para cada vesting individual */}
-                            {beneficiary.vestings && expandedBeneficiaries[index] && beneficiary.vestings.map((vesting: any, vestingIndex: number) => (
+                            {beneficiary.vestings && expandedBeneficiaries[index] && beneficiary.vestings.map((vesting: any, vestingIndex: number) => {
+                              const remaining = vesting.amount && vesting.released ? (parseFloat(vesting.amount) - parseFloat(vesting.released)).toString() : '0';
+                              const endTime = vesting.start && vesting.duration ? vesting.start + vesting.duration : 0;
+
+                              return (
                               <tr key={`${index}-${vestingIndex}`} className="bg-gray-100 text-sm">
                                 <td className="py-1 px-4 border-b pl-8 font-mono">
-                                  <span className="text-gray-600">ID: {vesting.scheduleId}</span>
-                                  {vesting.isExact && <span className="ml-2 text-xs bg-green-100 text-green-800 px-1 rounded">Exacto</span>}
+                                  <div className="text-gray-600">{vesting.phase || 'Sin fase'}</div>
+                                  <div className="text-xs text-gray-400">ID: {vesting.scheduleId || 'N/A'}</div>
                                 </td>
                                 <td className="py-1 px-4 border-b text-right">
                                   {vesting.amount ? parseFloat(vesting.amount).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
                                 </td>
                                 <td className="py-1 px-4 border-b text-right text-red-500">
-                                  {vesting.claimed ? parseFloat(vesting.claimed).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
+                                  {vesting.released ? parseFloat(vesting.released).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
                                 </td>
                                 <td className="py-1 px-4 border-b text-right">
-                                  {vesting.remaining ? parseFloat(vesting.remaining).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
+                                  {parseFloat(remaining).toLocaleString(undefined, { maximumFractionDigits: 4 })}
                                 </td>
                                 <td className="py-1 px-4 border-b text-right text-green-500">
-                                  {vesting.releasable ? parseFloat(vesting.releasable).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
+                                  0
                                 </td>
                                 <td className="py-1 px-4 border-b text-center text-xs">
-                                  {vesting.startTime ? (
+                                  {vesting.start ? (
                                     <div>
-                                      <div>Inicio: {new Date(vesting.startTime * 1000).toLocaleDateString()}</div>
-                                      <div>Fin: {new Date(vesting.endTime * 1000).toLocaleDateString()}</div>
+                                      <div>Inicio: {new Date(vesting.start * 1000).toLocaleDateString()}</div>
+                                      {endTime > 0 && <div>Fin: {new Date(endTime * 1000).toLocaleDateString()}</div>}
                                       {vesting.cliff > 0 && (
                                         <div className="text-orange-500">
-                                          Cliff: {new Date(vesting.cliff * 1000).toLocaleDateString()}
+                                          Cliff: {new Date((vesting.start + vesting.cliff) * 1000).toLocaleDateString()}
                                         </div>
                                       )}
                                     </div>
@@ -786,7 +895,8 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                                   )}
                                 </td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </React.Fragment>
                         ))}
                       </tbody>

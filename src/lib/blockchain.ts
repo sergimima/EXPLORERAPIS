@@ -738,7 +738,8 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
  */
 export async function checkVestingContractStatus(
   vestingContractAddress: string,
-  network: string
+  network: string,
+  loadBeneficiaries: boolean = true
 ): Promise<{
   isValid: boolean;
   contractAddress: string;
@@ -1178,7 +1179,6 @@ export async function checkVestingContractStatus(
             } else {
               console.warn("No se encontraron transferencias");
             }
-            console.log("=== FIN: Historial de transferencias ===");
           } catch (e: any) {
             console.error("❌ Error al obtener transferencias de tokens:", e);
             if (e.response?.data) {
@@ -1205,9 +1205,10 @@ export async function checkVestingContractStatus(
             }
           }
 
-          // Obtener los beneficiarios y sus schedules
-          try {
-            const beneficiaries = await getBeneficiariesFromTransferHistory(normalizedContractAddress, network);
+          // Obtener los beneficiarios y sus schedules (solo si se solicita)
+          if (loadBeneficiaries) {
+            try {
+              const beneficiaries = await getBeneficiariesFromTransferHistory(normalizedContractAddress, network);
             console.log("Beneficiarios encontrados:", beneficiaries);
 
             // Establecer el número total de beneficiarios inmediatamente
@@ -1227,6 +1228,7 @@ export async function checkVestingContractStatus(
             // Verificar si el contrato tiene el método getVestingListByHolder
             const hasGetVestingListByHolder = contractABI.some((fn: any) =>
               typeof fn === 'object' && fn.name === 'getVestingListByHolder');
+            console.log(`📋 ABI tiene getVestingListByHolder: ${hasGetVestingListByHolder}`);
 
             // Actualizar el resultado con la información de los beneficiarios
             // Si tenemos beneficiarios pero no tenemos valores para totalVested, totalReleased, etc.
@@ -1385,6 +1387,35 @@ export async function checkVestingContractStatus(
               console.log("Total de tokens liberables estimados:", result.releasableTokens);
             }
 
+            // Si el contrato tiene getVestingListByHolder, obtener schedules individuales para cada beneficiario
+            if (hasGetVestingListByHolder) {
+              console.log("Obteniendo schedules individuales con getVestingListByHolder...");
+              for (const beneficiary of result.beneficiaries) {
+                if (beneficiary.address) {
+                  try {
+                    const vestingList = await contract.getVestingListByHolder(beneficiary.address);
+                    if (vestingList && vestingList.length > 0) {
+                      beneficiary.vestings = vestingList.map((v: any) => ({
+                        scheduleId: v.scheduleId || '',
+                        phase: v.phase || '',
+                        cliff: Number(v.cliff || 0),
+                        start: Number(v.start || 0),
+                        duration: Number(v.duration || 0),
+                        amount: ethers.formatUnits(v.amountTotal || 0, result.tokenDecimals),
+                        slicePeriodSeconds: Number(v.claimFrequencyInSeconds || 0),
+                        lastClaimDate: Number(v.lastClaimDate || 0),
+                        released: ethers.formatUnits(v.released || 0, result.tokenDecimals),
+                        revoked: v.revoked || false
+                      }));
+                      console.log(`✓ ${beneficiary.address}: ${vestingList.length} schedules`);
+                    }
+                  } catch (e) {
+                    console.warn(`Error al obtener vestings para ${beneficiary.address}:`, e);
+                  }
+                }
+              }
+            }
+
             // Si ya procesamos los beneficiarios por transacciones, retornar
             if (result.beneficiaries.length > 0) {
               return result;
@@ -1470,8 +1501,9 @@ export async function checkVestingContractStatus(
               console.log("Total de tokens liberables calculados:", result.releasableTokens);
             }
 
-          } catch (e) {
-            console.warn("Error al obtener beneficiarios:", e);
+            } catch (e) {
+              console.warn("Error al obtener beneficiarios:", e);
+            }
           }
         } catch (e) {
           console.error("Error al obtener información del contrato:", e);
@@ -1823,7 +1855,7 @@ async function fetchTokenSupplyData(onProgress?: ProgressCallback): Promise<Toke
  * @param network Red blockchain
  * @returns ABI del contrato
  */
-async function getContractABI(contractAddress: string, network: string) {
+export async function getContractABI(contractAddress: string, network: string) {
   try {
     // Obtener configuración de la red
     const networkConfig = NETWORKS[network];

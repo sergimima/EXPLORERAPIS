@@ -201,8 +201,38 @@ model VestingBeneficiaryCache {
   cachedAt            DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  // Relación con schedules individuales
+  vestings            VestingScheduleCache[]
+
   @@unique([vestingContract, beneficiaryAddress, network])
   @@index([vestingContract])
   @@index([beneficiaryAddress])
   @@map("vesting_beneficiary_cache")
+}
+
+// Tabla para schedules individuales de vesting por beneficiario
+model VestingScheduleCache {
+  id                        String   @id @default(cuid())
+  beneficiaryId             String   // Relación con VestingBeneficiaryCache
+  scheduleId                String   // ID del schedule en el contrato (bytes32)
+
+  phase                     String   // Nombre de la fase
+  cliff                     Int      // Tiempo de cliff en segundos
+  start                     Int      // Timestamp de inicio
+  duration                  Int      // Duración total en segundos
+  amountTotal               String   // Monto total asignado
+  claimFrequencyInSeconds   Int      // Frecuencia de claim en segundos
+  lastClaimDate             Int      // Último timestamp de claim
+  released                  String   // Tokens ya liberados/reclamados
+  revoked                   Boolean  // Si fue revocado
+
+  // Metadatos
+  cachedAt                  DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  beneficiary               VestingBeneficiaryCache @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
+
+  @@index([beneficiaryId])
+  @@index([scheduleId])
+  @@map("vesting_schedule_cache")
 }
