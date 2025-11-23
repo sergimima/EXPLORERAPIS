@@ -3,6 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: false,
   output: 'standalone',
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
   // Configuración para permitir solicitudes a APIs externas
   async rewrites() {
     return [
