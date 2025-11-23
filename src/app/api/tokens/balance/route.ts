@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 // Interfaz para el balance de tokens
 interface TokenBalance {
   tokenAddress: string;

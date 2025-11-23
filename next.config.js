@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: false,
+  output: 'standalone',
   // Configuración para permitir solicitudes a APIs externas
   async rewrites() {
     return [

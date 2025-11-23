@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { prisma } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 // Dirección del token VTN
 const VTN_TOKEN_ADDRESS = '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC';
 

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import axios, { AxiosError } from 'axios';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   console.log('Iniciando petición a la API de token-supply');
   try {

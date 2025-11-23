@@ -7,7 +7,14 @@
       "Bash(npx prisma:*)",
       "Bash(npm install:*)",
       "Bash(npm run build:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(for:*)",
+      "Bash(do if [ -f \"$file\" ])",
+      "Bash(then if ! grep -q \"export const dynamic\" \"$file\")",
+      "Bash(then sed -i '3i\\export const dynamic = '\"''\"'force-dynamic'\"''\"';\\n' \"$file\")",
+      "Bash(echo:*)",
+      "Bash(fi)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []
