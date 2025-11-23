@@ -6,17 +6,15 @@ RUN apk add --no-cache libc6-compat openssl
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos de dependencias
+# Copiar archivos de dependencias y schema de Prisma
 COPY package*.json ./
+COPY prisma ./prisma
 
 # Instalar todas las dependencias (incluyendo devDependencies para el build)
 RUN npm install --legacy-peer-deps
 
-# Copiar código fuente
+# Copiar resto del código fuente
 COPY . .
-
-# Generar Prisma Client
-RUN npx prisma generate
 
 # Generar build de producción
 RUN npm run build
