@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
             nextUnlockAmount: schedule.nextUnlockAmount || null,
             slicePeriodSeconds: schedule.slicePeriodSeconds || null,
             cliff: schedule.cliff || null,
-            cliffEndTime: schedule.cliffEndTime || null
+            cliffEndTime: schedule.cliffTime || null
           },
           create: {
             walletAddress: walletAddress.toLowerCase(),
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
             nextUnlockAmount: schedule.nextUnlockAmount || null,
             slicePeriodSeconds: schedule.slicePeriodSeconds || null,
             cliff: schedule.cliff || null,
-            cliffEndTime: schedule.cliffEndTime || null
+            cliffEndTime: schedule.cliffTime || null
           }
         });
 

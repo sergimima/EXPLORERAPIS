@@ -232,6 +232,7 @@ export interface TokenSupplyInfo {
 // Interfaz para la información de vesting
 export interface VestingInfo {
   contractAddress: string;
+  tokenAddress: string;
   tokenName: string;
   tokenSymbol: string;
   tokenDecimals: number;
@@ -243,8 +244,12 @@ export interface VestingInfo {
   startTime: number;
   endTime: number;
   cliffTime: number;
+  cliff: number;
   phase: string;
   isRevoked: boolean;
+  nextUnlockTime?: number;
+  nextUnlockAmount?: string;
+  slicePeriodSeconds?: number;
 }
 
 //=============================================================================
@@ -700,6 +705,7 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
       // Añadir al resultado
       result.push({
         contractAddress: vestingContractAddress,
+        tokenAddress,
         tokenName,
         tokenSymbol,
         tokenDecimals,
@@ -711,6 +717,7 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
         startTime: start.getTime(),
         endTime: end.getTime(),
         cliffTime: cliff.getTime(),
+        cliff: Math.floor((cliff.getTime() - start.getTime()) / 1000),
         phase,
         isRevoked
       });

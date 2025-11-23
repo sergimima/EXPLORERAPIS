@@ -16,6 +16,7 @@ interface VestingSchedule {
   tokenName: string;
   tokenSymbol: string;
   tokenAddress: string;
+  contractAddress?: string;
   totalAmount: string;
   vestedAmount: string;
   claimableAmount: string;

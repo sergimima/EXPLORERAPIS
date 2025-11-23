@@ -520,7 +520,6 @@ export default function UnifiedExplorer() {
 
           {showContractDetails && contractAddress && (
             <div className="mt-8">
-              {console.log("✅ Renderizando VestingSummary")}
               <VestingSummary
                 network={network}
                 initialContractAddress={contractAddress}
@@ -533,9 +532,7 @@ export default function UnifiedExplorer() {
 
       {activeTab === 'analytics' && (
         <div>
-          <AnalyticsContent
-            onNavigateToWallet={handleWalletFromAnalytics}
-          />
+          <AnalyticsContent />
         </div>
       )}
     </div>
