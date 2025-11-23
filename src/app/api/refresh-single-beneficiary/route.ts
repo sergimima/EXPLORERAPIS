@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       console.log('✓ ABI encontrado en caché hardcodeada');
     }
 
-    if (!contractABI) {
+    if (!contractABI || !Array.isArray(contractABI)) {
       return NextResponse.json(
         { error: 'Could not fetch contract ABI from BaseScan' },
         { status: 500 }
