@@ -27,4 +27,4 @@ ENV NODE_ENV=production
 ENV PORT=4200
 
 # Comando de inicio - ejecuta prisma db push y luego npm start
-CMD sh -c "npx prisma db push --skip-generate && npm start"
+CMD sh -c "npx prisma db push && npm start"
