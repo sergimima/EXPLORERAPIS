@@ -90,7 +90,7 @@ interface TokenAnalyticsProps {
   onNavigateToWallet?: (address: string) => void;
 }
 
-export default function TokenAnalytics({ onNavigateToWallet }: TokenAnalyticsProps = {}) {
+export default function TokenAnalytics({ onNavigateToWallet }: TokenAnalyticsProps) {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
