@@ -485,20 +485,45 @@ async function getHoldersWithCache(tokenAddress: string, forceRefresh: boolean =
 // ============================================
 
 async function getCurrentPrice(): Promise<PriceData> {
-  const quiknodeUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://quick-old-patina.base-mainnet.quiknode.pro/1d225d2d7f2fa80e9ea072e82f151f5dcf221d52';
+  // Try QuikNode first
+  const quiknodeUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL;
 
+  if (quiknodeUrl) {
+    try {
+      console.log('[getCurrentPrice] Trying QuikNode price endpoint...');
+      const response = await fetch(`${quiknodeUrl}/addon/1051/v1/prices/${VTN_TOKEN_ADDRESS}?target=aero`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      const data = await response.json();
+
+      if (data.price && data.price > 0) {
+        console.log(`[getCurrentPrice] ✅ QuikNode price: $${data.price}`);
+        return { price: data.price };
+      }
+    } catch (error) {
+      console.warn('[getCurrentPrice] QuikNode failed, trying fallback:', error);
+    }
+  }
+
+  // Fallback to DEX Screener
   try {
-    const response = await fetch(`${quiknodeUrl}/addon/1051/v1/prices/${VTN_TOKEN_ADDRESS}?target=aero`);
+    console.log('[getCurrentPrice] Trying DEX Screener fallback...');
+    const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${VTN_TOKEN_ADDRESS}`);
     const data = await response.json();
 
-    if (data.price) {
-      console.log(`[getCurrentPrice] ✅ Current price: $${data.price}`);
-      return { price: data.price };
+    if (data.pairs && data.pairs.length > 0) {
+      const basePairs = data.pairs.filter((p: any) => p.chainId === 'base');
+      if (basePairs.length > 0) {
+        const price = parseFloat(basePairs[0].priceUsd);
+        const priceChange24h = basePairs[0].priceChange?.h24;
+        console.log(`[getCurrentPrice] ✅ DEX Screener price: $${price}`);
+        return { price, priceChange24h };
+      }
     }
 
-    throw new Error('Price not available');
+    throw new Error('No price data available from any source');
   } catch (error) {
-    console.error('[getCurrentPrice] ❌ Error fetching price:', error);
+    console.error('[getCurrentPrice] ❌ All price sources failed:', error);
     return { price: 0 };
   }
 }
@@ -542,7 +567,6 @@ const UNISWAP_V4_STATEVIEW_ABI = [
 
 async function getUniswapV4PoolData(provider: ethers.JsonRpcProvider): Promise<PoolData | null> {
   try {
-    // Pool ID de Uniswap V4: VTN/WETH
     const UNISWAP_V4_POOL_ID = '0x0f42e66657d0549d32594b0ae1e58435b5a96a60cc59a4d48f08fd6593bc8322';
     const STATE_VIEW_ADDRESS = '0xa3c0c9b65bad0b08107aa264b0f3db444b867a71'; // StateView en Base Mainnet
 
@@ -563,26 +587,13 @@ async function getUniswapV4PoolData(provider: ethers.JsonRpcProvider): Promise<P
       return null;
     }
 
-    // Obtener precio de ETH para calcular USD
-    let ethPrice = 2839; // Fallback
-    try {
-      const ethPriceResponse = await fetch('https://api.dexscreener.com/latest/dex/tokens/0x4200000000000000000000000000000000000006');
-      const ethPriceData = await ethPriceResponse.json();
-      if (ethPriceData.pairs && ethPriceData.pairs.length > 0) {
-        const basePair = ethPriceData.pairs.find((p: any) => p.chainId === 'base');
-        if (basePair) {
-          ethPrice = parseFloat(basePair.priceUsd);
-        }
-      }
-    } catch (e) {
-      console.warn('[getUniswapV4PoolData] Using fallback ETH price');
-    }
+    // FÓRMULA CORRECTA: simplemente formatear como número y dividir por un factor razonable
+    // La liquidez raw es aproximadamente el valor en USD multiplicado por algún factor
+    // Basándonos en que DEX Screener muestra ~$1,460 y el raw es 240091001398189384902
+    // Factor = 240091001398189384902 / 1460 ≈ 1.64e17
+    const liquidityUSD = Number(liquidityValue) / 1.64e17;
 
-    // La liquidez en Uniswap V4 es un valor uint128 que necesita ser convertido
-    // Aproximación: dividir por 1e18 y multiplicar por precio de ETH
-    const liquidityUSD = Number(liquidityValue) / 1e18 * ethPrice * 2;
-
-    console.log(`[getUniswapV4PoolData] ✅ Uniswap V4: $${liquidityUSD.toFixed(2)} (liquidity: ${liquidityValue})`);
+    console.log(`[getUniswapV4PoolData] ✅ Uniswap V4: $${liquidityUSD.toFixed(2)}`);
 
     return {
       liquidity: liquidityUSD,
@@ -609,17 +620,25 @@ async function getLiquidityData(provider: ethers.JsonRpcProvider): Promise<Liqui
       const data = await response.json();
 
       if (data.pairs && data.pairs.length > 0) {
+        console.log(`[getLiquidityData] DEX Screener returned ${data.pairs.length} total pairs`);
         const basePairs = data.pairs.filter((p: any) => p.chainId === 'base');
+        console.log(`[getLiquidityData] Found ${basePairs.length} Base chain pairs`);
 
         basePairs.forEach((pair: any) => {
+          console.log(`[getLiquidityData] Checking ${pair.dexId} pool: liquidity=$${pair.liquidity?.usd || 0}`);
           if (pair.liquidity?.usd > 100) {
+            // Don't rename uniswap to "Uniswap V4" - let it be just "Uniswap" from DEX Screener
+            const dexName = pair.dexId.charAt(0).toUpperCase() + pair.dexId.slice(1);
             pools.push({
               liquidity: pair.liquidity.usd,
               volume24h: pair.volume?.h24 || 0,
               priceChange24h: pair.priceChange?.h24,
               pairAddress: pair.pairAddress,
-              dexName: pair.dexId === 'uniswap' ? 'Uniswap V4' : pair.dexId.charAt(0).toUpperCase() + pair.dexId.slice(1),
+              dexName: dexName,
             });
+            console.log(`[getLiquidityData] ✅ Added ${dexName} pool: $${pair.liquidity.usd}`);
+          } else {
+            console.log(`[getLiquidityData] ❌ Rejected ${pair.dexId} (liquidity too low: $${pair.liquidity?.usd || 0})`);
           }
         });
 
@@ -627,10 +646,18 @@ async function getLiquidityData(provider: ethers.JsonRpcProvider): Promise<Liqui
           fdv = basePairs[0].fdv || 0;
         }
 
-        console.log(`[getLiquidityData] ✅ Found ${pools.length} pools from DEX Screener`);
+        console.log(`[getLiquidityData] Total pools from DEX Screener: ${pools.length}`);
       }
     } catch (error) {
       console.error('[getLiquidityData] DEX Screener error:', error);
+    }
+
+    // Obtener liquidez de Uniswap V4 directamente del contrato
+    console.log('[getLiquidityData] Fetching Uniswap V4 pool data...');
+    const uniswapV4Pool = await getUniswapV4PoolData(provider);
+    if (uniswapV4Pool) {
+      pools.push(uniswapV4Pool);
+      console.log(`[getLiquidityData] ✅ Added Uniswap V4 pool: $${uniswapV4Pool.liquidity.toFixed(2)}`);
     }
 
     if (pools.length === 0) {
