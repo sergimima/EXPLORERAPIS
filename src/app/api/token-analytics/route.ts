@@ -123,14 +123,14 @@ async function fetchNewTransfersFromAPI(
   tokenAddress: string,
   lastTimestamp: number = 0
 ): Promise<any[]> {
-  const apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken';
+  const apiKey = process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken';
 
   try {
     console.log(`[fetchNewTransfersFromAPI] Token: ${tokenAddress}, desde timestamp: ${lastTimestamp}`);
 
-    // Usar API V2 de Etherscan
-    const url = `https://api.etherscan.io/v2/api?chainid=${BASE_CONFIG.chainId}&module=account&action=tokentx&contractaddress=${tokenAddress}&page=1&offset=10000&sort=desc&apikey=${apiKey}`;
-    console.log(`[fetchNewTransfersFromAPI] Calling API...`);
+    // Usar Routescan API (formato compatible con Etherscan)
+    const url = `https://api.routescan.io/v2/network/mainnet/evm/8453/etherscan/api?module=account&action=tokentx&contractaddress=${tokenAddress}&page=1&offset=10000&sort=desc&apikey=${apiKey}`;
+    console.log(`[fetchNewTransfersFromAPI] Calling Routescan API...`);
 
     const response = await fetch(url);
     const data = await response.json();

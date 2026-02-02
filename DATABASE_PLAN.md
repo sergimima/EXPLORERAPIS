@@ -5,7 +5,7 @@
 Este documento detalla el estado actual de la implementación de la base de datos PostgreSQL + Prisma en el proyecto Blockchain Explorer, enfocándose en:
 - ✅ Etiquetado de addresses (KnownAddress)
 - ✅ Sistema de caché incremental (TransferCache, HolderSnapshot)
-- ⚠️ UI de administración (pendiente)
+- ✅ UI de administración (implementado)
 
 > **💡 Para features avanzadas y roadmap futuro**, consultar [IMPROVEMENTS.md](IMPROVEMENTS.md)
 
@@ -13,7 +13,7 @@ Este documento detalla el estado actual de la implementación de la base de dato
 
 ## 📊 Estado Actual de Implementación
 
-**Última actualización:** 2025-01-21 (Sistema de caché incremental + Uniswap V4 implementados ✅)
+**Última actualización:** 2025-02-02 (Panel Admin, Gráficos y Búsqueda Global implementados ✅)
 
 ### ✅ Completado
 
@@ -26,22 +26,27 @@ Este documento detalla el estado actual de la implementación de la base de dato
 - ✅ API básica `/api/addresses` con GET, POST, DELETE
 - ✅ Integración en analytics page para mostrar nombres de addresses
 
-#### Implementaciones Parciales
+#### Sprint 2: UI de Administración (100% completado) ✅
+- ✅ Página `/admin/addresses` para gestionar etiquetas (implementada)
+- ✅ Página `/admin/addresses/new` para agregar nuevas addresses
+- ✅ Página `/admin/dashboard` con estadísticas generales
+- ✅ Página `/admin/import` para importar/exportar addresses (CSV/JSON)
+- ✅ Layout admin con sidebar (`src/app/admin/layout.tsx`)
+- ✅ Búsqueda y filtrado de addresses funcionando
+- ✅ Componentes admin implementados
+
+#### Implementaciones Adicionales (Extras)
 - ✅ **Sistema de Caché Incremental**: Implementado caché inteligente usando `TransferCache` y `HolderSnapshot` en `/api/token-analytics`
   - Transfers: Sync incremental (solo pide nuevos desde último timestamp)
   - Holders: Snapshots cada 5 minutos
   - Botón "Actualizar" manual en UI con timestamp
-- ⚠️ **UI de administración**: No existe página `/admin/addresses` para gestionar etiquetas masivamente
-- ⚠️ **Integración UI**: Los nombres se muestran en analytics con modal de edición, pero faltan badges de colores y filtros avanzados
+- ✅ **Búsqueda Global**: Componente `GlobalSearch.tsx` con Cmd+K / Ctrl+K implementado
+- ✅ **Gráficos y Visualizaciones**: 3 gráficos principales implementados con Recharts
+  - `ExchangeFlowChart.tsx` - Flujo neto a exchanges
+  - `WhaleTimelineChart.tsx` - Timeline de movimientos de ballenas
+  - `HolderDistributionChart.tsx` - Distribución de holders
 
 ### ❌ Pendiente
-
-#### Sprint 2: UI de Administración (0% completado)
-- ❌ Página `/admin/addresses` para gestionar etiquetas
-- ❌ Formulario para agregar/editar addresses
-- ❌ Búsqueda y filtrado de addresses
-- ❌ Importar/Exportar addresses (CSV/JSON)
-- ❌ Componentes admin (`AddressForm.tsx`, `AddressList.tsx`, `AddressImport.tsx`)
 
 #### Sprint 3: Sistema de Caché en BD (80% completado) ✅
 - ✅ Implementación de caché usando modelos de BD
@@ -52,28 +57,31 @@ Este documento detalla el estado actual de la implementación de la base de dato
 - ✅ Integración de caché en `/api/token-analytics`
 - ⚠️ Integración de caché en `/api/token-supply` (pendiente)
 
-#### Sprint 4: Integración en UI (60% completado)
+#### Sprint 4: Integración en UI (70% completado)
 - ✅ Mostrar nombres de addresses desde BD
 - ✅ Modal de edición de nombres con botón de lápiz
 - ✅ Botón "Actualizar" manual con estado de loading
 - ✅ Timestamp "Última actualización: hace Xm"
+- ✅ Búsqueda global de addresses con Cmd+K
 - ⚠️ Indicador visual de addresses conocidas (parcial: badges de tipo CEX/Contrato/Wallet)
 - ❌ Tooltips con descripción completa
-- ❌ Filtros avanzados por tipo de address
-- ❌ Badges de colores según categoría
-- ❌ Link directo a editar address desde cualquier vista
+- ❌ Filtros avanzados por tipo de address (rango de montos, fecha personalizada)
+- ❌ Badges de colores según categoría (solo tipos básicos)
+- ❌ Exportar resultados filtrados
 
 #### Fases Avanzadas
 > **📌 Nota:** Features avanzadas (Watchlists, Alertas, Analytics Histórico, Multi-usuario, API Pública, etc.) están documentadas en [IMPROVEMENTS.md](IMPROVEMENTS.md)
 
 ### 📈 Progreso General
 
-- **Fase 1 (Etiquetado y Caché Básico)**: ~70% completado ✅
+- **Fase 1 (Etiquetado y Caché Básico)**: ~90% completado ✅
   - Setup: 100% ✅
   - API básica: 100% ✅
-  - UI Admin: 0% ❌ (pendiente página dedicada)
+  - **UI Admin: 100% ✅** (implementado con páginas dedicadas)
   - **Caché en BD: 80% ✅** (implementado sync incremental)
-  - Integración UI: 60% ⚠️ (falta página admin y badges avanzados)
+  - Integración UI: 70% ⚠️ (falta tooltips y badges avanzados)
+  - **Búsqueda Global: 100% ✅** (Cmd+K implementado)
+  - **Gráficos: 100% ✅** (3 gráficos principales con Recharts)
 
 ---
 
@@ -85,9 +93,15 @@ Este documento detalla el estado actual de la implementación de la base de dato
 
 ## 🎯 Objetivos Pendientes (Fase 1)
 
-1. ⚠️ **UI de administración** para gestión masiva de addresses
-2. ⚠️ **Badges y filtros avanzados** en Analytics
+1. ✅ ~~**UI de administración** para gestión masiva de addresses~~ **COMPLETADO**
+2. ⚠️ **Badges y filtros avanzados** en Analytics (parcialmente completado)
 3. ⚠️ Migrar caché de `/api/token-supply` a usar `TokenSupplyCache`
+
+## 🎯 Nuevos Objetivos Completados (Bonus)
+
+1. ✅ **Búsqueda Global** con Cmd+K (no estaba en plan original)
+2. ✅ **Gráficos y Visualizaciones** con Recharts (3 gráficos implementados)
+3. ✅ **Dashboard de estadísticas** en panel admin
 
 > **📌 Para objetivos futuros** (Alertas, Watchlists, Multi-usuario, etc.), ver [IMPROVEMENTS.md](IMPROVEMENTS.md)
 
@@ -244,53 +258,58 @@ model HolderSnapshot {
 - [x] Crear API `/api/addresses` con GET, POST, DELETE
 - [x] Integrar en analytics page para mostrar nombres
 
-### **Sprint 2: UI de Administración (3-4 días)** ❌ PENDIENTE
+### **Sprint 2: UI de Administración (3-4 días)** ✅ COMPLETADO
 
 #### Funcionalidades
-- [ ] Página `/admin/addresses` para gestionar etiquetas
-- [ ] Formulario para agregar/editar addresses
-- [ ] Búsqueda y filtrado de addresses
-- [ ] Importar/Exportar addresses (CSV/JSON)
-- [ ] Vista previa de cómo se verán las etiquetas
+- [x] Página `/admin/addresses` para gestionar etiquetas ✅
+- [x] Formulario para agregar/editar addresses (página `/admin/addresses/new`) ✅
+- [x] Búsqueda y filtrado de addresses ✅
+- [x] Importar/Exportar addresses CSV/JSON (página `/admin/import`) ✅
+- [x] Vista previa de cómo se verán las etiquetas ✅
+- [x] Dashboard con estadísticas (página `/admin/dashboard`) ✅
+- [x] Layout admin con sidebar ✅
 
 #### API Routes
-**Nota:** Actualmente existe `/api/addresses` con GET, POST, DELETE. Se puede usar directamente o crear `/api/admin/addresses` para mejor organización.
+**Nota:** Las APIs `/api/addresses` existentes son suficientes para las operaciones CRUD.
 - [x] `POST /api/addresses` - Crear/Actualizar address (upsert) ✅
-- [ ] `PUT /api/admin/addresses/:id` - Actualizar por ID (opcional)
 - [x] `DELETE /api/addresses` - Eliminar por address ✅
-- [ ] `GET /api/admin/addresses` - Listar con paginación
-- [ ] `POST /api/admin/addresses/import` - Importar bulk
+- [x] `GET /api/addresses` - Listar todas las addresses ✅
+- [x] Importar bulk implementado en UI de admin ✅
 
-### **Sprint 3: Sistema de Caché (2-3 días)** ❌ PENDIENTE
+### **Sprint 3: Sistema de Caché (2-3 días)** ✅ 80% COMPLETADO
 
-**Nota:** Actualmente existe caché en memoria en `blockchain.ts` para token supply, pero **NO** usa los modelos de BD. Los modelos `TokenSupplyCache`, `TransferCache`, y `HolderSnapshot` están definidos pero no se utilizan.
+**Nota:** Sistema de caché incremental implementado para transfers y holders. Pendiente migrar token-supply.
 
 #### Implementación
-- [ ] Migrar caché en memoria a BD usando `TokenSupplyCache`
-- [ ] Middleware de caché para token supply usando BD
-- [ ] Caché de transferencias recientes usando `TransferCache` (últimas 24h)
-- [ ] Caché de holders snapshot usando `HolderSnapshot` (actualizar cada 1h)
-- [ ] Job de limpieza de caché expirado
-- [ ] Configurar TTL por tipo de dato
+- [x] Implementación de caché usando modelos de BD ✅
+- [ ] Migrar caché de `/api/token-supply` a usar `TokenSupplyCache` (pendiente, usa caché en memoria)
+- [x] Caché de transferencias usando `TransferCache` con sync incremental ✅
+- [x] Caché de holders snapshot usando `HolderSnapshot` (snapshots cada 5 min) ✅
+- [ ] Job de limpieza de caché expirado (no necesario aún)
+- [x] TTL configurado: Holders 5 min, Transfers incremental ✅
 
 #### Optimizaciones
-- [ ] Reemplazar caché en memoria por caché en BD en `/api/token-supply`
-- [ ] Implementar caché en `/api/token-analytics` usando `TransferCache`
-- [ ] Métricas de hit/miss ratio
-- [ ] Logs de performance
+- [ ] Reemplazar caché en memoria por caché en BD en `/api/token-supply` (pendiente)
+- [x] Implementar caché en `/api/token-analytics` usando `TransferCache` ✅
+- [x] Sistema de sync incremental para reducir API calls ✅
+- [x] Botón manual "Actualizar" con timestamp en UI ✅
 
-### **Sprint 4: Integración en UI (2 días)** ⚠️ PARCIAL (30%)
+### **Sprint 4: Integración en UI (2 días)** ✅ 70% COMPLETADO
 
 #### Analytics Page
 - [x] Mostrar nombres de addresses desde BD ✅
-- [ ] Indicador visual de addresses conocidas
-- [ ] Tooltips con descripción completa
-- [ ] Filtros por tipo de address
+- [x] Modal de edición de addresses con botón de lápiz ✅
+- [x] Búsqueda global de addresses con Cmd+K ✅
+- [x] Indicador visual de addresses conocidas (badges básicos) ✅
+- [ ] Tooltips con descripción completa (pendiente)
+- [ ] Filtros avanzados por tipo de address (pendiente)
 
 #### Dashboard
-- [ ] Badges de colores según categoría
-- [x] Link directo a editar address desde cualquier vista (botón de editar existe) ✅
-- [ ] Sugerencias de addresses para etiquetar
+- [x] Panel admin completo `/admin/addresses` ✅
+- [x] Estadísticas en `/admin/dashboard` ✅
+- [x] Link directo a editar address desde cualquier vista ✅
+- [ ] Badges de colores avanzados según categoría (solo básicos)
+- [ ] Sugerencias automáticas de addresses para etiquetar
 
 ### **Sprints Futuros (Watchlists, Alertas, etc.)**
 
@@ -308,13 +327,30 @@ src/
 │   └── db.ts                    # ✅ Cliente Prisma singleton con adapter PostgreSQL
 ├── app/
 │   ├── api/
-│   │   └── addresses/
-│   │       └── route.ts         # ✅ GET, POST, DELETE implementados
+│   │   ├── addresses/
+│   │   │   └── route.ts         # ✅ GET, POST, DELETE implementados
+│   │   └── token-analytics/
+│   │       └── route.ts         # ✅ Con caché incremental
+│   ├── admin/                   # ✅ Panel Admin Completo
+│   │   ├── layout.tsx           # ✅ Layout con sidebar
+│   │   ├── addresses/
+│   │   │   ├── page.tsx         # ✅ Lista de addresses
+│   │   │   └── new/
+│   │   │       └── page.tsx     # ✅ Nueva address
+│   │   ├── dashboard/
+│   │   │   └── page.tsx         # ✅ Estadísticas
+│   │   └── import/
+│   │       └── page.tsx         # ✅ Importar CSV/JSON
 │   └── explorer/
 │       └── analytics/
 │           └── page.tsx         # ✅ Integración de nombres desde BD
 ├── components/
-│   └── EditAddressModal.tsx     # ✅ Modal para editar nombres
+│   ├── EditAddressModal.tsx     # ✅ Modal para editar nombres
+│   ├── GlobalSearch.tsx         # ✅ Búsqueda global Cmd+K
+│   └── charts/                  # ✅ Gráficos con Recharts
+│       ├── ExchangeFlowChart.tsx
+│       ├── WhaleTimelineChart.tsx
+│       └── HolderDistributionChart.tsx
 └── prisma/
     ├── schema.prisma            # ✅ Schema completo Fase 1
     ├── migrations/              # ✅ Migraciones aplicadas
@@ -343,17 +379,20 @@ src/
 │   │       └── route.ts         # ❌ Futuro
 │   └── admin/
 │       ├── addresses/
-│       │   └── page.tsx         # ❌ UI para gestionar addresses
+│       │   └── page.tsx         # ✅ Implementado
+│       ├── dashboard/
+│       │   └── page.tsx         # ✅ Implementado
+│       ├── import/
+│       │   └── page.tsx         # ✅ Implementado
 │       ├── cache/
-│       │   └── page.tsx         # ❌ Estadísticas de caché
-│       └── layout.tsx           # ❌ Layout admin con sidebar
+│       │   └── page.tsx         # ❌ Estadísticas de caché (futuro)
+│       └── layout.tsx           # ✅ Implementado
 ├── components/
-│   ├── admin/
-│   │   ├── AddressForm.tsx      # ❌ Pendiente
-│   │   ├── AddressList.tsx     # ❌ Pendiente
-│   │   └── AddressImport.tsx   # ❌ Pendiente
+│   ├── admin/                   # ✅ Componentes admin implementados
 │   ├── EditAddressModal.tsx     # ✅ Implementado
-│   └── AddressBadge.tsx         # ❌ Badge reutilizable (pendiente)
+│   ├── GlobalSearch.tsx         # ✅ Implementado
+│   ├── charts/                  # ✅ Gráficos implementados
+│   └── AddressBadge.tsx         # ❌ Badge avanzado reutilizable (pendiente)
 └── prisma/
     ├── schema.prisma            # ✅ Implementado
     ├── migrations/              # ✅ Implementado
@@ -529,16 +568,22 @@ main()
 
 ## 🗓️ Timeline (Fase 1)
 
-### ✅ Completado (Semanas 1-3)
-- ✅ Sprint 1: Setup Inicial (BD, Prisma, modelos)
-- ✅ Sprint 3: Sistema de Caché Incremental
-- ✅ Parcial Sprint 4: Integración UI básica
+### ✅ Completado (Semanas 1-4)
+- ✅ Sprint 1: Setup Inicial (BD, Prisma, modelos) - 100%
+- ✅ Sprint 2: UI de Administración (panel completo) - 100%
+- ✅ Sprint 3: Sistema de Caché Incremental - 80%
+- ✅ Sprint 4: Integración UI básica - 70%
+- ✅ Extras: Búsqueda Global (Cmd+K) - 100%
+- ✅ Extras: Gráficos y Visualizaciones - 100%
 
-### ⚠️ Pendiente
-- ❌ Sprint 2: UI de Administración (~1 semana)
-- ❌ Completar Sprint 4: Badges y filtros avanzados (~3 días)
+### ⚠️ Pendiente (Fase 1)
+- ⚠️ Migrar caché de token-supply a BD (~2 horas)
+- ⚠️ Completar filtros avanzados en Analytics (~2 días)
+- ⚠️ Badges de colores avanzados (~1 día)
 
-**Tiempo restante Fase 1:** ~1-2 semanas
+**Tiempo restante Fase 1:** ~3-4 días
+
+**Progreso Fase 1:** ~90% completado ✅
 
 ---
 
@@ -599,20 +644,24 @@ const knownAddresses = await prisma.knownAddress.findMany();
 
 **Ya decidido/implementado:**
 - ✅ Hosting de DB: PostgreSQL local con Docker (explorer-postgres)
-- ✅ Fase 1 implementada (~70% completado)
+- ✅ Fase 1 implementada (~90% completado)
 - ✅ Sistema de caché con sync incremental funcionando
 - ✅ Addresses iniciales importadas via seed (13 addresses)
+- ✅ Panel admin completo implementado (`/admin/addresses`, `/admin/dashboard`, `/admin/import`)
+- ✅ Búsqueda global con Cmd+K implementada
+- ✅ Gráficos con Recharts (3 gráficos principales)
 
 **Próximas decisiones:**
-- [ ] ¿Implementar página admin dedicada o seguir con modales?
+- ✅ ~~¿Implementar página admin dedicada o seguir con modales?~~ **RESUELTO: Admin completo implementado**
 - [ ] ¿Migrar a DB en cloud (Supabase/Neon) para producción?
 - [ ] ¿Backups automáticos? (recomendado cuando vaya a producción)
+- [ ] ¿Implementar sistema de alertas? (siguiente prioridad según IMPROVEMENTS.md)
 
 ---
 
 **Documento creado:** 2025-01-19
-**Última actualización:** 2025-01-20
-**Versión:** 1.2 (Sistema de caché implementado)
+**Última actualización:** 2025-02-02
+**Versión:** 1.3 (Panel Admin, Gráficos y Búsqueda Global implementados)
 
 ---
 
@@ -622,7 +671,7 @@ const knownAddresses = await prisma.knownAddress.findMany();
 
 1. **API Routes**: Se implementó `/api/addresses` directamente en lugar de `/api/admin/addresses`. Esto funciona bien, pero para mejor organización se podría mover a `/api/admin/addresses` en el futuro.
 
-2. **Caché**: Actualmente existe caché en memoria en `blockchain.ts` para token supply. Los modelos de BD para caché (`TokenSupplyCache`, `TransferCache`, `HolderSnapshot`) están definidos pero no se utilizan. **Prioridad:** Migrar caché en memoria a BD.
+2. **Caché**: ✅ Sistema de caché incremental implementado usando `TransferCache` y `HolderSnapshot` en `/api/token-analytics`. ⚠️ **Pendiente:** Migrar caché de `/api/token-supply` a usar `TokenSupplyCache` (actualmente usa caché en memoria).
 
 3. **Queries**: No se creó `src/lib/knownAddresses.ts` porque las queries se hacen directamente en los componentes/APIs donde se necesitan. Esto está bien, pero se podría centralizar para mejor mantenimiento.
 
@@ -630,17 +679,29 @@ const knownAddresses = await prisma.knownAddress.findMany();
 
 ### Próximos Pasos Recomendados
 
-1. **Alta Prioridad**: Sprint 2 - UI de Administración (necesario para gestionar addresses fácilmente)
-2. **Media Prioridad**: ~~Sprint 3 - Migrar caché en memoria a BD~~ ✅ **YA IMPLEMENTADO**
-   - ⚠️ Falta: Migrar caché de `/api/token-supply` a usar `TokenSupplyCache`
-3. **Baja Prioridad**: Completar Sprint 4 - Mejoras visuales en UI (badges, tooltips, filtros)
+1. ✅ ~~**Alta Prioridad**: Sprint 2 - UI de Administración~~ **COMPLETADO**
+2. **Alta Prioridad**: Migrar caché de `/api/token-supply` a usar `TokenSupplyCache` (~2 horas)
+3. **Media Prioridad**: Completar filtros avanzados en Analytics (~2 días)
+   - Filtros por rango de montos
+   - Filtros por fecha personalizada
+   - Exportar resultados filtrados
+4. **Baja Prioridad**: Mejoras visuales en UI (badges de colores avanzados, tooltips) (~1 día)
+5. **Futuro**: Sistema de Alertas (ver [IMPROVEMENTS.md](IMPROVEMENTS.md))
 
-### Cambios Importantes - Sistema de Caché
+### Cambios Importantes Recientes
 
-**✅ COMPLETADO (2025-01-20):**
+**✅ COMPLETADO (2025-01-20 - Sistema de Caché):**
 - Sistema de caché incremental implementado en `/api/token-analytics`
 - Modelo `TransferCache`: Guarda transfers con sync incremental (solo pide nuevos)
 - Modelo `HolderSnapshot` + `Holder`: Snapshots periódicos cada 5 minutos
 - UI con botón "Actualizar" manual y timestamp "hace Xm"
 - Reducción de API calls en ~90%
 - Tiempo de carga reducido de 10-15s a 2-4s (después de primera carga)
+
+**✅ COMPLETADO (2025-02-02 - Panel Admin y Features Extras):**
+- Panel de administración completo (`/admin/addresses`, `/admin/dashboard`, `/admin/import`)
+- Búsqueda global con Cmd+K (`GlobalSearch.tsx`)
+- 3 gráficos principales con Recharts:
+  - `ExchangeFlowChart.tsx` - Flujo neto a exchanges
+  - `WhaleTimelineChart.tsx` - Timeline de movimientos de ballenas
+  - `HolderDistributionChart.tsx` - Distribución de holders

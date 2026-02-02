@@ -25,32 +25,33 @@ const NETWORKS: Record<string, {
   etherscanChainId?: number; // ID de cadena para la API V2 de Etherscan
 }> = {
   'base': {
-    rpcUrl: 'https://mainnet.base.org',
+    rpcUrl: process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://mainnet.base.org',
     alternativeRpcUrls: [
+      'https://mainnet.base.org',
       'https://base.llamarpc.com',
       'https://base.publicnode.com',
       'https://1rpc.io/base'
     ],
     explorerApiUrl: 'https://api.basescan.org/api',
-    explorerApiV2Url: 'https://api.etherscan.io/v2/api',
+    explorerApiV2Url: 'https://api.routescan.io/v2/network/mainnet/evm/8453/etherscan/api', // Routescan (gratis)
     chainId: 8453,
-    etherscanChainId: 8453, // ID de Base Mainnet en Etherscan
+    etherscanChainId: 8453, // ID de Base Mainnet
     name: 'Base Mainnet'
   },
   'base-testnet': {
     rpcUrl: 'https://goerli.base.org',
     explorerApiUrl: 'https://api-goerli.basescan.org/api',
-    explorerApiV2Url: 'https://api.etherscan.io/v2/api',
+    explorerApiV2Url: 'https://api.routescan.io/v2/network/testnet/evm/84531/etherscan/api', // Routescan testnet
     chainId: 84531,
-    etherscanChainId: 84531, // ID de Base Goerli Testnet en Etherscan
+    etherscanChainId: 84531, // ID de Base Goerli Testnet
     name: 'Base Testnet (Goerli)'
   },
   'base-sepolia': {
     rpcUrl: 'https://sepolia.base.org',
     explorerApiUrl: 'https://api-sepolia.basescan.org/api',
-    explorerApiV2Url: 'https://api.etherscan.io/v2/api',
+    explorerApiV2Url: 'https://api.routescan.io/v2/network/testnet/evm/84532/etherscan/api', // Routescan sepolia
     chainId: 84532,
-    etherscanChainId: 84532, // ID de Base Sepolia Testnet en Etherscan
+    etherscanChainId: 84532, // ID de Base Sepolia Testnet
     name: 'Base Testnet (Sepolia)'
   }
 };
@@ -158,26 +159,25 @@ async function getCachedTransfers(
 // #region FUNCIONES AUXILIARES DE API
 //=============================================================================
 
-// Función auxiliar para realizar llamadas a la API V2 de Etherscan
+// Función auxiliar para realizar llamadas a la API de Routescan (compatible con Etherscan V2)
 async function callEtherscanV2Api(params: Record<string, string | number>, network: string) {
   const networkConfig = NETWORKS[network as keyof typeof NETWORKS];
   if (!networkConfig) {
     throw new Error(`Red no soportada: ${network}`);
   }
 
-  const apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
   if (!apiKey) {
-    throw new Error('No se ha configurado la clave API de Etherscan');
+    throw new Error('No se ha configurado la clave API de Routescan');
   }
 
   const queryParams = new URLSearchParams({
     ...params,
-    chainid: networkConfig.etherscanChainId?.toString() || '',
     apikey: apiKey
   });
 
   const url = `${networkConfig.explorerApiV2Url}?${queryParams.toString()}`;
-  console.log('Llamando a la API V2:', url);
+  console.log('Llamando a Routescan API:', url);
 
   try {
     const response = await fetch(url);
@@ -609,11 +609,11 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
     // Obtener ABI del contrato
     let contractAbi;
     try {
-      // Intentar usar ABI precargado
-      const checksumAddress = ethers.getAddress(vestingContractAddress);
-      if (VESTING_CONTRACT_ABIS[checksumAddress]) {
+      // Intentar usar ABI precargado (buscar en minúsculas para coincidir con las claves del mapa)
+      const lowerAddress = vestingContractAddress.toLowerCase();
+      if (VESTING_CONTRACT_ABIS[lowerAddress]) {
         console.log(`Usando ABI precargado para el contrato: ${vestingContractAddress}`);
-        contractAbi = VESTING_CONTRACT_ABIS[checksumAddress];
+        contractAbi = VESTING_CONTRACT_ABIS[lowerAddress];
         console.log(`✅ Usando ABI precargado para el contrato ${vestingContractAddress}`);
       } else {
         // Si no está precargado, obtenerlo de BaseScan
@@ -653,6 +653,11 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
       console.log("Aplicando estrategia para obtener vestings");
       vestingSchedules = await applyVestingStrategy(vestingContract, walletAddress, vestingContractAddress);
       console.log(`Vestings obtenidos: ${vestingSchedules.length}`);
+      if (vestingSchedules.length > 0) {
+        console.log(`Primer schedule raw:`, JSON.stringify(vestingSchedules[0], (key, value) =>
+          typeof value === 'bigint' ? value.toString() : value
+        ));
+      }
     } catch (error) {
       console.error("Error al obtener vestings con la estrategia:", error);
     }
@@ -669,6 +674,7 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
     for (const schedule of vestingSchedules) {
       // Extraer información del schedule
       const beneficiary = schedule.beneficiary;
+      console.log(`Schedule beneficiary: ${beneficiary}, wallet buscada: ${walletAddress}, match: ${beneficiary?.toLowerCase() === walletAddress.toLowerCase()}`);
 
       // Verificar si el beneficiario coincide con la wallet consultada
       if (beneficiary.toLowerCase() !== walletAddress.toLowerCase()) {
@@ -714,9 +720,9 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
         claimableAmount: claimable,
         remainingAmount: remaining,
         releasedAmount: released,
-        startTime: start.getTime(),
-        endTime: end.getTime(),
-        cliffTime: cliff.getTime(),
+        startTime: Math.floor(start.getTime() / 1000), // Convert milliseconds to seconds
+        endTime: Math.floor(end.getTime() / 1000),     // Convert milliseconds to seconds
+        cliffTime: Math.floor(cliff.getTime() / 1000), // Convert milliseconds to seconds
         cliff: Math.floor((cliff.getTime() - start.getTime()) / 1000),
         phase,
         isRevoked

@@ -66,7 +66,7 @@ model TransferCache {
   from          String
   to            String
   value         String
-  timestamp     Int      // Unix timestamp para ordenar y buscar últimos
+  timestamp     BigInt   // Unix timestamp para ordenar y buscar últimos
   blockNumber   Int
   network       String   @default("base")
   cachedAt      DateTime @default(now())
@@ -129,15 +129,15 @@ model VestingCache {
   releasedAmount        String
 
   // Timestamps
-  startTime             Int
-  endTime               Int
-  nextUnlockTime        Int?
+  startTime             BigInt
+  endTime               BigInt
+  nextUnlockTime        BigInt?
   nextUnlockAmount      String?
 
   // Configuración de vesting
   slicePeriodSeconds    Int?
   cliff                 Int?
-  cliffEndTime          Int?
+  cliffEndTime          BigInt?
 
   // Metadatos de caché
   cachedAt              DateTime @default(now())
@@ -160,7 +160,7 @@ model VestingTransferCache {
   from          String
   to            String
   value         String
-  timestamp     Int
+  timestamp     BigInt
   blockNumber   Int
   network       String   @default("base")
   vestingContract String // Dirección del contrato de vesting
@@ -194,8 +194,8 @@ model VestingBeneficiaryCache {
   remainingAmount     String
 
   // Tiempos
-  startTime           Int
-  endTime             Int
+  startTime           BigInt
+  endTime             BigInt
 
   // Metadatos
   cachedAt            DateTime @default(now())
@@ -218,11 +218,11 @@ model VestingScheduleCache {
 
   phase                     String   // Nombre de la fase
   cliff                     Int      // Tiempo de cliff en segundos
-  start                     Int      // Timestamp de inicio
+  start                     BigInt   // Timestamp de inicio
   duration                  Int      // Duración total en segundos
   amountTotal               String   // Monto total asignado
   claimFrequencyInSeconds   Int      // Frecuencia de claim en segundos
-  lastClaimDate             Int      // Último timestamp de claim
+  lastClaimDate             BigInt   // Último timestamp de claim
   released                  String   // Tokens ya liberados/reclamados
   revoked                   Boolean  // Si fue revocado
 

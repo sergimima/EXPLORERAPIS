@@ -231,6 +231,9 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
 
       const result = await response.json();
       console.log('[VestingInfo] API response:', result);
+      if (result.debugLog) {
+        console.log('[VestingInfo] Debug por contrato:', result.debugLog);
+      }
 
       if (!result.success || !result.vestingSchedules) {
         throw new Error('Respuesta inválida de la API');
@@ -242,43 +245,79 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
       // Procesar los resultados de la API
       for (const vestingData of result.vestingSchedules) {
         const contractAddress = vestingData.vestingContractAddress;
-        const statusMsg = `✅ Encontrado vesting en ${vestingData.contractName || contractAddress}`;
-        console.log(statusMsg);
-        setStatusMessages(prev => [...prev, statusMsg]);
 
-        // Convertir formato de BD a formato de componente
-        const schedule: VestingScheduleWithHistory = {
-          tokenName: vestingData.tokenName,
-          tokenSymbol: vestingData.tokenSymbol,
-          tokenAddress: vestingData.tokenAddress,
-          totalAmount: vestingData.totalAmount,
-          vestedAmount: vestingData.vestedAmount,
-          claimableAmount: vestingData.claimableAmount,
-          remainingAmount: vestingData.remainingAmount,
-          releasedAmount: vestingData.releasedAmount,
-          startTime: vestingData.startTime,
-          endTime: vestingData.endTime,
-          nextUnlockTime: vestingData.nextUnlockTime || undefined,
-          nextUnlockAmount: vestingData.nextUnlockAmount || undefined,
-          slicePeriodSeconds: vestingData.slicePeriodSeconds || undefined,
-          cliff: vestingData.cliff || undefined,
-          cliffEndTime: vestingData.cliffEndTime || undefined,
-          vestingId: vestingData.vestingId,
-          contractAddress: contractAddress,
-          claimHistory: parseFloat(vestingData.releasedAmount) > 0 ? [{
-            amount: vestingData.releasedAmount,
-            timestamp: Date.now() / 1000,
-            transactionHash: undefined
-          }] : []
-        };
+        // Check if this vesting has schedules array (new aggregated format)
+        if (vestingData.schedules && Array.isArray(vestingData.schedules) && vestingData.schedules.length > 0) {
+          const statusMsg = `✅ Encontrado vesting en ${vestingData.contractName || contractAddress} con ${vestingData.schedules.length} schedules`;
+          console.log(statusMsg);
+          setStatusMessages(prev => [...prev, statusMsg]);
 
-        allSchedules.push(schedule);
+          // Store aggregated vesting with schedules array
+          const vesting: any = {
+            tokenName: vestingData.tokenName,
+            tokenSymbol: vestingData.tokenSymbol,
+            tokenAddress: vestingData.tokenAddress,
+            totalAmount: vestingData.totalAmount,
+            vestedAmount: vestingData.vestedAmount,
+            claimableAmount: vestingData.claimableAmount,
+            remainingAmount: vestingData.remainingAmount,
+            releasedAmount: vestingData.releasedAmount,
+            startTime: vestingData.startTime,
+            endTime: vestingData.endTime,
+            vestingId: vestingData.vestingId,
+            contractAddress: contractAddress,
+            contractName: vestingData.contractName,
+            schedules: vestingData.schedules, // Keep schedules array
+            scheduleCount: vestingData.schedules.length,
+            claimHistory: []
+          };
 
-        // Agrupar por contrato
-        if (!contractResults[contractAddress]) {
-          contractResults[contractAddress] = [];
+          allSchedules.push(vesting);
+
+          // Agrupar por contrato
+          if (!contractResults[contractAddress]) {
+            contractResults[contractAddress] = [];
+          }
+          contractResults[contractAddress].push(vesting);
+        } else {
+          // Old format: single schedule without schedules array
+          const statusMsg = `✅ Encontrado vesting en ${vestingData.contractName || contractAddress}`;
+          console.log(statusMsg);
+          setStatusMessages(prev => [...prev, statusMsg]);
+
+          const schedule: VestingScheduleWithHistory = {
+            tokenName: vestingData.tokenName,
+            tokenSymbol: vestingData.tokenSymbol,
+            tokenAddress: vestingData.tokenAddress,
+            totalAmount: vestingData.totalAmount,
+            vestedAmount: vestingData.vestedAmount,
+            claimableAmount: vestingData.claimableAmount,
+            remainingAmount: vestingData.remainingAmount,
+            releasedAmount: vestingData.releasedAmount,
+            startTime: vestingData.startTime,
+            endTime: vestingData.endTime,
+            nextUnlockTime: vestingData.nextUnlockTime || undefined,
+            nextUnlockAmount: vestingData.nextUnlockAmount || undefined,
+            slicePeriodSeconds: vestingData.slicePeriodSeconds || undefined,
+            cliff: vestingData.cliff || undefined,
+            cliffEndTime: vestingData.cliffEndTime || undefined,
+            vestingId: vestingData.vestingId,
+            contractAddress: contractAddress,
+            claimHistory: parseFloat(vestingData.releasedAmount) > 0 ? [{
+              amount: vestingData.releasedAmount,
+              timestamp: Date.now() / 1000,
+              transactionHash: undefined
+            }] : []
+          };
+
+          allSchedules.push(schedule);
+
+          // Agrupar por contrato
+          if (!contractResults[contractAddress]) {
+            contractResults[contractAddress] = [];
+          }
+          contractResults[contractAddress].push(schedule);
         }
-        contractResults[contractAddress].push(schedule);
       }
 
       // Actualizar estados
@@ -440,211 +479,90 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {schedules.map((schedule, index) => (
+                    {schedules.map((vesting, index) => (
                       <React.Fragment key={index}>
-                        <tr>
+                        {/* Main vesting row with aggregated totals */}
+                        <tr className="bg-blue-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">{schedule.tokenSymbol}</div>
-                                <div className="text-sm text-gray-500">{schedule.tokenName}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{schedule.totalAmount}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{schedule.vestedAmount}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{schedule.claimableAmount}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="text-sm text-gray-900">{schedule.releasedAmount}</div>
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleRowExpansion(contractIndex * 100 + index);
-                                }}
-                                className="ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-2 rounded text-xs"
-                                title="Ver historial de reclamaciones"
+                              <button
+                                onClick={() => toggleRowExpansion(contractIndex * 100 + index)}
+                                className="mr-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs"
+                                title={expandedRows[contractIndex * 100 + index] ? "Ocultar schedules" : "Ver schedules"}
                               >
                                 {expandedRows[contractIndex * 100 + index] ? '−' : '+'}
                               </button>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{schedule.remainingAmount}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {new Date(schedule.startTime * 1000).toLocaleDateString()} - {new Date(schedule.endTime * 1000).toLocaleDateString()}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {schedule.nextUnlockTime ? (
-                                <>
-                                  {new Date(schedule.nextUnlockTime * 1000).toLocaleDateString()}: {schedule.nextUnlockAmount}
-                                </>
-                              ) : (
-                                'No hay más desbloqueos'
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                        {expandedRows[contractIndex * 100 + index] && (
-                          <tr>
-                            <td colSpan={8} className="px-6 py-4 bg-gray-50">
-                              <div className="text-sm font-medium text-gray-900 mb-2">Historial de Reclamaciones</div>
-                              {schedule.claimHistory && schedule.claimHistory.length > 0 ? (
-                                <table className="min-w-full divide-y divide-gray-200 border">
-                                  <thead className="bg-gray-100">
-                                    <tr>
-                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
-                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transacción</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="bg-white divide-y divide-gray-200">
-                                    {schedule.claimHistory.map((claim, claimIndex) => (
-                                      <tr key={claimIndex}>
-                                        <td className="px-4 py-2 whitespace-nowrap">
-                                          <div className="text-sm text-gray-900">
-                                            {new Date(claim.timestamp * 1000).toLocaleDateString()} {new Date(claim.timestamp * 1000).toLocaleTimeString()}
-                                          </div>
-                                        </td>
-                                        <td className="px-4 py-2 whitespace-nowrap">
-                                          <div className="text-sm text-gray-900">{claim.amount} {schedule.tokenSymbol}</div>
-                                        </td>
-                                        <td className="px-4 py-2 whitespace-nowrap">
-                                          <div className="text-sm text-gray-900">
-                                            {claim.transactionHash ? (
-                                              <a
-                                                href={`${getExplorerUrl(network)}/tx/${claim.transactionHash}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-blue-600 hover:text-blue-800"
-                                              >
-                                                {claim.transactionHash.substring(0, 8)}...{claim.transactionHash.substring(claim.transactionHash.length - 6)}
-                                              </a>
-                                            ) : (
-                                              "No disponible"
-                                            )}
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              ) : (
-                                <div className="text-sm text-gray-500">No hay historial de reclamaciones disponible.</div>
-                              )}
-                            </td>
-                          </tr>
-                        )}
-                        <tr>
-                          <td colSpan={8} className="px-6 py-4 bg-gray-50">
-                            <div className="flex items-center">
-                              <div className="text-sm font-medium text-gray-900">Cronograma de Liberación</div>
-                              <button 
-                                onClick={() => toggleScheduleRow(contractIndex * 100 + index)}
-                                className="ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-2 rounded text-xs"
-                                title="Ver cronograma de liberación"
-                              >
-                                {showScheduleRows[contractIndex * 100 + index] ? '−' : '+'}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        {showScheduleRows[contractIndex * 100 + index] && (
-                          <tr>
-                            <td colSpan={8} className="px-6 py-4 bg-gray-50">
-                              <div className="grid grid-cols-1 gap-4">
-                                <div className="bg-white p-4 rounded shadow-sm">
-                                  <h4 className="text-md font-medium text-gray-900 mb-2">Detalles de Liberación</h4>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <p className="text-sm text-gray-600">Período de liberación:</p>
-                                      <p className="text-sm font-medium">
-                                        {schedule.slicePeriodSeconds ? 
-                                          formatPeriod(schedule.slicePeriodSeconds) : 
-                                          'No especificado'}
-                                      </p>
-                                    </div>
-                                    {schedule.cliff && schedule.cliffEndTime && (
-                                      <div>
-                                        <p className="text-sm text-gray-600">Período de cliff:</p>
-                                        <p className="text-sm font-medium">
-                                          Hasta {new Date(schedule.cliffEndTime * 1000).toLocaleDateString()}
-                                          ({formatPeriod(schedule.cliff)})
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                
-                                <div className="bg-white p-4 rounded shadow-sm">
-                                  <h4 className="text-md font-medium text-gray-900 mb-2">Línea de Tiempo</h4>
-                                  <div className="relative pt-1">
-                                    <div className="flex mb-2 items-center justify-between">
-                                      <div>
-                                        <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
-                                          Inicio: {new Date(schedule.startTime * 1000).toLocaleDateString()}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-green-600 bg-green-200">
-                                          Fin: {new Date(schedule.endTime * 1000).toLocaleDateString()}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
-                                      {renderTimelineProgress(schedule)}
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                <div className="bg-white p-4 rounded shadow-sm">
-                                  <h4 className="text-md font-medium text-gray-900 mb-2">Calendario de Desbloqueos</h4>
-                                  {generateUnlockSchedule(schedule).length > 0 ? (
-                                    <div className="overflow-x-auto">
-                                      <table className="min-w-full divide-y divide-gray-200 border">
-                                        <thead className="bg-gray-100">
-                                          <tr>
-                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
-                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
-                                          {generateUnlockSchedule(schedule).map((unlock, unlockIndex) => (
-                                            <tr key={unlockIndex}>
-                                              <td className="px-4 py-2 whitespace-nowrap">
-                                                <div className="text-sm text-gray-900">
-                                                  {new Date(unlock.date * 1000).toLocaleDateString()}
-                                                </div>
-                                              </td>
-                                              <td className="px-4 py-2 whitespace-nowrap">
-                                                <div className="text-sm text-gray-900">{unlock.amount} {schedule.tokenSymbol}</div>
-                                              </td>
-                                              <td className="px-4 py-2 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${unlock.status === 'Liberado' ? 'bg-green-100 text-green-800' : unlock.status === 'Pendiente' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
-                                                  {unlock.status}
-                                                </span>
-                                              </td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  ) : (
-                                    <div className="text-sm text-gray-500">No se pudo generar el calendario de desbloqueos con la información disponible.</div>
-                                  )}
-                                </div>
+                              <div>
+                                <div className="text-sm font-bold text-gray-900">{vesting.tokenSymbol}</div>
+                                <div className="text-sm text-gray-500">{vesting.tokenName}</div>
+                                {vesting.scheduleCount && (
+                                  <div className="text-xs text-blue-600 font-medium">{vesting.scheduleCount} schedules</div>
+                                )}
                               </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-bold text-gray-900">{vesting.totalAmount}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-bold text-gray-900">{vesting.vestedAmount}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-bold text-gray-900">{vesting.claimableAmount}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-bold text-gray-900">{vesting.releasedAmount}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-bold text-gray-900">{vesting.remainingAmount}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {new Date(vesting.startTime * 1000).toLocaleDateString()} - {new Date(vesting.endTime * 1000).toLocaleDateString()}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {vesting.contractName || 'Vesting'}
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Expanded section showing individual schedules */}
+                        {expandedRows[contractIndex * 100 + index] && vesting.schedules && vesting.schedules.length > 0 && (
+                          <tr>
+                            <td colSpan={8} className="px-6 py-4 bg-gray-50">
+                              <div className="text-sm font-medium text-gray-900 mb-3">Schedules Individuales ({vesting.schedules.length})</div>
+                              <table className="min-w-full divide-y divide-gray-200 border">
+                                <thead className="bg-gray-100">
+                                  <tr>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fase</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reclamado</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Restante</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Inicio</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fin</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {vesting.schedules.map((sched: any, schedIndex: number) => (
+                                    <tr key={schedIndex}>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{schedIndex + 1}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{sched.phase || 'N/A'}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{sched.totalAmount}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{sched.releasedAmount}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{sched.remainingAmount}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                        {new Date(sched.startTime * 1000).toLocaleDateString()}
+                                      </td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                        {new Date(sched.endTime * 1000).toLocaleDateString()}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
                             </td>
                           </tr>
                         )}

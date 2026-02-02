@@ -33,7 +33,7 @@ export default function Home() {
           <div className="bg-blue-50 p-4 rounded-md">
             <h2 className="text-xl font-semibold mb-2">Explorador de Tokens</h2>
             <p className="mb-4">Consulta los tokens enviados a una wallet y filtra por tipos específicos.</p>
-            <Link href="/explorer/tokens" className="btn-primary">
+            <Link href="/dashboard?tab=tokens" className="btn-primary">
               Ir al Explorador
             </Link>
           </div>

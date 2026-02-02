@@ -22,7 +22,10 @@
       "Bash(git -C c:/Users/smias/Documents/DEVELOPEMENT/EXPLORERAPIS log --all -S \"aerodrome\" -i --oneline)",
       "Bash(git -C c:/Users/smias/Documents/DEVELOPEMENT/EXPLORERAPIS show 961fb78:src/app/api/token-analytics/route.ts)",
       "Bash(git -C c:/Users/smias/Documents/DEVELOPEMENT/EXPLORERAPIS diff 15bb7be HEAD -- src/app/api/token-analytics/route.ts)",
-      "Bash(git -C c:/Users/smias/Documents/DEVELOPEMENT/EXPLORERAPIS log --all -S \"uniswap\" -i --oneline)"
+      "Bash(git -C c:/Users/smias/Documents/DEVELOPEMENT/EXPLORERAPIS log --all -S \"uniswap\" -i --oneline)",
+      "Bash(node -e:*)",
+      "Bash(psql:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

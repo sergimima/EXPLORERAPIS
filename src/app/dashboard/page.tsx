@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Network } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import NetworkSelector from '@/components/NetworkSelector';
@@ -28,6 +29,8 @@ const AnalyticsContent = dynamic(
 );
 
 export default function UnifiedExplorer() {
+  const searchParams = useSearchParams();
+
   // Estado principal
   const [activeTab, setActiveTab] = useState<'tokens' | 'vestings' | 'analytics'>('tokens');
   const [wallet, setWallet] = useState<string>('');
@@ -35,6 +38,29 @@ export default function UnifiedExplorer() {
   const [tokenFilter, setTokenFilter] = useState<string>('');
   const [contractAddress, setContractAddress] = useState('');
   const [showContractDetails, setShowContractDetails] = useState(false);
+
+  // Leer parámetros URL al cargar (soportar redirecciones desde /explorer/tokens)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    const walletParam = searchParams.get('wallet');
+
+    // Setear tab si viene en URL
+    if (tabParam && (tabParam === 'tokens' || tabParam === 'vestings' || tabParam === 'analytics')) {
+      setActiveTab(tabParam);
+    }
+
+    // Setear wallet si viene en URL y auto-buscar
+    if (walletParam) {
+      setWallet(walletParam);
+      // Trigger búsqueda automática después de setear wallet
+      setTimeout(() => {
+        const searchButton = document.querySelector('button[type="submit"]') as HTMLButtonElement;
+        if (searchButton) {
+          searchButton.click();
+        }
+      }, 100);
+    }
+  }, [searchParams]);
 
   // Estados para la sección de tokens
   const [transfers, setTransfers] = useState<any[]>([]);
@@ -409,6 +435,15 @@ export default function UnifiedExplorer() {
                   Información de Vesting
                 </button>
                 <button
+                  onClick={() => setTokenSubTab('vestingSummary')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'vestingSummary'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                >
+                  Resumen de Vesting
+                </button>
+                <button
                   onClick={() => setTokenSubTab('airdrops')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'airdrops'
                     ? 'border-blue-500 text-blue-600'
@@ -437,6 +472,20 @@ export default function UnifiedExplorer() {
                   onAddressClick={handleAddressClick}
                   onRefresh={handleRefreshTransfers}
                   onClearCache={handleClearCache}
+                />
+              )}
+              {tokenSubTab === 'vesting' && (
+                <VestingInfo
+                  walletAddress={wallet}
+                  network={network}
+                  isLoading={loadingStates.vesting}
+                  searchTriggered={searchCount}
+                  preloadedData={dataFetched.vesting ? vestingSchedules : undefined}
+                />
+              )}
+              {tokenSubTab === 'vestingSummary' && (
+                <VestingSummary
+                  network={network}
                 />
               )}
               {tokenSubTab === 'airdrops' && (

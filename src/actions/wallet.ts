@@ -27,18 +27,18 @@ async function fetchNewTransfersFromAPI(
     walletAddress: string,
     lastTimestamp: number = 0
 ): Promise<any[]> {
-    const apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
 
     if (!apiKey) {
-        console.warn('No API key found for Etherscan/Basescan');
+        console.warn('No API key found for Routescan/Basescan');
         return [];
     }
 
     try {
         console.log(`[fetchNewTransfersFromAPI] Wallet: ${walletAddress}, desde timestamp: ${lastTimestamp}`);
 
-        // Usar API V2 de Etherscan para obtener transferencias de tokens ERC20
-        const url = `https://api.etherscan.io/v2/api?chainid=${BASE_CONFIG.chainId}&module=account&action=tokentx&address=${walletAddress}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`;
+        // Usar Routescan API (compatible con Etherscan) para obtener transferencias de tokens ERC20
+        const url = `https://api.routescan.io/v2/network/mainnet/evm/8453/etherscan/api?module=account&action=tokentx&address=${walletAddress}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`;
 
         const response = await fetch(url);
         const data = await response.json();
