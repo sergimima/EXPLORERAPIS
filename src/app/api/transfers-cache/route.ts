@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getTenantContext } from '@/lib/tenant-context';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -7,6 +8,17 @@ export async function GET(request: NextRequest) {
   const contractAddress = searchParams.get('contractAddress');
   const tokenAddress = searchParams.get('tokenAddress');
   const network = searchParams.get('network') || 'base';
+
+  // Validate tenant context
+  const tenantContext = await getTenantContext();
+  if (!tenantContext) {
+    return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+  }
+  if (!tenantContext.activeToken) {
+    return NextResponse.json({ error: 'No hay token configurado' }, { status: 400 });
+  }
+
+  const tokenId = tenantContext.activeToken.id;
 
   if (!contractAddress || !tokenAddress) {
     return NextResponse.json(
@@ -17,9 +29,10 @@ export async function GET(request: NextRequest) {
 
   try {
     if (action === 'getTransfers') {
-      // Obtener transferencias cacheadas del vesting
+      // Obtener transferencias cacheadas del vesting (filtrado por tokenId)
       const transfers = await prisma.vestingTransferCache.findMany({
         where: {
+          tokenId,
           vestingContract: contractAddress.toLowerCase(),
           tokenAddress: tokenAddress.toLowerCase(),
           network: network
@@ -33,7 +46,7 @@ export async function GET(request: NextRequest) {
         to_address: t.to,
         value: t.value,
         block_number: t.blockNumber.toString(),
-        block_timestamp: new Date(t.timestamp * 1000).toISOString(),
+        block_timestamp: new Date(Number(t.timestamp) * 1000).toISOString(),
         transaction_hash: t.hash
       }));
 
@@ -41,9 +54,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (action === 'getLastTimestamp') {
-      // Obtener último timestamp del vesting
+      // Obtener último timestamp del vesting (filtrado por tokenId)
       const lastTransfer = await prisma.vestingTransferCache.findFirst({
         where: {
+          tokenId,
           vestingContract: contractAddress.toLowerCase(),
           tokenAddress: tokenAddress.toLowerCase(),
           network: network
@@ -68,6 +82,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate tenant context
+    const tenantContext = await getTenantContext();
+    if (!tenantContext) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    }
+    if (!tenantContext.activeToken) {
+      return NextResponse.json({ error: 'No hay token configurado' }, { status: 400 });
+    }
+
+    const tokenId = tenantContext.activeToken.id;
+
     const body = await request.json();
     const { transfers, contractAddress, tokenAddress, network } = body;
 
@@ -78,12 +103,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Extract activeToken to avoid TypeScript errors in map
+    const activeToken = tenantContext.activeToken;
+
     const transfersToSave = transfers.map((tx: any) => ({
+      tokenId,
       hash: tx.transaction_hash,
       tokenAddress: tokenAddress.toLowerCase(),
-      tokenSymbol: 'VTN',
-      tokenName: 'Vottun Token',
-      decimals: 18,
+      tokenSymbol: activeToken.symbol,
+      tokenName: activeToken.name,
+      decimals: activeToken.decimals,
       from: tx.from_address?.toLowerCase() || '',
       to: tx.to_address?.toLowerCase() || '',
       value: tx.value || '0',
@@ -117,6 +146,17 @@ export async function DELETE(request: NextRequest) {
   const tokenAddress = searchParams.get('tokenAddress');
   const network = searchParams.get('network') || 'base';
 
+  // Validate tenant context
+  const tenantContext = await getTenantContext();
+  if (!tenantContext) {
+    return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+  }
+  if (!tenantContext.activeToken) {
+    return NextResponse.json({ error: 'No hay token configurado' }, { status: 400 });
+  }
+
+  const tokenId = tenantContext.activeToken.id;
+
   if (!contractAddress || !tokenAddress) {
     return NextResponse.json(
       { error: 'contractAddress and tokenAddress are required' },
@@ -127,6 +167,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const deleted = await prisma.vestingTransferCache.deleteMany({
       where: {
+        tokenId,
         vestingContract: contractAddress.toLowerCase(),
         tokenAddress: tokenAddress.toLowerCase(),
         network: network

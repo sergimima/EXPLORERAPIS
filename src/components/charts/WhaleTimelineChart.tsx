@@ -16,9 +16,10 @@ interface TokenTransfer {
 interface WhaleTimelineChartProps {
   transfers: TokenTransfer[];
   threshold?: number;
+  tokenSymbol?: string;
 }
 
-export default function WhaleTimelineChart({ transfers, threshold = 10000 }: WhaleTimelineChartProps) {
+export default function WhaleTimelineChart({ transfers, threshold = 10000, tokenSymbol = 'tokens' }: WhaleTimelineChartProps) {
   // Filtrar solo transferencias grandes
   const largeTransfers = transfers.filter(t => t.isLargeTransfer);
 
@@ -38,7 +39,7 @@ export default function WhaleTimelineChart({ transfers, threshold = 10000 }: Wha
       return (
         <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
           <p className="font-semibold text-gray-900">
-            {data.amount.toLocaleString()} VTN
+            {data.amount.toLocaleString()} {tokenSymbol}
           </p>
           <p className="text-sm text-gray-600">
             {date.toLocaleString()}
@@ -100,7 +101,7 @@ export default function WhaleTimelineChart({ transfers, threshold = 10000 }: Wha
           <span className="font-semibold">Total mostrado:</span> {data.length} transferencias grandes
         </p>
         <p className="text-xs text-gray-500 mt-1">
-          Umbral: {threshold.toLocaleString()} VTN
+          Umbral: {threshold.toLocaleString()} {tokenSymbol}
         </p>
       </div>
     </div>

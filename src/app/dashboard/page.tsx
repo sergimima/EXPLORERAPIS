@@ -13,8 +13,9 @@ import VestingInfo from '@/components/VestingInfo';
 import VestingSummary from '@/components/VestingSummary';
 import AirdropAssignments from '@/components/AirdropAssignments';
 import VestingContractList from '../explorer/vestings/components/VestingContractList';
-import { fetchTokenTransfers } from '@/lib/blockchain';
+import { fetchTokenTransfers, CustomApiKeys } from '@/lib/blockchain';
 import { clearWalletCache } from '@/actions/wallet';
+import { useToken, type TokenData } from '@/contexts/TokenContext';
 
 // Importar dinámicamente componentes pesados
 const TokenSupplyCard = dynamic(
@@ -24,12 +25,13 @@ const TokenSupplyCard = dynamic(
 
 // Importar Analytics de forma dinámica para mejor performance
 const AnalyticsContent = dynamic(
-  () => import('../explorer/analytics/page'),
+  () => import('@/components/AnalyticsContent'),
   { ssr: false, loading: () => <div className="text-center py-8">Cargando Analytics...</div> }
 );
 
 export default function UnifiedExplorer() {
   const searchParams = useSearchParams();
+  const { activeToken } = useToken();
 
   // Estado principal
   const [activeTab, setActiveTab] = useState<'tokens' | 'vestings' | 'analytics'>('tokens');
@@ -38,6 +40,19 @@ export default function UnifiedExplorer() {
   const [tokenFilter, setTokenFilter] = useState<string>('');
   const [contractAddress, setContractAddress] = useState('');
   const [showContractDetails, setShowContractDetails] = useState(false);
+
+  // Helper para obtener custom API keys del token activo
+  const getCustomApiKeys = (): CustomApiKeys | undefined => {
+    const token = activeToken as TokenData | null;
+    if (!token?.settings) return undefined;
+
+    return {
+      basescanApiKey: token.settings.customBasescanApiKey ?? undefined,
+      etherscanApiKey: token.settings.customEtherscanApiKey ?? undefined,
+      moralisApiKey: token.settings.customMoralisApiKey ?? undefined,
+      quiknodeUrl: token.settings.customQuiknodeUrl ?? undefined
+    };
+  };
 
   // Leer parámetros URL al cargar (soportar redirecciones desde /explorer/tokens)
   useEffect(() => {
@@ -122,7 +137,7 @@ export default function UnifiedExplorer() {
     });
 
     try {
-      const transfersPromise = fetchTokenTransfers(wallet, network, tokenFilter)
+      const transfersPromise = fetchTokenTransfers(wallet, network, tokenFilter, getCustomApiKeys())
         .then(data => {
           setTransfers(data);
           setDataFetched(prev => ({ ...prev, transfers: true }));
@@ -136,7 +151,7 @@ export default function UnifiedExplorer() {
         });
 
       const balancesPromise = import('@/lib/blockchain').then(module => {
-        return module.fetchTokenBalances(wallet, network)
+        return module.fetchTokenBalances(wallet, network, getCustomApiKeys())
           .then(data => {
             setTokenBalances(data);
             setDataFetched(prev => ({ ...prev, balances: true }));
@@ -198,7 +213,7 @@ export default function UnifiedExplorer() {
     setLoadingStates(prev => ({ ...prev, transfers: true }));
 
     try {
-      const data = await fetchTokenTransfers(wallet, network, tokenFilter);
+      const data = await fetchTokenTransfers(wallet, network, tokenFilter, getCustomApiKeys());
       setTransfers(data);
       setDataFetched(prev => ({ ...prev, transfers: true }));
       console.log("Transferencias actualizadas:", data.length);
@@ -225,14 +240,14 @@ export default function UnifiedExplorer() {
       console.log("Caché limpiado");
 
       // 2. Recargar transferencias (esto buscará todo de nuevo en la API)
-      const transfersData = await fetchTokenTransfers(wallet, network, tokenFilter);
+      const transfersData = await fetchTokenTransfers(wallet, network, tokenFilter, getCustomApiKeys());
       setTransfers(transfersData);
       setDataFetched(prev => ({ ...prev, transfers: true }));
 
       // 3. Recargar balances también (para arreglar los nombres UNKNOWN)
       setLoadingStates(prev => ({ ...prev, balances: true }));
       const { fetchTokenBalances } = await import('@/lib/blockchain');
-      const balancesData = await fetchTokenBalances(wallet, network);
+      const balancesData = await fetchTokenBalances(wallet, network, getCustomApiKeys());
       setTokenBalances(balancesData);
       setDataFetched(prev => ({ ...prev, balances: true }));
 
@@ -270,7 +285,7 @@ export default function UnifiedExplorer() {
     });
 
     try {
-      const transfersPromise = fetchTokenTransfers(address, network, tokenFilter)
+      const transfersPromise = fetchTokenTransfers(address, network, tokenFilter, getCustomApiKeys())
         .then(data => {
           setTransfers(data);
           setDataFetched(prev => ({ ...prev, transfers: true }));
@@ -284,7 +299,7 @@ export default function UnifiedExplorer() {
         });
 
       const balancesPromise = import('@/lib/blockchain').then(module => {
-        return module.fetchTokenBalances(address, network)
+        return module.fetchTokenBalances(address, network, getCustomApiKeys())
           .then(data => {
             setTokenBalances(data);
             setDataFetched(prev => ({ ...prev, balances: true }));
@@ -511,14 +526,22 @@ export default function UnifiedExplorer() {
           </div>
 
           {/* Lista de contratos de vesting predefinidos */}
-          <VestingContractList
-            network={network}
-            onSelectContract={(address) => {
-              setContractAddress(address);
-              setShowContractDetails(false);
-              setTimeout(() => setShowContractDetails(true), 50);
-            }}
-          />
+          {activeToken?.id ? (
+            <VestingContractList
+              tokenId={activeToken.id}
+              onSelectContract={(address) => {
+                setContractAddress(address);
+                setShowContractDetails(false);
+                setTimeout(() => setShowContractDetails(true), 50);
+              }}
+            />
+          ) : (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
+              <p className="text-yellow-800">
+                No hay un token activo seleccionado. Por favor, selecciona un token primero.
+              </p>
+            </div>
+          )}
 
           {/* Campo para ingresar dirección de contrato manualmente */}
           <div className="bg-white p-6 rounded-lg shadow-md mb-8">

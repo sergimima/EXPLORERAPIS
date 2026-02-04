@@ -10,12 +10,351 @@ datasource db {
 }
 
 // ==================================================
+// MULTI-TENANT: Usuarios, Organizaciones y Tokens
+// ==================================================
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String?
+  hashedPassword  String?   // Null si usa OAuth
+  emailVerified   DateTime?
+  image           String?
+  role            UserRole  @default(MEMBER)
+
+  // NextAuth fields
+  accounts        Account[]
+  sessions        Session[]
+
+  // Multi-tenant
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  memberships     OrganizationMember[]
+
+  // Metadata
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastLoginAt     DateTime?
+
+  @@index([email])
+  @@index([organizationId])
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN  // Platform admin
+  ADMIN        // Org admin
+  MEMBER       // Org member
+  VIEWER       // Read-only
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ==================================================
+// ORGANIZACIONES (Tenants)
+// ==================================================
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique  // URL-friendly
+  logo        String?
+  website     String?
+
+  // Owner
+  ownerId     String
+
+  // Relations
+  users       User[]
+  members     OrganizationMember[]
+  tokens      Token[]
+
+  // Suscripción
+  subscription Subscription?
+  usageStats   UsageStats[]
+
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([ownerId])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  role           MemberRole   @default(MEMBER)
+  invitedBy      String?
+  invitedAt      DateTime     @default(now())
+  joinedAt       DateTime?
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+// ==================================================
+// TOKENS (Multi-token support)
+// ==================================================
+
+model Token {
+  id             String   @id @default(cuid())
+  organizationId String
+
+  // Token info
+  address        String
+  symbol         String
+  name           String
+  decimals       Int      @default(18)
+  network        String   @default("base")
+
+  // Status
+  isActive       Boolean  @default(true)
+  isVerified     Boolean  @default(false)
+
+  // Settings
+  settings       TokenSettings?
+
+  // Custom ABIs y Vesting Contracts (Sprint 2.2)
+  customAbis        CustomAbi[]
+  vestingContracts  VestingContract[]
+
+  // Relations (data aislado por token)
+  knownAddresses          KnownAddress[]
+  transferCache           TransferCache[]
+  holderSnapshots         HolderSnapshot[]
+  tokenSupplyCache        TokenSupplyCache[]
+  vestingCache            VestingCache[]
+  vestingTransferCache    VestingTransferCache[]
+  vestingBeneficiaryCache VestingBeneficiaryCache[]
+
+  // Metadata
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  createdBy      String?
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, address, network])
+  @@index([organizationId])
+  @@index([address])
+  @@map("tokens")
+}
+
+model TokenSettings {
+  id                    String   @id @default(cuid())
+  tokenId               String   @unique
+
+  // API Keys personalizadas (opcionales)
+  customBasescanApiKey    String?
+  customEtherscanApiKey   String?
+  customMoralisApiKey     String?
+  customQuiknodeUrl       String?
+
+  // Configuraciones
+  cacheDurationMinutes    Int      @default(5)
+  maxTransfersToFetch     Int      @default(10000)
+  whaleThreshold          String   @default("10000")
+
+  // Exchanges custom
+  customExchangeAddresses String[]
+
+  // Supply Configuration (Sprint 2.3)
+  supplyMethod              String?  @default("API") // "API" o "ONCHAIN"
+  supplyApiTotalUrl         String?  // URL para total supply
+  supplyApiCirculatingUrl   String?  // URL para circulating supply
+
+  // Metadata
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  token                   Token    @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@map("token_settings")
+}
+
+// ==================================================
+// CUSTOM ABIs Y VESTING CONTRACTS (Sprint 2.2)
+// ==================================================
+
+model CustomAbi {
+  id              String   @id @default(cuid())
+  tokenId         String
+  contractAddress String   // Dirección del contrato (token o vesting)
+  network         String   // "base", "base-testnet", "base-sepolia"
+
+  // ABI data
+  abi             Json     // ABI en formato JSON
+  source          String   @default("STANDARD") // STANDARD, UPLOADED, BASESCAN
+
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  token           Token    @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenId, contractAddress, network])
+  @@map("custom_abis")
+}
+
+model VestingContract {
+  id          String   @id @default(cuid())
+  tokenId     String
+
+  // Información del contrato
+  name        String   // "Vottun World", "Investors", etc.
+  address     String   // Dirección del contrato
+  network     String   @default("base")
+
+  // Status y metadata
+  isActive    Boolean  @default(true)
+  description String?
+  category    String?  // "investors", "team", "marketing", etc.
+
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?
+
+  token       Token    @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenId, address, network])
+  @@index([tokenId])
+  @@index([address])
+  @@map("vesting_contracts")
+}
+
+// ==================================================
+// SUBSCRIPTIONS & BILLING
+// ==================================================
+
+model Subscription {
+  id                String   @id @default(cuid())
+  organizationId    String   @unique
+
+  // Stripe
+  stripeCustomerId      String?  @unique
+  stripeSubscriptionId  String?  @unique
+  stripePriceId         String?
+  stripeCurrentPeriodEnd DateTime?
+
+  // Plan
+  plan              SubscriptionPlan @default(FREE)
+  status            SubscriptionStatus @default(ACTIVE)
+
+  // Usage tracking
+  apiCallsThisMonth Int      @default(0)
+  apiCallsLimit     Int      @default(1000)
+  tokensCount       Int      @default(0)
+  tokensLimit       Int      @default(1)
+
+  // Billing
+  billingCycleStart DateTime @default(now())
+  billingCycleEnd   DateTime?
+
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  canceledAt        DateTime?
+
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+  @@map("subscriptions")
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  TRIALING
+}
+
+model UsageStats {
+  id             String   @id @default(cuid())
+  organizationId String
+  date           DateTime @default(now())
+
+  // Métricas
+  apiCalls         Int      @default(0)
+  transfersFetched Int      @default(0)
+  holdersFetched   Int      @default(0)
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, date])
+  @@index([organizationId])
+  @@map("usage_stats")
+}
+
+// ==================================================
 // FASE 1: Etiquetado y Caché Básico
 // ==================================================
 
 model KnownAddress {
   id          String   @id @default(cuid())
-  address     String   @unique
+  tokenId     String?  // FK a Token (nullable para datos legacy)
+  address     String
   name        String
   type        AddressType
   category    String?
@@ -25,6 +364,10 @@ model KnownAddress {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  token       Token?   @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenId, address]) // Único por token
+  @@index([tokenId])
   @@index([address])
   @@index([type])
   @@index([category])
@@ -42,6 +385,7 @@ enum AddressType {
 
 model TokenSupplyCache {
   id                String   @id @default(cuid())
+  tokenId           String?  // FK a Token (nullable para datos legacy)
   tokenAddress      String
   network           String
   totalSupply       String
@@ -50,7 +394,10 @@ model TokenSupplyCache {
   cachedAt          DateTime @default(now())
   expiresAt         DateTime
 
+  token             Token?   @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
   @@unique([tokenAddress, network])
+  @@index([tokenId])
   @@index([expiresAt])
   @@map("token_supply_cache")
 }
@@ -58,7 +405,8 @@ model TokenSupplyCache {
 // Caché incremental de transferencias (solo agrega nuevos)
 model TransferCache {
   id            String   @id @default(cuid())
-  hash          String   @unique  // Para evitar duplicados
+  tokenId       String?  // FK a Token (nullable durante migración)
+  hash          String
   tokenAddress  String
   tokenSymbol   String?  // Nuevo: Para mostrar en el historial
   tokenName     String?  // Nuevo: Para mostrar en el historial
@@ -71,6 +419,11 @@ model TransferCache {
   network       String   @default("base")
   cachedAt      DateTime @default(now())
 
+  token         Token?   @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenId, hash]) // Único por token
+  @@index([tokenId, timestamp])
+  @@index([tokenId, network])
   @@index([tokenAddress, timestamp])  // Para buscar transfers y último timestamp
   @@index([tokenAddress, network])
   @@index([from])
@@ -82,11 +435,15 @@ model TransferCache {
 // Snapshots periódicos de holders (reemplaza snapshot completo cada vez)
 model HolderSnapshot {
   id           String   @id @default(cuid())
+  tokenId      String?  // FK a Token (nullable durante migración)
   tokenAddress String
   network      String   @default("base")
   timestamp    DateTime @default(now())
   holders      Holder[]
 
+  token        Token?   @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@index([tokenId, network, timestamp])
   @@index([tokenAddress, network, timestamp])
   @@map("holder_snapshots")
 }
@@ -112,6 +469,7 @@ model Holder {
 // Caché de información de vesting por wallet y contrato
 model VestingCache {
   id                    String   @id @default(cuid())
+  tokenId               String?  // FK a Token (nullable durante migración)
   walletAddress         String
   vestingContractAddress String
   network               String   @default("base")
@@ -143,7 +501,10 @@ model VestingCache {
   cachedAt              DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  @@unique([walletAddress, vestingContractAddress, network])
+  token                 Token?   @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenId, walletAddress, vestingContractAddress, network])
+  @@index([tokenId])
   @@index([walletAddress])
   @@index([vestingContractAddress])
   @@map("vesting_cache")
@@ -152,6 +513,7 @@ model VestingCache {
 // Tabla SEPARADA para transferencias de contratos de vesting
 model VestingTransferCache {
   id            String   @id @default(cuid())
+  tokenId       String?  // FK a Token (nullable durante migración)
   hash          String
   tokenAddress  String
   tokenSymbol   String?
@@ -166,7 +528,10 @@ model VestingTransferCache {
   vestingContract String // Dirección del contrato de vesting
   cachedAt      DateTime @default(now())
 
-  @@unique([hash, vestingContract]) // Mismo hash puede estar en múltiples vestings
+  token         Token?   @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenId, hash, vestingContract]) // Mismo hash puede estar en múltiples vestings y tokens
+  @@index([tokenId])
   @@index([vestingContract, tokenAddress, timestamp])
   @@index([vestingContract, network])
   @@index([from])
@@ -177,6 +542,7 @@ model VestingTransferCache {
 // Tabla para beneficiarios de contratos de vesting
 model VestingBeneficiaryCache {
   id                  String   @id @default(cuid())
+  tokenId             String?  // FK a Token (nullable durante migración)
   vestingContract     String   // Dirección del contrato de vesting
   beneficiaryAddress  String   // Dirección del beneficiario
   network             String   @default("base")
@@ -201,10 +567,13 @@ model VestingBeneficiaryCache {
   cachedAt            DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  token               Token?   @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
   // Relación con schedules individuales
   vestings            VestingScheduleCache[]
 
-  @@unique([vestingContract, beneficiaryAddress, network])
+  @@unique([tokenId, vestingContract, beneficiaryAddress, network])
+  @@index([tokenId])
   @@index([vestingContract])
   @@index([beneficiaryAddress])
   @@map("vesting_beneficiary_cache")

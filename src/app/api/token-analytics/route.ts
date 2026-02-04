@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { prisma } from '@/lib/db';
+import { getTenantContext, getApiKeys } from '@/lib/tenant-context';
 
 export const dynamic = 'force-dynamic';
 
-// Dirección del token VTN
-const VTN_TOKEN_ADDRESS = '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC';
+// Dirección del token VTN (legacy - now uses tenant context)
+// const tokenAddress = '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC';
 
 // Configuración de red Base
 const BASE_CONFIG = {
@@ -152,13 +153,14 @@ async function fetchNewTransfersFromAPI(
   }
 }
 
-async function getTransfersWithCache(tokenAddress: string): Promise<any[]> {
+async function getTransfersWithCache(tokenAddress: string, tokenId: string): Promise<any[]> {
   const network = 'base';
 
   try {
-    // 1. Leer transfers guardados en BD
+    // 1. Leer transfers guardados en BD (filtrado por tokenId para multi-tenant)
     const cachedTransfers = await prisma.transferCache.findMany({
       where: {
+        tokenId,
         tokenAddress: tokenAddress.toLowerCase(),
         network
       },
@@ -169,7 +171,7 @@ async function getTransfersWithCache(tokenAddress: string): Promise<any[]> {
 
     // 2. Encontrar timestamp del transfer más reciente
     const lastTimestamp = cachedTransfers.length > 0
-      ? cachedTransfers[0].timestamp // Ya está ordenado desc
+      ? Number(cachedTransfers[0].timestamp) // Convert BigInt to Number
       : 0;
 
     console.log(`[getTransfersWithCache] Last cached timestamp: ${lastTimestamp}`);
@@ -183,6 +185,7 @@ async function getTransfersWithCache(tokenAddress: string): Promise<any[]> {
 
       await prisma.transferCache.createMany({
         data: newTransfersRaw.map((tx: any) => ({
+          tokenId,
           tokenAddress: tokenAddress.toLowerCase(),
           from: tx.from.toLowerCase(),
           to: tx.to.toLowerCase(),
@@ -353,13 +356,14 @@ async function fetchHoldersFromMoralis(
   }
 }
 
-async function getHoldersWithCache(tokenAddress: string, forceRefresh: boolean = false): Promise<HolderInfo[]> {
+async function getHoldersWithCache(tokenAddress: string, tokenId: string, forceRefresh: boolean = false): Promise<HolderInfo[]> {
   const network = 'base';
 
   try {
-    // 1. Buscar último snapshot
+    // 1. Buscar último snapshot (filtrado por tokenId para multi-tenant)
     const lastSnapshot = await prisma.holderSnapshot.findFirst({
       where: {
+        tokenId,
         tokenAddress: tokenAddress.toLowerCase(),
         network
       },
@@ -409,7 +413,9 @@ async function getHoldersWithCache(tokenAddress: string, forceRefresh: boolean =
     }
 
     // 2. Info de direcciones conocidas en la BD (PRIORIDAD - sobrescribe snapshot)
-    const knownAddresses = await prisma.knownAddress.findMany();
+    const knownAddresses = await prisma.knownAddress.findMany({
+      where: { tokenId }
+    });
     let knownAddressesAdded = 0;
     knownAddresses.forEach(ka => {
       const addressLower = ka.address.toLowerCase();
@@ -438,6 +444,7 @@ async function getHoldersWithCache(tokenAddress: string, forceRefresh: boolean =
 
     await prisma.holderSnapshot.create({
       data: {
+        tokenId,
         tokenAddress: tokenAddress.toLowerCase(),
         network,
         timestamp: new Date(),
@@ -484,14 +491,14 @@ async function getHoldersWithCache(tokenAddress: string, forceRefresh: boolean =
 // Funciones de Precio y Liquidez (Sin caché - tiempo real)
 // ============================================
 
-async function getCurrentPrice(): Promise<PriceData> {
+async function getCurrentPrice(tokenAddress: string): Promise<PriceData> {
   // Try QuikNode first
   const quiknodeUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL;
 
   if (quiknodeUrl) {
     try {
       console.log('[getCurrentPrice] Trying QuikNode price endpoint...');
-      const response = await fetch(`${quiknodeUrl}/addon/1051/v1/prices/${VTN_TOKEN_ADDRESS}?target=aero`, {
+      const response = await fetch(`${quiknodeUrl}/addon/1051/v1/prices/${tokenAddress}?target=aero`, {
         headers: { 'Accept': 'application/json' }
       });
       const data = await response.json();
@@ -508,7 +515,7 @@ async function getCurrentPrice(): Promise<PriceData> {
   // Fallback to DEX Screener
   try {
     console.log('[getCurrentPrice] Trying DEX Screener fallback...');
-    const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${VTN_TOKEN_ADDRESS}`);
+    const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`);
     const data = await response.json();
 
     if (data.pairs && data.pairs.length > 0) {
@@ -607,7 +614,7 @@ async function getUniswapV4PoolData(provider: ethers.JsonRpcProvider): Promise<P
   }
 }
 
-async function getLiquidityData(provider: ethers.JsonRpcProvider): Promise<LiquidityData | null> {
+async function getLiquidityData(provider: ethers.JsonRpcProvider, tokenAddress: string): Promise<LiquidityData | null> {
   try {
     console.log('[getLiquidityData] Fetching liquidity from DEX Screener...');
 
@@ -616,7 +623,7 @@ async function getLiquidityData(provider: ethers.JsonRpcProvider): Promise<Liqui
 
     // DEX Screener - Obtener TODOS los pools (incluye Aerodrome y Uniswap V4)
     try {
-      const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${VTN_TOKEN_ADDRESS}`);
+      const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`);
       const data = await response.json();
 
       if (data.pairs && data.pairs.length > 0) {
@@ -800,18 +807,43 @@ function formatAddress(address: string): string {
 
 export async function GET(request: NextRequest) {
   try {
+    // 1. Obtener contexto del tenant
+    const tenantContext = await getTenantContext();
+
+    if (!tenantContext) {
+      return NextResponse.json(
+        { error: 'No autenticado' },
+        { status: 401 }
+      );
+    }
+
+    if (!tenantContext.activeToken) {
+      return NextResponse.json(
+        { error: 'No hay token configurado. Ve a Settings para agregar uno.' },
+        { status: 400 }
+      );
+    }
+
+    // 2. Obtener API keys y configuración del tenant
+    const apiKeys = getApiKeys(tenantContext);
+    const tokenAddress = tenantContext.activeToken.address;
+    const tokenSymbol = tenantContext.activeToken.symbol;
+    const tokenId = tenantContext.activeToken.id;
+    const network = tenantContext.activeToken.network;
+
     const searchParams = request.nextUrl.searchParams;
     const days = parseInt(searchParams.get('days') || '7');
-    const threshold = searchParams.get('threshold') || '10000';
+    const threshold = searchParams.get('threshold') || tenantContext.activeToken.settings?.whaleThreshold || '10000';
     const forceRefresh = searchParams.get('forceRefresh') === 'true';
 
     console.log(`\n========== Analytics Request ==========`);
+    console.log(`Organization: ${tenantContext.organization.name}`);
+    console.log(`Token: ${tokenSymbol} (${tokenAddress})`);
     console.log(`Days: ${days}, Threshold: ${threshold}, Force Refresh: ${forceRefresh}`);
-    console.log(`Token: ${VTN_TOKEN_ADDRESS}`);
 
     // Obtener transferencias con caché incremental
     console.log('\n--- TRANSFERS (Incremental Cache) ---');
-    const rawTransfers = await getTransfersWithCache(VTN_TOKEN_ADDRESS);
+    const rawTransfers = await getTransfersWithCache(tokenAddress, tokenId);
     console.log(`Total transfers: ${rawTransfers.length}`);
 
     // Filtrar por rango de tiempo
@@ -852,7 +884,7 @@ export async function GET(request: NextRequest) {
 
     // Obtener holders con caché de snapshots
     console.log('\n--- HOLDERS (Snapshot Cache) ---');
-    const topHolders = await getHoldersWithCache(VTN_TOKEN_ADDRESS, forceRefresh);
+    const topHolders = await getHoldersWithCache(tokenAddress, tokenId, forceRefresh);
 
     // Calcular métricas
     console.log('\n--- ANALYTICS ---');
@@ -863,8 +895,8 @@ export async function GET(request: NextRequest) {
     console.log('\n--- PRICE & LIQUIDITY (Real-time) ---');
     const provider = getProvider();
     const [priceData, liquidityData] = await Promise.all([
-      getCurrentPrice(),
-      getLiquidityData(provider)
+      getCurrentPrice(tokenAddress),
+      getLiquidityData(provider, tokenAddress)
     ]);
 
     // Generar alertas

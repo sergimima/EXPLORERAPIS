@@ -39,6 +39,9 @@ interface ClaimHistoryItem {
 
 interface VestingScheduleWithHistory extends VestingSchedule {
   claimHistory?: ClaimHistoryItem[];
+  contractName?: string;
+  scheduleCount?: number;
+  schedules?: VestingSchedule[];
 }
 
 const formatPeriod = (seconds: number) => {

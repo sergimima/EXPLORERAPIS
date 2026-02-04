@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getTenantContext } from '@/lib/tenant-context';
 
 // GET: Obtener información de una address o todas las addresses conocidas
 export async function GET(request: NextRequest) {
@@ -7,19 +8,30 @@ export async function GET(request: NextRequest) {
   const address = searchParams.get('address');
 
   try {
-    // Si no se proporciona address, devolver todas las addresses conocidas
+    // Validate tenant context
+    const tenantContext = await getTenantContext();
+    if (!tenantContext) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    }
+    if (!tenantContext.activeToken) {
+      return NextResponse.json({ error: 'No hay token configurado' }, { status: 400 });
+    }
+
+    const tokenId = tenantContext.activeToken.id;
+
+    // Si no se proporciona address, devolver todas las addresses conocidas del token
     if (!address) {
       const knownAddresses = await prisma.knownAddress.findMany({
-        orderBy: {
-          name: 'asc'
-        }
+        where: { tokenId },
+        orderBy: { name: 'asc' }
       });
       return NextResponse.json({ knownAddresses });
     }
 
-    // Si se proporciona address, buscar esa específica
-    const knownAddress = await prisma.knownAddress.findUnique({
+    // Si se proporciona address, buscar esa específica para el token actual
+    const knownAddress = await prisma.knownAddress.findFirst({
       where: {
+        tokenId,
         address: address.toLowerCase(),
       },
     });
@@ -37,6 +49,17 @@ export async function GET(request: NextRequest) {
 // POST: Crear o actualizar nombre de una address
 export async function POST(request: NextRequest) {
   try {
+    // Validate tenant context
+    const tenantContext = await getTenantContext();
+    if (!tenantContext) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    }
+    if (!tenantContext.activeToken) {
+      return NextResponse.json({ error: 'No hay token configurado' }, { status: 400 });
+    }
+
+    const tokenId = tenantContext.activeToken.id;
+
     const body = await request.json();
     const { address, name, type, category, description, tags, color } = body;
 
@@ -47,29 +70,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upsert: crear si no existe, actualizar si existe
-    const knownAddress = await prisma.knownAddress.upsert({
+    // Buscar address existente para el token actual
+    const existingAddress = await prisma.knownAddress.findFirst({
       where: {
+        tokenId,
         address: address.toLowerCase(),
-      },
-      update: {
-        name,
-        type: type || 'UNKNOWN',
-        category,
-        description,
-        tags: tags || [],
-        color,
-      },
-      create: {
-        address: address.toLowerCase(),
-        name,
-        type: type || 'UNKNOWN',
-        category,
-        description,
-        tags: tags || [],
-        color,
       },
     });
+
+    let knownAddress;
+    if (existingAddress) {
+      // Actualizar address existente
+      knownAddress = await prisma.knownAddress.update({
+        where: {
+          id: existingAddress.id,
+        },
+        data: {
+          name,
+          type: type || 'UNKNOWN',
+          category,
+          description,
+          tags: tags || [],
+          color,
+        },
+      });
+    } else {
+      // Crear nueva address para el token actual
+      knownAddress = await prisma.knownAddress.create({
+        data: {
+          tokenId,
+          address: address.toLowerCase(),
+          name,
+          type: type || 'UNKNOWN',
+          category,
+          description,
+          tags: tags || [],
+          color,
+        },
+      });
+    }
 
     return NextResponse.json({ success: true, knownAddress });
   } catch (error) {
@@ -91,11 +130,32 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    await prisma.knownAddress.delete({
+    // Validate tenant context
+    const tenantContext = await getTenantContext();
+    if (!tenantContext) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    }
+    if (!tenantContext.activeToken) {
+      return NextResponse.json({ error: 'No hay token configurado' }, { status: 400 });
+    }
+
+    const tokenId = tenantContext.activeToken.id;
+
+    // Buscar y eliminar address del token actual
+    const existingAddress = await prisma.knownAddress.findFirst({
       where: {
+        tokenId,
         address: address.toLowerCase(),
       },
     });
+
+    if (existingAddress) {
+      await prisma.knownAddress.delete({
+        where: {
+          id: existingAddress.id,
+        },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

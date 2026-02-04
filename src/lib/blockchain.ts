@@ -5,6 +5,109 @@ import { VESTING_CONTRACT_ABIS } from './contractAbis';
 import { processBeneficiariesIndividually, calculateReleasableTokens } from './vestingHelpers';
 import { processVestingWithGetVestingListByHolder } from './vestingContractHelpers';
 import { applyVestingStrategy } from './vestingContractStrategies';
+import { prisma } from './db';
+
+// Tipo para custom API keys (opcional)
+export interface CustomApiKeys {
+  basescanApiKey?: string;
+  etherscanApiKey?: string;
+  moralisApiKey?: string;
+  quiknodeUrl?: string;
+}
+
+// Helper para obtener API keys con fallback a environment variables
+function getApiKeys(customKeys?: CustomApiKeys) {
+  return {
+    basescanApiKey: customKeys?.basescanApiKey || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken',
+    etherscanApiKey: customKeys?.etherscanApiKey || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || 'YourApiKeyToken',
+    moralisApiKey: customKeys?.moralisApiKey || process.env.NEXT_PUBLIC_MORALIS_API_KEY,
+    quiknodeUrl: customKeys?.quiknodeUrl || process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://mainnet.base.org'
+  };
+}
+
+/**
+ * Helper para obtener ABI de un contrato con cache en BD
+ * Orden de búsqueda:
+ * 1. Base de datos (CustomAbi)
+ * 2. ABIs hardcoded (VESTING_CONTRACT_ABIS) - legacy fallback
+ * 3. BaseScan API
+ * 4. Guardar en BD si se obtuvo de BaseScan
+ */
+async function getContractABIWithCache(
+  contractAddress: string,
+  network: string,
+  tokenId?: string,
+  customKeys?: CustomApiKeys
+): Promise<any> {
+  const normalizedAddress = contractAddress.toLowerCase();
+
+  // 1. Intentar desde la BD si tenemos tokenId
+  if (tokenId) {
+    try {
+      const cached = await prisma.customAbi.findUnique({
+        where: {
+          tokenId_contractAddress_network: {
+            tokenId,
+            contractAddress: normalizedAddress,
+            network
+          }
+        }
+      });
+
+      if (cached) {
+        console.log(`✅ ABI encontrado en BD para ${contractAddress}`);
+        return cached.abi;
+      }
+    } catch (error) {
+      console.warn(`⚠️ Error consultando BD para ABI:`, error);
+    }
+  }
+
+  // 2. Fallback a ABIs hardcoded (legacy)
+  if (VESTING_CONTRACT_ABIS[normalizedAddress]) {
+    console.log(`✅ ABI encontrado en cache legacy para ${contractAddress}`);
+    return VESTING_CONTRACT_ABIS[normalizedAddress];
+  }
+
+  // 3. Obtener de BaseScan
+  console.log(`📡 Obteniendo ABI de BaseScan para ${contractAddress}...`);
+  const abi = await getContractABI(contractAddress, network);
+
+  if (!abi) {
+    throw new Error(`No se pudo obtener ABI para ${contractAddress}`);
+  }
+
+  // 4. Guardar en BD si tenemos tokenId
+  if (tokenId && abi) {
+    try {
+      await prisma.customAbi.upsert({
+        where: {
+          tokenId_contractAddress_network: {
+            tokenId,
+            contractAddress: normalizedAddress,
+            network
+          }
+        },
+        create: {
+          tokenId,
+          contractAddress: normalizedAddress,
+          network,
+          abi: abi as any,
+          source: 'BASESCAN'
+        },
+        update: {
+          abi: abi as any,
+          source: 'BASESCAN'
+        }
+      });
+      console.log(`💾 ABI guardado en BD para futuras consultas`);
+    } catch (error) {
+      console.warn(`⚠️ Error guardando ABI en BD:`, error);
+    }
+  }
+
+  return abi;
+}
 
 // ABI mínimo para interactuar con tokens ERC20
 const ERC20_ABI = [
@@ -160,15 +263,20 @@ async function getCachedTransfers(
 //=============================================================================
 
 // Función auxiliar para realizar llamadas a la API de Routescan (compatible con Etherscan V2)
-async function callEtherscanV2Api(params: Record<string, string | number>, network: string) {
+async function callEtherscanV2Api(
+  params: Record<string, string | number>,
+  network: string,
+  customApiKeys?: CustomApiKeys
+) {
   const networkConfig = NETWORKS[network as keyof typeof NETWORKS];
   if (!networkConfig) {
     throw new Error(`Red no soportada: ${network}`);
   }
 
-  const apiKey = process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
-  if (!apiKey) {
-    throw new Error('No se ha configurado la clave API de Routescan');
+  const keys = getApiKeys(customApiKeys);
+  const apiKey = keys.basescanApiKey;
+  if (!apiKey || apiKey === 'YourApiKeyToken') {
+    throw new Error('No se ha configurado la clave API de BaseScan/Etherscan');
   }
 
   const queryParams = new URLSearchParams({
@@ -267,11 +375,12 @@ export interface VestingInfo {
 export async function fetchTokenTransfers(
   walletAddress: string,
   network: string = 'base',
-  tokenFilter: string = ''
+  tokenFilter: string = '',
+  customApiKeys?: CustomApiKeys
 ): Promise<TokenTransfer[]> {
   try {
     // Obtener transferencias reales de la blockchain
-    const transfers = await getTokenTransfersFromBlockchain(walletAddress, network);
+    const transfers = await getTokenTransfersFromBlockchain(walletAddress, network, customApiKeys);
 
     // Aplicar filtro si existe
     if (tokenFilter) {
@@ -298,7 +407,8 @@ export async function fetchTokenTransfers(
  */
 async function getTokenTransfersFromBlockchain(
   walletAddress: string,
-  network: string = 'base'
+  network: string = 'base',
+  customApiKeys?: CustomApiKeys
 ): Promise<TokenTransfer[]> {
   try {
     // Importamos dinámicamente la server action para evitar problemas de importación en cliente
@@ -349,7 +459,8 @@ async function getTokenTransfersFromBlockchain(
  */
 export async function fetchTokenBalances(
   walletAddress: string,
-  network: string = 'base'
+  network: string = 'base',
+  customApiKeys?: CustomApiKeys
 ): Promise<TokenBalance[]> {
   try {
     // Validar la dirección de wallet
@@ -362,11 +473,9 @@ export async function fetchTokenBalances(
       throw new Error(`Red no soportada: ${network}`);
     }
 
-    // Obtener la clave API de las variables de entorno
-    const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
-    if (!apiKey) {
-      console.warn('No se ha configurado la clave API de Basescan. Usando clave API por defecto.');
-    }
+    // Obtener API keys (custom o defaults)
+    const keys = getApiKeys(customApiKeys);
+    const apiKey = keys.basescanApiKey;
 
     // Implementar reintentos para manejar límites de tasa
     const maxRetries = 3;
@@ -381,7 +490,7 @@ export async function fetchTokenBalances(
             module: 'account',
             action: 'tokenlist',
             address: walletAddress,
-            apikey: apiKey || 'YourApiKeyToken' // Usar clave API por defecto si no hay una configurada
+            apikey: apiKey
           }
         });
 
@@ -561,7 +670,13 @@ export async function fetchVestingInfo(walletAddress: string, vestingContractAdd
  * @param network Red blockchain
  * @returns Información de vesting
  */
-export async function getVestingInfoFromBlockchain(walletAddress: string, vestingContractAddress: string, network: string): Promise<VestingInfo[]> {
+export async function getVestingInfoFromBlockchain(
+  walletAddress: string,
+  vestingContractAddress: string,
+  network: string,
+  customApiKeys?: CustomApiKeys,
+  tokenAddress?: string
+): Promise<VestingInfo[]> {
   console.log(`Buscando vestings para wallet ${walletAddress} en contrato ${vestingContractAddress} (red: ${network})`);
 
   // Obtener configuración de la red
@@ -570,6 +685,10 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
     throw new Error(`Red no soportada: ${network}`);
   }
 
+  // Obtener RPC URL (custom o default)
+  const keys = getApiKeys(customApiKeys);
+  const rpcUrl = keys.quiknodeUrl;
+
   try {
     // Crear proveedor con mecanismo de reintentos
     let provider;
@@ -577,7 +696,7 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
 
     // Primero intentamos con el proveedor principal
     try {
-      provider = new ethers.JsonRpcProvider(networkConfig.rpcUrl);
+      provider = new ethers.JsonRpcProvider(rpcUrl);
       // Hacer una llamada simple para verificar que el proveedor funciona
       await provider.getBlockNumber();
       console.log(`Usando proveedor principal: ${networkConfig.rpcUrl}`);
@@ -606,26 +725,15 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
       throw providerError || new Error('No se pudo conectar con ningún proveedor RPC');
     }
 
-    // Obtener ABI del contrato
+    // Obtener ABI del contrato (desde BD, cache legacy, o BaseScan)
     let contractAbi;
     try {
-      // Intentar usar ABI precargado (buscar en minúsculas para coincidir con las claves del mapa)
-      const lowerAddress = vestingContractAddress.toLowerCase();
-      if (VESTING_CONTRACT_ABIS[lowerAddress]) {
-        console.log(`Usando ABI precargado para el contrato: ${vestingContractAddress}`);
-        contractAbi = VESTING_CONTRACT_ABIS[lowerAddress];
-        console.log(`✅ Usando ABI precargado para el contrato ${vestingContractAddress}`);
-      } else {
-        // Si no está precargado, obtenerlo de BaseScan
-        console.log(`ABI no encontrado para el contrato ${vestingContractAddress}, obteniendo de BaseScan...`);
-        contractAbi = await getContractABI(vestingContractAddress, network);
-
-        if (!contractAbi) {
-          throw new Error(`No se pudo obtener el ABI para el contrato ${vestingContractAddress}`);
-        }
-
-        console.log(`✅ ABI obtenido de BaseScan para el contrato ${vestingContractAddress}`);
-      }
+      contractAbi = await getContractABIWithCache(
+        vestingContractAddress,
+        network,
+        undefined, // tokenId no disponible aquí (TODO: agregar parámetro)
+        customApiKeys
+      );
     } catch (error) {
       console.error(`❌ Error al obtener ABI para el contrato ${vestingContractAddress}:`, error);
       throw new Error(`No se pudo obtener el ABI para el contrato ${vestingContractAddress}`);
@@ -636,16 +744,45 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
     // Crear instancia del contrato
     const vestingContract = new ethers.Contract(vestingContractAddress, contractAbi, provider);
 
-    // Usar directamente la dirección del token Vottun
-    const tokenAddress = "0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC"; // Vottun Token (VTN)
-    console.log(`Usando dirección de token fija: ${tokenAddress}`);
+    // Obtener dirección del token - usar parámetro o intentar obtener del contrato
+    let finalTokenAddress = tokenAddress;
+    let tokenName = "Unknown Token";
+    let tokenSymbol = "UNKNOWN";
+    let tokenDecimals = 18;
 
-    // Usar directamente la información conocida del token Vottun
-    const tokenName = "Vottun Token";
-    const tokenSymbol = "VTN";
-    const tokenDecimals = 18;
+    if (!finalTokenAddress) {
+      // Intentar obtener la dirección del token desde el contrato de vesting
+      try {
+        if (vestingContract.token) {
+          finalTokenAddress = await vestingContract.token();
+          console.log(`Token address obtenida del contrato: ${finalTokenAddress}`);
+        } else if (vestingContract.getToken) {
+          finalTokenAddress = await vestingContract.getToken();
+          console.log(`Token address obtenida del contrato: ${finalTokenAddress}`);
+        }
+      } catch (error) {
+        console.warn("No se pudo obtener token address del contrato:", error);
+      }
+    }
 
-    console.log(`Información del token obtenida: ${tokenName} ${tokenSymbol} ${tokenDecimals}`);
+    // Si tenemos la dirección del token, obtener su metadata
+    if (finalTokenAddress) {
+      try {
+        const tokenContract = new ethers.Contract(
+          finalTokenAddress,
+          ['function name() view returns (string)', 'function symbol() view returns (string)', 'function decimals() view returns (uint8)'],
+          provider
+        );
+        tokenName = await tokenContract.name();
+        tokenSymbol = await tokenContract.symbol();
+        tokenDecimals = await tokenContract.decimals();
+        console.log(`Información del token obtenida: ${tokenName} (${tokenSymbol}) - ${tokenDecimals} decimals`);
+      } catch (error) {
+        console.warn("No se pudo obtener metadata del token:", error);
+      }
+    } else {
+      console.warn("No se pudo determinar la dirección del token");
+    }
 
     // Usar la estrategia adecuada para obtener los vestings
     let vestingSchedules = [];
@@ -711,7 +848,7 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
       // Añadir al resultado
       result.push({
         contractAddress: vestingContractAddress,
-        tokenAddress,
+        tokenAddress: finalTokenAddress || '',
         tokenName,
         tokenSymbol,
         tokenDecimals,
@@ -752,7 +889,8 @@ export async function getVestingInfoFromBlockchain(walletAddress: string, vestin
 export async function checkVestingContractStatus(
   vestingContractAddress: string,
   network: string,
-  loadBeneficiaries: boolean = true
+  loadBeneficiaries: boolean = true,
+  tokenAddress?: string
 ): Promise<{
   isValid: boolean;
   contractAddress: string;
@@ -809,35 +947,23 @@ export async function checkVestingContractStatus(
       { polling: true, pollingInterval: 15000 }
     );
 
-    // Usar ABI precargado si existe, o intentar obtenerlo desde BaseScan
+    // Obtener ABI del contrato (desde BD, cache legacy, o BaseScan)
     let contractABI;
-
-    // Primero intentamos usar el ABI precargado
-    console.log('Buscando ABI para:', normalizedContractAddress);
-    // console.log('Claves disponibles:', Object.keys(VESTING_CONTRACT_ABIS)); // Descomentar si es necesario depurar a fondo
-
-    if (VESTING_CONTRACT_ABIS[normalizedContractAddress]) {
-      console.log('Usando ABI precargado para el contrato:', normalizedContractAddress);
-      contractABI = VESTING_CONTRACT_ABIS[normalizedContractAddress];
-    } else {
-      // Si no tenemos el ABI precargado, intentamos obtenerlo desde BaseScan
-      console.log('Intentando obtener ABI desde BaseScan...');
-      try {
-        contractABI = await getContractABI(normalizedContractAddress, network);
-      } catch (err) {
-        console.warn('Error al obtener ABI de BaseScan:', err);
-      }
-
-      // Si obtuvimos el ABI, lo guardamos para futuras consultas
-      if (contractABI) {
-        console.log('Guardando ABI obtenido para futuras consultas');
-        // @ts-ignore - Ignoramos el error de TypeScript porque sabemos que estamos modificando un objeto importado
-        VESTING_CONTRACT_ABIS[normalizedContractAddress] = contractABI;
-      } else {
-        console.warn('No se pudo obtener ABI específico, usando ABI genérico de Vottun');
-        // Usar el ABI genérico como fallback para evitar que falle todo el proceso
-        // Usamos el ABI del primer contrato conocido que sabemos que es de tipo Vottun
-        contractABI = VESTING_CONTRACT_ABIS["0xa699cf416ffe6063317442c3fbd0c39742e971c5"];
+    try {
+      console.log('Buscando ABI para:', normalizedContractAddress);
+      contractABI = await getContractABIWithCache(
+        normalizedContractAddress,
+        network,
+        undefined, // tokenId no disponible aquí (TODO: agregar parámetro)
+        undefined  // customApiKeys no disponible
+      );
+    } catch (err) {
+      console.warn('Error al obtener ABI:', err);
+      // Fallback: usar el primer ABI disponible del cache legacy
+      const firstKnownAbi = Object.values(VESTING_CONTRACT_ABIS)[0];
+      if (firstKnownAbi) {
+        console.warn('Usando ABI genérico de vesting como fallback');
+        contractABI = firstKnownAbi;
       }
     }
 
@@ -941,19 +1067,53 @@ export async function checkVestingContractStatus(
             }
           };
 
-          // Usar directamente la información conocida del token VTN (hardcoded)
-          const vottunTokenAddress = "0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC";
-          result.tokenAddress = vottunTokenAddress;
-          result.tokenSymbol = 'VTN';
-          result.tokenName = 'Vottun Token';
-          result.tokenDecimals = 18;
-          console.log(`Usando información hardcoded del token: ${result.tokenName} (${result.tokenSymbol})`);
+          // Obtener dirección del token - usar parámetro o intentar obtener del contrato
+          let finalTokenAddress = tokenAddress;
+
+          if (!finalTokenAddress) {
+            // Intentar obtener la dirección del token desde el contrato de vesting
+            try {
+              finalTokenAddress = await safeCall('token', [], contract);
+              if (!finalTokenAddress) {
+                finalTokenAddress = await safeCall('getToken', [], contract);
+              }
+              if (finalTokenAddress) {
+                console.log(`Token address obtenida del contrato: ${finalTokenAddress}`);
+              }
+            } catch (error) {
+              console.warn("No se pudo obtener token address del contrato:", error);
+            }
+          }
+
+          // Si tenemos la dirección del token, obtener su metadata
+          if (finalTokenAddress) {
+            try {
+              const tokenContract = new ethers.Contract(
+                finalTokenAddress,
+                ['function name() view returns (string)', 'function symbol() view returns (string)', 'function decimals() view returns (uint8)'],
+                provider
+              );
+              result.tokenAddress = finalTokenAddress;
+              result.tokenName = await tokenContract.name();
+              result.tokenSymbol = await tokenContract.symbol();
+              result.tokenDecimals = await tokenContract.decimals();
+              console.log(`Información del token obtenida: ${result.tokenName} (${result.tokenSymbol}) - ${result.tokenDecimals} decimals`);
+            } catch (error) {
+              console.warn("No se pudo obtener metadata del token:", error);
+              result.tokenAddress = finalTokenAddress;
+              result.tokenSymbol = 'UNKNOWN';
+              result.tokenName = 'Unknown Token';
+              result.tokenDecimals = 18;
+            }
+          } else {
+            console.warn("No se pudo determinar la dirección del token");
+          }
 
           // Obtener el balance actual del contrato de vesting
           try {
             console.log(`Intentando obtener el balance del token para el contrato: ${normalizedContractAddress}`);
 
-            const tokenContract = new ethers.Contract(vottunTokenAddress, ERC20_ABI, provider);
+            const tokenContract = new ethers.Contract(finalTokenAddress || '', ERC20_ABI, provider);
 
             // Intentar obtener el balance usando ethers.js con manejo de errores mejorado
             try {
@@ -1048,23 +1208,25 @@ export async function checkVestingContractStatus(
 
           // IMPORTANTE: Obtener historial de transferencias para calcular totalTokensIn y totalTokensOut
           // Usar caché de BD y sincronizar solo nuevas transferencias desde Moralis
+          const tokenAddressForTransfers = finalTokenAddress || result.tokenAddress;
           let allTransfers: any[] = []; // Declarar fuera del try para acceso global
           try {
+            if (tokenAddressForTransfers) {
             console.log("=== INICIO: Obteniendo historial de transferencias ===");
             console.log("Contrato a consultar:", normalizedContractAddress.toLowerCase());
-            console.log("Token VTN:", vottunTokenAddress.toLowerCase());
+            console.log("Token:", tokenAddressForTransfers.toLowerCase());
 
             // 1. Obtener transferencias desde caché
             allTransfers = await getCachedTransfers(
               normalizedContractAddress,
-              vottunTokenAddress,
+              tokenAddressForTransfers,
               network
             );
 
             // 2. Verificar si hay que sincronizar nuevas transferencias
             const lastTimestamp = await getLastCachedTransferTimestamp(
               normalizedContractAddress,
-              vottunTokenAddress,
+              tokenAddressForTransfers,
               network
             );
 
@@ -1136,7 +1298,7 @@ export async function checkVestingContractStatus(
                 await saveTransfersToCache(
                   newTransfers,
                   normalizedContractAddress,
-                  vottunTokenAddress,
+                  tokenAddressForTransfers,
                   network
                 );
 
@@ -1165,8 +1327,8 @@ export async function checkVestingContractStatus(
               // Procesar todas las transferencias - Moralis ya filtra por dirección
               allTransfers.forEach((tx: any) => {
                 // Moralis devuelve address (token), from_address, to_address, value
-                // Filtrar solo transferencias del token VTN
-                if (tx.address?.toLowerCase() === vottunTokenAddress.toLowerCase()) {
+                // Filtrar solo transferencias del token del contrato de vesting
+                if (tx.address?.toLowerCase() === tokenAddressForTransfers.toLowerCase()) {
                   vtnTransactionsCount++;
                   const amount = parseFloat(ethers.formatUnits(tx.value, result.tokenDecimals));
 
@@ -1205,6 +1367,9 @@ export async function checkVestingContractStatus(
             } else {
               console.warn("No se encontraron transferencias");
             }
+            } else {
+              console.warn("No se pudo obtener historial de transferencias: dirección del token no disponible");
+            }
           } catch (e: any) {
             console.error("❌ Error al obtener transferencias de tokens:", e);
             if (e.response?.data) {
@@ -1234,7 +1399,7 @@ export async function checkVestingContractStatus(
           // Obtener los beneficiarios y sus schedules (solo si se solicita)
           if (loadBeneficiaries) {
             try {
-              const beneficiaries = await getBeneficiariesFromTransferHistory(normalizedContractAddress, network);
+              const beneficiaries = await getBeneficiariesFromTransferHistory(normalizedContractAddress, network, finalTokenAddress);
               console.log("Beneficiarios encontrados:", beneficiaries);
 
               // Establecer el número total de beneficiarios inmediatamente
@@ -1660,19 +1825,24 @@ export async function checkVestingContractStatus(
  * Usa Moralis API porque BaseScan requiere plan de pago para Base chain
  * @param contractAddress Dirección del contrato de vesting
  * @param network Red blockchain
+ * @param tokenAddress Dirección del token (opcional)
  * @returns Array de direcciones de beneficiarios
  */
 async function getBeneficiariesFromTransferHistory(
   contractAddress: string,
-  network: string
+  network: string,
+  tokenAddress?: string
 ): Promise<string[]> {
   try {
-    // Reutilizar transferencias desde caché (ya sincronizadas en checkVestingContractStatus)
-    const vottunTokenAddress = "0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC";
+    // Si no se proporciona tokenAddress, no podemos obtener beneficiarios
+    if (!tokenAddress) {
+      console.warn("No se proporcionó tokenAddress, no se pueden obtener beneficiarios");
+      return [];
+    }
 
     const transfers = await getCachedTransfers(
       contractAddress,
-      vottunTokenAddress,
+      tokenAddress,
       network
     );
 
@@ -1706,18 +1876,12 @@ async function getBeneficiariesFromTransferHistory(
 //=============================================================================
 
 
-// Caché para la información de suministro de tokens
-let tokenSupplyCache: {
+// Caché para la información de suministro de tokens (keyed por tokenAddress)
+let tokenSupplyCache: Record<string, {
   data: TokenSupplyInfo | null;
   timestamp: number;
   isLoading: boolean;
-  promise: Promise<TokenSupplyInfo> | null;
-} = {
-  data: null,
-  timestamp: 0,
-  isLoading: false,
-  promise: null
-};
+}> = {};
 
 /**
  * Tipo para los callbacks de progreso
@@ -1734,74 +1898,103 @@ let circulatingSupplyRequestInProgress = false;
 // Contador para evitar peticiones duplicadas en modo estricto de React
 let requestCounter = 0;
 
+export interface TokenSupplyOptions {
+  tokenAddress: string;
+  vestingContracts?: string[];
+  network?: string;
+  customApiKeys?: CustomApiKeys;
+}
+
 /**
- * Obtiene la información del suministro de tokens desde los endpoints de Vottun
+ * Obtiene la información del suministro de tokens desde la blockchain
  * @param onProgress Callback opcional para reportar el progreso
+ * @param options tokenAddress (requerido), vestingContracts (opcional), network (opcional)
  * @returns Objeto con el total supply, circulating supply y locked supply
  */
-export async function getTokenSupplyInfo(onProgress?: ProgressCallback): Promise<TokenSupplyInfo> {
+export async function getTokenSupplyInfo(
+  onProgress?: ProgressCallback,
+  options?: TokenSupplyOptions
+): Promise<TokenSupplyInfo> {
+  const tokenAddress = options?.tokenAddress;
+  const vestingContracts = options?.vestingContracts ?? [];
+  const network = options?.network ?? 'base';
+
+  if (!tokenAddress) {
+    return {
+      totalSupply: '0',
+      circulatingSupply: '0',
+      lockedSupply: '0',
+      lastUpdated: new Date().toISOString()
+    };
+  }
+
+  const cacheKey = tokenAddress.toLowerCase();
   // Verificar si ya tenemos datos en caché y si son recientes (menos de 5 minutos)
   const now = Date.now();
-  const cacheAge = now - tokenSupplyCache.timestamp;
-  const CACHE_MAX_AGE = 300000; // 5 minutos en milisegundos (aumentado para reducir peticiones)
+  const cached = tokenSupplyCache[cacheKey];
+  const cacheAge = cached ? now - cached.timestamp : Infinity;
+  const CACHE_MAX_AGE = 300000; // 5 minutos en milisegundos
 
   // Si tenemos datos en caché y son recientes, devolverlos inmediatamente
-  if (tokenSupplyCache.data && cacheAge < CACHE_MAX_AGE) {
-    console.log('Devolviendo datos de caché (edad:', Math.round(cacheAge / 1000), 'segundos):', tokenSupplyCache.data);
+  if (cached?.data && cacheAge < CACHE_MAX_AGE) {
+    console.log('Devolviendo datos de caché (edad:', Math.round(cacheAge / 1000), 'segundos):', cached.data);
 
-    // Si hay un callback de progreso, indicar que se están usando datos en caché
     if (onProgress) {
       onProgress('usando_cache', 100);
     }
 
-    return tokenSupplyCache.data;
+    return cached.data;
   }
 
   // Verificar si hay una petición global en curso
   if (globalRequestInProgress) {
-
-    // Si hay un callback de progreso, indicar que se está esperando
     if (onProgress) {
       onProgress('esperando_peticion', 10);
     }
 
-    // Esperar a que termine la petición global (máximo 10 segundos)
     for (let i = 0; i < 10; i++) {
       if (!globalRequestInProgress) break;
 
       if (onProgress) {
-        onProgress('esperando_peticion', 10 + (i * 9)); // Progreso de 10% a 100%
+        onProgress('esperando_peticion', 10 + (i * 9));
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    // Después de esperar, si hay datos en caché, devolverlos
-    if (tokenSupplyCache.data) {
-      return tokenSupplyCache.data;
+    const stillCached = tokenSupplyCache[cacheKey];
+    if (stillCached?.data) {
+      return stillCached.data;
     }
   }
 
-  // Marcar que hay una petición global en curso y generar un ID único para esta petición
-  const currentRequestId = ++requestCounter;
   globalRequestInProgress = true;
+  if (!tokenSupplyCache[cacheKey]) {
+    tokenSupplyCache[cacheKey] = { data: null, timestamp: 0, isLoading: false };
+  }
+  tokenSupplyCache[cacheKey].isLoading = true;
 
   try {
-    // Iniciar nueva petición
-    tokenSupplyCache.isLoading = true;
-
-    const result = await fetchTokenSupplyData(onProgress);
+    const result = await fetchTokenSupplyData({
+      tokenAddress,
+      vestingContracts,
+      network,
+      onProgress
+    });
 
     // Actualizar la caché con los nuevos datos
-    tokenSupplyCache.data = result;
-    tokenSupplyCache.timestamp = now;
+    tokenSupplyCache[cacheKey] = {
+      ...tokenSupplyCache[cacheKey],
+      data: result,
+      timestamp: now
+    };
     return result;
   } catch (error) {
     console.error('Error al obtener datos de suministro:', error);
-    // Si hay un error y tenemos datos en caché (aunque sean antiguos), los devolvemos
-    if (tokenSupplyCache.data) {
+    const cachedData = tokenSupplyCache[cacheKey]?.data;
+    if (cachedData) {
       console.log('Devolviendo datos antiguos de caché debido a error');
-      return tokenSupplyCache.data;
+      return cachedData;
     }
     // Si no hay datos en caché, devolvemos valores por defecto
     return {
@@ -1811,8 +2004,9 @@ export async function getTokenSupplyInfo(onProgress?: ProgressCallback): Promise
       lastUpdated: new Date().toISOString()
     };
   } finally {
-    // Limpiar el estado de carga y la variable global
-    tokenSupplyCache.isLoading = false;
+    if (tokenSupplyCache[cacheKey]) {
+      tokenSupplyCache[cacheKey].isLoading = false;
+    }
     globalRequestInProgress = false;
   }
 }
@@ -1843,35 +2037,27 @@ async function fetchWithRetry(url: string, maxRetries = 3, delayMs = 1000) {
   throw lastError;
 }
 
+interface FetchTokenSupplyParams {
+  tokenAddress: string;
+  vestingContracts: string[];
+  network: string;
+  onProgress?: ProgressCallback;
+}
+
 /**
  * Función interna para obtener supply directamente de la blockchain
- * @param onProgress Callback opcional para reportar el progreso
  */
-async function fetchTokenSupplyData(onProgress?: ProgressCallback): Promise<TokenSupplyInfo> {
-  // Dirección del token VTN en Base
-  const VTN_TOKEN_ADDRESS = '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC';
-
-  // Direcciones de los 8 contratos de vesting
-  const VESTING_CONTRACTS = [
-    '0xa699Cf416FFe6063317442c3Fbd0C39742E971c5', // Vottun World
-    '0x3e0ef51811B647E00A85A7e5e495fA4763911982', // Investors
-    '0xE521B2929DD28a725603bCb6F4009FBb656C4b15', // Marketing
-    '0x3a7cf4cCC76bb23Cf15845B0d4f05BafF1D478cF', // Staking
-    '0x417Fc9c343210AA52F0b19dbf4EecBD786139BC1', // Liquidity
-    '0xFC750D874077F8c90858cC132e0619CE7571520b', // Promos
-    '0xde68AD324aafD9F2b6946073C90ED5e61D5d51B8', // Team
-    '0xC4CE5cFea2B6e32Ad41973348AC70EB3b00D8e6d'  // Reserve
-  ];
+async function fetchTokenSupplyData(params: FetchTokenSupplyParams): Promise<TokenSupplyInfo> {
+  const { tokenAddress, vestingContracts, network, onProgress } = params;
 
   try {
     if (onProgress) {
       onProgress('iniciando', 0);
     }
 
-    // Obtener configuración de red y crear provider con RPC alternativo
-    const networkConfig = NETWORKS['base'];
-    // Usar QuickNode si está configurado, sino usar RPC alternativo público
-    const rpcUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://base.llamarpc.com';
+    // Obtener configuración de red y crear provider
+    const networkConfig = NETWORKS[network as keyof typeof NETWORKS] || NETWORKS['base'];
+    const rpcUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL || networkConfig.rpcUrl;
     const provider = new ethers.JsonRpcProvider(rpcUrl);
 
     // ABI mínimo para ERC20 (solo necesitamos totalSupply y balanceOf)
@@ -1882,7 +2068,7 @@ async function fetchTokenSupplyData(onProgress?: ProgressCallback): Promise<Toke
     ];
 
     // Crear contrato del token
-    const tokenContract = new ethers.Contract(VTN_TOKEN_ADDRESS, ERC20_ABI, provider);
+    const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
 
     if (onProgress) {
       onProgress('cargando_total_supply', 20);
@@ -1897,14 +2083,14 @@ async function fetchTokenSupplyData(onProgress?: ProgressCallback): Promise<Toke
       onProgress('cargando_datos', 40);
     }
 
-    // Obtener balance de cada contrato de vesting
+    // Obtener balance de cada contrato de vesting (si están configurados)
     let totalLocked = BigInt(0);
-    for (let i = 0; i < VESTING_CONTRACTS.length; i++) {
-      const balance = await tokenContract.balanceOf(VESTING_CONTRACTS[i]);
+    for (let i = 0; i < vestingContracts.length; i++) {
+      const balance = await tokenContract.balanceOf(vestingContracts[i]);
       totalLocked += balance;
 
       if (onProgress) {
-        const progress = 40 + Math.floor((i + 1) / VESTING_CONTRACTS.length * 50);
+        const progress = 40 + Math.floor((i + 1) / Math.max(vestingContracts.length, 1) * 50);
         onProgress('cargando_circulating_supply', progress);
       }
     }

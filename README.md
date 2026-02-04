@@ -1,6 +1,8 @@
-# Explorador de Blockchain Base
+# TokenLens
 
-Una aplicación web completa para explorar datos en la blockchain Base, incluyendo balances de tokens, transferencias, información de vesting y airdrops.
+**Analytics for your ERC20 tokens**
+
+TokenLens is a powerful SaaS platform that provides comprehensive analytics and insights for ERC20 tokens. Monitor balances, track transfers, analyze holder distribution, manage vesting contracts, and much more - all in one place.
 
 ## Características
 

@@ -166,9 +166,9 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
               vestings: b.vestings || undefined
             })),
             network: network,
-            tokenAddress: contractStatus.tokenAddress || '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC',
-            tokenSymbol: contractStatus.tokenSymbol || 'VTN',
-            tokenName: contractStatus.tokenName || 'Vottun Token'
+            tokenAddress: contractStatus.tokenAddress || '',
+            tokenSymbol: contractStatus.tokenSymbol || 'TOKEN',
+            tokenName: contractStatus.tokenName || 'Unknown Token'
           })
         });
 
@@ -214,9 +214,9 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
           vestingContract: contractAddress,
           beneficiaryAddress: beneficiaryAddress,
           network: network,
-          tokenAddress: summary.tokenAddress || '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC',
-          tokenSymbol: summary.tokenSymbol || 'VTN',
-          tokenName: summary.tokenName || 'Vottun Token'
+          tokenAddress: summary.tokenAddress || '',
+          tokenSymbol: summary.tokenSymbol || 'TOKEN',
+          tokenName: summary.tokenName || 'Unknown Token'
         })
       });
 
@@ -249,11 +249,16 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
     setError(null);
 
     try {
-      // Borrar caché
-      const vottunTokenAddress = '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC';
+      // Borrar caché (usar token del contrato de vesting verificado)
+      const tokenAddressForCache = summary.tokenAddress || '';
+      if (!tokenAddressForCache) {
+        setError('No se pudo determinar la dirección del token del contrato');
+        setLoadingBasic(false);
+        return;
+      }
       const params = new URLSearchParams({
         contractAddress: contractAddress,
-        tokenAddress: vottunTokenAddress,
+        tokenAddress: tokenAddressForCache,
         network: network
       });
 

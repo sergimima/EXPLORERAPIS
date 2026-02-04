@@ -1,0 +1,1353 @@
+{
+  "version": "2.6",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "Frame",
+      "clip": true,
+      "width": 800,
+      "height": 600,
+      "fill": "#FFFFFF",
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "7Ad4F",
+      "x": 0,
+      "y": 0,
+      "name": "Explorer Landing",
+      "width": 1440,
+      "fill": "#0A0B0D",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "QjESU",
+          "name": "header",
+          "width": "fill_container",
+          "padding": [
+            24,
+            120
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "Sqz4g",
+              "name": "logo",
+              "fill": "#FFFFFF",
+              "content": "EXPLORER",
+              "fontFamily": "Inter",
+              "fontSize": 24,
+              "fontWeight": "bold",
+              "letterSpacing": 2
+            },
+            {
+              "type": "frame",
+              "id": "klHmp",
+              "name": "nav",
+              "gap": 48,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "BKIrz",
+                  "name": "navFeatures",
+                  "fill": "#A0A0B0",
+                  "content": "Features",
+                  "fontFamily": "Inter",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "9j7HU",
+                  "name": "navPricing",
+                  "fill": "#A0A0B0",
+                  "content": "Pricing",
+                  "fontFamily": "Inter",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "ALo5B",
+                  "name": "navDocs",
+                  "fill": "#A0A0B0",
+                  "content": "Docs",
+                  "fontFamily": "Inter",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "TrdBW",
+              "name": "ctaHeader",
+              "fill": "#6366F1",
+              "cornerRadius": 8,
+              "padding": [
+                12,
+                28
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "8PTnI",
+                  "name": "ctaHeaderText",
+                  "fill": "#FFFFFF",
+                  "content": "Book Demo",
+                  "fontFamily": "Inter",
+                  "fontSize": 15,
+                  "fontWeight": "semibold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "jAWQm",
+          "name": "hero",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 36,
+          "padding": [
+            120,
+            120,
+            80,
+            120
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "ellipse",
+              "id": "s78Zc",
+              "name": "heroGlowBg",
+              "width": 1000,
+              "height": 600
+            },
+            {
+              "type": "frame",
+              "id": "RlfnR",
+              "name": "badge",
+              "fill": "#FFFFFF15",
+              "cornerRadius": 20,
+              "gap": 8,
+              "padding": [
+                8,
+                16
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "rZjgI",
+                  "name": "badgeIcon",
+                  "content": "✨",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "gc96J",
+                  "name": "badgeText",
+                  "fill": "#A78BFA",
+                  "content": "Advanced Blockchain Analytics Platform",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "medium"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "koGcs",
+              "name": "headline",
+              "content": "Real-Time Insights for\nBase Blockchain",
+              "lineHeight": 1.05,
+              "textAlign": "center",
+              "fontFamily": "Inter",
+              "fontSize": 72,
+              "fontWeight": "bold",
+              "letterSpacing": -2
+            },
+            {
+              "type": "text",
+              "id": "AkQoa",
+              "name": "subheadline",
+              "fill": "#9CA3AF",
+              "content": "Track tokens, monitor vesting contracts, analyze whale movements,\nand get actionable intelligence on your blockchain assets.",
+              "lineHeight": 1.5,
+              "textAlign": "center",
+              "fontFamily": "Inter",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "ggOVx",
+              "name": "ctaRow",
+              "gap": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "X9jVj",
+                  "name": "ctaPrimary",
+                  "cornerRadius": 12,
+                  "gap": 8,
+                  "padding": [
+                    18,
+                    36
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "gOjNE",
+                      "name": "ctaPrimaryText",
+                      "fill": "#FFFFFF",
+                      "content": "Book a Demo →",
+                      "fontFamily": "Inter",
+                      "fontSize": 17,
+                      "fontWeight": "semibold"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "iD3Mx",
+                  "name": "ctaSecondary",
+                  "fill": "#FFFFFF10",
+                  "cornerRadius": 12,
+                  "gap": 8,
+                  "padding": [
+                    18,
+                    36
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "qdZYJ",
+                      "name": "ctaSecondaryText",
+                      "fill": "#FFFFFF",
+                      "content": "Watch Demo",
+                      "fontFamily": "Inter",
+                      "fontSize": 17,
+                      "fontWeight": "semibold"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "mDWv7",
+              "name": "trustLogos",
+              "gap": 48,
+              "padding": [
+                40,
+                0,
+                0,
+                0
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "TuySi",
+                  "name": "trustText",
+                  "fill": "#6B7280",
+                  "content": "TRUSTED BY",
+                  "fontFamily": "Inter",
+                  "fontSize": 12,
+                  "fontWeight": "medium",
+                  "letterSpacing": 2
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Kro58",
+              "name": "heroVisual",
+              "width": 900,
+              "height": 400,
+              "fill": "#FFFFFF03",
+              "cornerRadius": 24,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "uudNr",
+                  "name": "heroVisualInner",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "cornerRadius": 20,
+                  "layout": "vertical",
+                  "gap": 20,
+                  "padding": 32,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "JQzZ6",
+                      "name": "heroVisualText",
+                      "fill": "#A78BFA",
+                      "content": "Live Dashboard Preview",
+                      "textAlign": "center",
+                      "fontFamily": "Inter",
+                      "fontSize": 11,
+                      "fontWeight": "semibold",
+                      "letterSpacing": 2
+                    },
+                    {
+                      "type": "frame",
+                      "id": "fgpVP",
+                      "name": "dashMetric1",
+                      "width": "fill_container",
+                      "fill": "#6366F115",
+                      "cornerRadius": 12,
+                      "gap": 16,
+                      "padding": 16,
+                      "justifyContent": "space_between",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "jg3lD",
+                          "name": "metricLabel1",
+                          "fill": "#9CA3AF",
+                          "content": "WHALE ALERTS",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "medium"
+                        },
+                        {
+                          "type": "text",
+                          "id": "wkvfe",
+                          "name": "metricValue1",
+                          "fill": "#6366F1",
+                          "content": "24 Active",
+                          "fontFamily": "Inter",
+                          "fontSize": 18,
+                          "fontWeight": "bold"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "onsv1",
+                      "name": "dashMetric2",
+                      "width": "fill_container",
+                      "fill": "#10B98115",
+                      "cornerRadius": 12,
+                      "gap": 16,
+                      "padding": 16,
+                      "justifyContent": "space_between",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "pUpQN",
+                          "name": "metricLabel2",
+                          "fill": "#9CA3AF",
+                          "content": "VESTING TRACKED",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "medium"
+                        },
+                        {
+                          "type": "text",
+                          "id": "CQ8uU",
+                          "name": "metricValue2",
+                          "fill": "#10B981",
+                          "content": "8 Contracts",
+                          "fontFamily": "Inter",
+                          "fontSize": 18,
+                          "fontWeight": "bold"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "bvXMY",
+                      "name": "dashMetric3",
+                      "width": "fill_container",
+                      "fill": "#F59E0B15",
+                      "cornerRadius": 12,
+                      "gap": 16,
+                      "padding": 16,
+                      "justifyContent": "space_between",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "1WeUD",
+                          "name": "metricLabel3",
+                          "fill": "#9CA3AF",
+                          "content": "HOLDERS",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "medium"
+                        },
+                        {
+                          "type": "text",
+                          "id": "f8CDy",
+                          "name": "metricValue3",
+                          "fill": "#F59E0B",
+                          "content": "2,847",
+                          "fontFamily": "Inter",
+                          "fontSize": 18,
+                          "fontWeight": "bold"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ZtkMz",
+              "name": "heroStats",
+              "fill": "#FFFFFF05",
+              "cornerRadius": 16,
+              "gap": 40,
+              "padding": [
+                20,
+                32
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "oRcbn",
+                  "name": "heroStat1",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Qo6PJ",
+                      "name": "heroStatValue1",
+                      "fill": "#6366F1",
+                      "content": "Real-Time",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "aiZpm",
+                      "name": "heroStatLabel1",
+                      "fill": "#9CA3AF",
+                      "content": "Updates",
+                      "fontFamily": "Inter",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "OBLMd",
+                  "name": "heroStat2",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "F6j3r",
+                      "name": "heroStatValue2",
+                      "fill": "#10B981",
+                      "content": "Multi-Chain",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "bupeD",
+                      "name": "heroStatLabel2",
+                      "fill": "#9CA3AF",
+                      "content": "Support",
+                      "fontFamily": "Inter",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "6qNyk",
+                  "name": "heroStat3",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "6jayQ",
+                      "name": "heroStatValue3",
+                      "fill": "#F59E0B",
+                      "content": "API Access",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "NEJCQ",
+                      "name": "heroStatLabel3",
+                      "fill": "#9CA3AF",
+                      "content": "Included",
+                      "fontFamily": "Inter",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "jjlr4",
+          "name": "features",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 72,
+          "padding": [
+            100,
+            120
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "l4XxV",
+              "name": "featuresHeader",
+              "layout": "vertical",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "XfQl0",
+                  "name": "featuresTitle",
+                  "fill": "#FFFFFF",
+                  "content": "Everything You Need to Track Blockchain Assets",
+                  "textAlign": "center",
+                  "fontFamily": "Inter",
+                  "fontSize": 48,
+                  "fontWeight": "bold",
+                  "letterSpacing": -1
+                },
+                {
+                  "type": "text",
+                  "id": "EOzSv",
+                  "name": "featuresSubtitle",
+                  "fill": "#9CA3AF",
+                  "content": "Powerful analytics and monitoring tools built for serious blockchain investors and teams.",
+                  "textAlign": "center",
+                  "fontFamily": "Inter",
+                  "fontSize": 18,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "UZGNy",
+              "name": "featuresGrid",
+              "width": "fill_container",
+              "gap": 24,
+              "justifyContent": "space_between",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "TV6EX",
+                  "name": "feature1",
+                  "width": "fill_container",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 20,
+                  "padding": 32,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "0GNp9",
+                      "name": "feature1Icon",
+                      "width": 48,
+                      "height": 48,
+                      "cornerRadius": 12,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "7avaS",
+                          "name": "feature1IconText",
+                          "content": "📊",
+                          "fontFamily": "Inter",
+                          "fontSize": 28,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Y5Kru",
+                          "name": "pulseRing1",
+                          "opacity": 0.6,
+                          "width": 64,
+                          "height": 64,
+                          "cornerRadius": 12
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "E1PEM",
+                      "name": "feature1Title",
+                      "fill": "#FFFFFF",
+                      "content": "Token Analytics",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "HwAgL",
+                      "name": "feature1Desc",
+                      "fill": "#9CA3AF",
+                      "content": "Real-time tracking of token balances, transfers, and supply metrics across Base network.",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "6CuqZ",
+                  "name": "feature2",
+                  "width": "fill_container",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 20,
+                  "padding": 32,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "WhuJe",
+                      "name": "feature2Icon",
+                      "width": 48,
+                      "height": 48,
+                      "cornerRadius": 12,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "enQPJ",
+                          "name": "feature2IconText",
+                          "content": "🔒",
+                          "fontFamily": "Inter",
+                          "fontSize": 28,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n1HlC",
+                          "name": "pulseRing2",
+                          "opacity": 0.6,
+                          "width": 64,
+                          "height": 64,
+                          "cornerRadius": 12
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "wKT0Q",
+                      "name": "feature2Title",
+                      "fill": "#FFFFFF",
+                      "content": "Vesting Monitor",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "xngcm",
+                      "name": "feature2Desc",
+                      "fill": "#9CA3AF",
+                      "content": "Track vesting contracts, beneficiaries, and unlock schedules with multi-contract support.",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "bWfgJ",
+                  "name": "feature3",
+                  "width": "fill_container",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 20,
+                  "padding": 32,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "rxyx1",
+                      "name": "feature3Icon",
+                      "width": 48,
+                      "height": 48,
+                      "cornerRadius": 12,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "avspW",
+                          "name": "feature3IconText",
+                          "content": "🐋",
+                          "fontFamily": "Inter",
+                          "fontSize": 28,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Gns5Q",
+                          "name": "pulseRing3",
+                          "opacity": 0.6,
+                          "width": 64,
+                          "height": 64,
+                          "cornerRadius": 12
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q39MJ",
+                      "name": "feature3Title",
+                      "fill": "#FFFFFF",
+                      "content": "Whale Tracking",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "x7Qsj",
+                      "name": "feature3Desc",
+                      "fill": "#9CA3AF",
+                      "content": "Monitor large transfers, holder distribution, and exchange flows with automated alerts.",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "d8Ly4",
+              "name": "floatCard1",
+              "width": 80,
+              "height": 80,
+              "fill": "#6366F120",
+              "cornerRadius": 16
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "kV6eT",
+          "name": "showcase",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 56,
+          "padding": [
+            100,
+            120
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "N1ocy",
+              "name": "showcaseHeader",
+              "layout": "vertical",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "RDhDG",
+                  "name": "showcaseTitle",
+                  "fill": "#FFFFFF",
+                  "content": "Advanced Analytics Dashboard",
+                  "textAlign": "center",
+                  "fontFamily": "Inter",
+                  "fontSize": 48,
+                  "fontWeight": "bold",
+                  "letterSpacing": -1
+                },
+                {
+                  "type": "text",
+                  "id": "vuWRS",
+                  "name": "showcaseSubtitle",
+                  "fill": "#9CA3AF",
+                  "content": "Get comprehensive insights with real-time data visualization and intelligent alerts.",
+                  "textAlign": "center",
+                  "fontFamily": "Inter",
+                  "fontSize": 18,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "zAwXW",
+              "name": "showcaseVisual",
+              "width": "fill_container",
+              "height": 500,
+              "fill": "#FFFFFF05",
+              "cornerRadius": 20,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "pAza3",
+                  "name": "showcaseOverlay",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "cornerRadius": 20,
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": 48,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "SUV7I",
+                      "name": "showcasePlaceholder",
+                      "fill": "#6B7280",
+                      "content": "Dashboard Screenshot Placeholder\n[Charts, Analytics, Whale Movements]",
+                      "lineHeight": 1.8,
+                      "textAlign": "center",
+                      "fontFamily": "Inter",
+                      "fontSize": 20,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "PoHIG",
+                      "name": "chartBar1",
+                      "width": 600,
+                      "height": 8,
+                      "cornerRadius": 4
+                    },
+                    {
+                      "type": "frame",
+                      "id": "P3wjH",
+                      "name": "chartBar2",
+                      "width": 400,
+                      "height": 8,
+                      "cornerRadius": 4
+                    },
+                    {
+                      "type": "frame",
+                      "id": "MjSSj",
+                      "name": "chartBar3",
+                      "width": 500,
+                      "height": 8,
+                      "cornerRadius": 4
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "eURF5",
+              "name": "showcaseDecor1",
+              "width": 300,
+              "height": 300,
+              "cornerRadius": 150
+            },
+            {
+              "type": "frame",
+              "id": "sfCOb",
+              "name": "showcaseDecor2",
+              "width": 250,
+              "height": 250,
+              "cornerRadius": 125
+            },
+            {
+              "type": "frame",
+              "id": "0HpFu",
+              "name": "floatCard2",
+              "width": 60,
+              "height": 60,
+              "fill": "#8B5CF620",
+              "cornerRadius": 12
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "1K1iW",
+          "name": "stats",
+          "width": "fill_container",
+          "gap": 80,
+          "padding": [
+            80,
+            120
+          ],
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "Ys9ap",
+              "name": "stat1",
+              "layout": "vertical",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "CKyZa",
+                  "name": "statGlow1",
+                  "width": 100,
+                  "height": 100,
+                  "cornerRadius": 50
+                },
+                {
+                  "type": "text",
+                  "id": "b7IGK",
+                  "name": "stat1Value",
+                  "fill": "#FFFFFF",
+                  "content": "10M+",
+                  "fontFamily": "Inter",
+                  "fontSize": 56,
+                  "fontWeight": "bold",
+                  "letterSpacing": -2
+                },
+                {
+                  "type": "text",
+                  "id": "k2zGf",
+                  "name": "stat1Label",
+                  "fill": "#9CA3AF",
+                  "content": "Transactions Tracked",
+                  "fontFamily": "Inter",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "DhSnS",
+              "name": "stat2",
+              "layout": "vertical",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r8NUJ",
+                  "name": "stat2Value",
+                  "fill": "#FFFFFF",
+                  "content": "99.9%",
+                  "fontFamily": "Inter",
+                  "fontSize": 56,
+                  "fontWeight": "bold",
+                  "letterSpacing": -2
+                },
+                {
+                  "type": "text",
+                  "id": "pYcno",
+                  "name": "stat2Label",
+                  "fill": "#9CA3AF",
+                  "content": "Uptime Reliability",
+                  "fontFamily": "Inter",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "4sFl4",
+              "name": "stat3",
+              "layout": "vertical",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "HkYlc",
+                  "name": "stat3Value",
+                  "fill": "#FFFFFF",
+                  "content": "<5s",
+                  "fontFamily": "Inter",
+                  "fontSize": 56,
+                  "fontWeight": "bold",
+                  "letterSpacing": -2
+                },
+                {
+                  "type": "text",
+                  "id": "4NCRj",
+                  "name": "stat3Label",
+                  "fill": "#9CA3AF",
+                  "content": "Average Load Time",
+                  "fontFamily": "Inter",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "6YXaY",
+          "name": "finalCta",
+          "width": "fill_container",
+          "cornerRadius": 32,
+          "layout": "vertical",
+          "gap": 36,
+          "padding": [
+            100,
+            120
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "DrQks",
+              "name": "finalCtaTitle",
+              "fill": "#FFFFFF",
+              "content": "Ready to Unlock Blockchain Intelligence?",
+              "textAlign": "center",
+              "fontFamily": "Inter",
+              "fontSize": 48,
+              "fontWeight": "bold",
+              "letterSpacing": -1
+            },
+            {
+              "type": "text",
+              "id": "QVnQg",
+              "name": "finalCtaSubtitle",
+              "opacity": 0.9,
+              "fill": "#FFFFFF",
+              "content": "Join leading investors and teams who trust our platform for real-time blockchain analytics.",
+              "textAlign": "center",
+              "fontFamily": "Inter",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "3GkVP",
+              "name": "finalCtaButton",
+              "fill": "#FFFFFF",
+              "cornerRadius": 12,
+              "gap": 8,
+              "padding": [
+                20,
+                48
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "5yj6E",
+                  "name": "finalCtaButtonText",
+                  "fill": "#6366F1",
+                  "content": "Schedule Your Demo →",
+                  "fontFamily": "Inter",
+                  "fontSize": 18,
+                  "fontWeight": "bold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "h60j2",
+          "name": "footer",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 48,
+          "padding": [
+            60,
+            120
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "v7RS3",
+              "name": "footerTop",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "LZDFD",
+                  "name": "footerBrand",
+                  "layout": "vertical",
+                  "gap": 16,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "6KRIk",
+                      "name": "footerLogo",
+                      "fill": "#FFFFFF",
+                      "content": "EXPLORER",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "bold",
+                      "letterSpacing": 2
+                    },
+                    {
+                      "type": "text",
+                      "id": "NIwsH",
+                      "name": "footerTagline",
+                      "fill": "#6B7280",
+                      "content": "Advanced blockchain analytics\nfor the Base network",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "SkLLV",
+                  "name": "footerLinks",
+                  "gap": 80,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "wHvMO",
+                      "name": "footerCol1",
+                      "layout": "vertical",
+                      "gap": 16,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "jgvpm",
+                          "name": "footerCol1Title",
+                          "fill": "#FFFFFF",
+                          "content": "Product",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "semibold"
+                        },
+                        {
+                          "type": "text",
+                          "id": "zLmif",
+                          "name": "footerCol1Link1",
+                          "fill": "#9CA3AF",
+                          "content": "Features",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "ghUsI",
+                          "name": "footerCol1Link2",
+                          "fill": "#9CA3AF",
+                          "content": "Pricing",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "QlTgT",
+                          "name": "footerCol1Link3",
+                          "fill": "#9CA3AF",
+                          "content": "Documentation",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "LTwgp",
+                      "name": "footerCol2",
+                      "layout": "vertical",
+                      "gap": 16,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "6T9b9",
+                          "name": "footerCol2Title",
+                          "fill": "#FFFFFF",
+                          "content": "Company",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "semibold"
+                        },
+                        {
+                          "type": "text",
+                          "id": "BuHlu",
+                          "name": "footerCol2Link1",
+                          "fill": "#9CA3AF",
+                          "content": "About",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "uXpVT",
+                          "name": "footerCol2Link2",
+                          "fill": "#9CA3AF",
+                          "content": "Blog",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "zfJss",
+                          "name": "footerCol2Link3",
+                          "fill": "#9CA3AF",
+                          "content": "Contact",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "HnC2f",
+                      "name": "footerCol3",
+                      "layout": "vertical",
+                      "gap": 16,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "EnOon",
+                          "name": "footerCol3Title",
+                          "fill": "#FFFFFF",
+                          "content": "Legal",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "semibold"
+                        },
+                        {
+                          "type": "text",
+                          "id": "ZNNb1",
+                          "name": "footerCol3Link1",
+                          "fill": "#9CA3AF",
+                          "content": "Privacy Policy",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "B4tVt",
+                          "name": "footerCol3Link2",
+                          "fill": "#9CA3AF",
+                          "content": "Terms of Service",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "GYPMn",
+              "name": "footerDivider",
+              "width": "fill_container",
+              "height": 1,
+              "fill": "#FFFFFF10"
+            },
+            {
+              "type": "frame",
+              "id": "PNsPl",
+              "name": "footerBottom",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "6osfK",
+                  "name": "footerCopyright",
+                  "fill": "#6B7280",
+                  "content": "© 2025 Explorer. All rights reserved.",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "HgDFm",
+                  "name": "footerSocial",
+                  "gap": 24,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "N3Oco",
+                      "name": "footerSocialTwitter",
+                      "fill": "#9CA3AF",
+                      "content": "Twitter",
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Z38Bs",
+                      "name": "footerSocialGithub",
+                      "fill": "#9CA3AF",
+                      "content": "GitHub",
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ABRZ4",
+                      "name": "footerSocialDiscord",
+                      "fill": "#9CA3AF",
+                      "content": "Discord",
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

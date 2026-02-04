@@ -80,24 +80,28 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 4. Buscar tokens conocidos
-    const vtnToken = {
-      address: '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC',
-      name: 'Vottun Token',
-      symbol: 'VTN',
-    };
-
-    if (
-      'vottun'.includes(queryLower) ||
-      'vtn'.includes(queryLower) ||
-      vtnToken.address.toLowerCase().includes(queryLower)
-    ) {
-      results.push({
-        type: 'token',
-        value: vtnToken.address,
-        label: `${vtnToken.name} (${vtnToken.symbol})`,
-        description: 'Ver analytics del token',
+    // 4. Buscar tokens conocidos en la base de datos
+    try {
+      const tokens = await prisma.token.findMany({
+        where: {
+          OR: [
+            { address: { contains: queryLower, mode: 'insensitive' } },
+            { symbol: { contains: queryLower, mode: 'insensitive' } },
+          ],
+        },
+        take: 3,
       });
+
+      tokens.forEach((token) => {
+        results.push({
+          type: 'token',
+          value: token.address,
+          label: `${token.symbol}${token.decimals ? ` (${token.decimals} decimals)` : ''}`,
+          description: 'Ver analytics del token',
+        });
+      });
+    } catch (error) {
+      console.error('Error buscando tokens:', error);
     }
 
     // 5. Buscar en TransferCache (direcciones que han hecho transfers)

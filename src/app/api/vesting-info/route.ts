@@ -1,22 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, serializeBigInt } from '@/lib/db';
 import { fetchVestingInfo } from '@/lib/blockchain';
-
-// Lista de contratos de vesting predefinidos
-const VESTING_CONTRACTS = [
-  { name: 'Vottun World', address: '0xa699Cf416FFe6063317442c3Fbd0C39742E971c5' },
-  { name: 'Investors', address: '0x3e0ef51811B647E00A85A7e5e495fA4763911982' },
-  { name: 'Marketing', address: '0xE521B2929DD28a725603bCb6F4009FBb656C4b15' },
-  { name: 'Staking', address: '0x3a7cf4cCC76bb23Cf15845B0d4f05BafF1D478cF' },
-  { name: 'Liquidity', address: '0x417Fc9c343210AA52F0b19dbf4EecBD786139BC1' },
-  { name: 'Promos', address: '0xFC750D874077F8c90858cC132e0619CE7571520b' },
-  { name: 'Team', address: '0xde68AD324aafD9F2b6946073C90ED5e61D5d51B8' },
-  { name: 'Reserve', address: '0xC4CE5cFea2B6e32Ad41973348AC70EB3b00D8e6d' },
-  { name: 'ToCheck1', address: '0x7BBDa50bE87DFf935782C80D4222D46490F242A1' },
-  { name: 'ToCheck2', address: '0x1808CF66F69DC1B8217d1C655fBD134B213AE358' }
-];
+import { getTenantContext } from '@/lib/tenant-context';
 
 export async function GET(request: NextRequest) {
+  // Validate tenant context
+  const tenantContext = await getTenantContext();
+  if (!tenantContext) {
+    return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+  }
+  if (!tenantContext.activeToken) {
+    return NextResponse.json({ error: 'No hay token configurado' }, { status: 400 });
+  }
+
+  const tokenId = tenantContext.activeToken.id;
+
   const searchParams = request.nextUrl.searchParams;
   let walletAddress = searchParams.get('wallet');
   const network = searchParams.get('network') || 'base';
@@ -38,21 +36,45 @@ export async function GET(request: NextRequest) {
   try {
     console.log(`[vesting-info] Fetching vesting info for wallet ${walletAddress}, force=${forceRefresh}`);
 
+    // Fetch active vesting contracts from database
+    const vestingContracts = await prisma.vestingContract.findMany({
+      where: {
+        tokenId,
+        network,
+        isActive: true
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    });
+
+    console.log(`[vesting-info] Found ${vestingContracts.length} active vesting contracts for token`);
+
+    if (vestingContracts.length === 0) {
+      return NextResponse.json({
+        success: true,
+        wallet: walletAddress,
+        network,
+        vestingSchedules: [],
+        fromCache: false,
+        debugLog: ['No active vesting contracts configured for this token']
+      });
+    }
+
     const results = [];
     const debugLog: string[] = [];
 
-    for (const contract of VESTING_CONTRACTS) {
+    for (const contract of vestingContracts) {
       const contractAddress = contract.address;
 
       // 1. Si NO es force refresh, buscar primero en BD
       if (!forceRefresh) {
-        const cached = await prisma.vestingBeneficiaryCache.findUnique({
+        const cached = await prisma.vestingBeneficiaryCache.findFirst({
           where: {
-            vestingContract_beneficiaryAddress_network: {
-              vestingContract: contractAddress.toLowerCase(),
-              beneficiaryAddress: walletAddress.toLowerCase(),
-              network
-            }
+            tokenId,
+            vestingContract: contractAddress.toLowerCase(),
+            beneficiaryAddress: walletAddress.toLowerCase(),
+            network
           },
           include: {
             vestings: true // Incluir todos los schedules
@@ -97,7 +119,7 @@ export async function GET(request: NextRequest) {
 
       // 3. Si force refresh O no existe en BD, buscar en blockchain
       // Añadir delay entre llamadas para respetar rate limits del RPC
-      if (results.length > 0 || VESTING_CONTRACTS.indexOf(contract) > 0) {
+      if (results.length > 0) {
         await new Promise(resolve => setTimeout(resolve, 1500));
       }
       console.log(`[vesting-info] 🔍 Fetching from blockchain for ${contract.name} (${contractAddress})`);
@@ -163,71 +185,80 @@ export async function GET(request: NextRequest) {
 
         // Guardar en BD usando VestingBeneficiaryCache
         try {
-          await prisma.vestingBeneficiaryCache.upsert({
+          const existingCache = await prisma.vestingBeneficiaryCache.findFirst({
             where: {
-              vestingContract_beneficiaryAddress_network: {
-                vestingContract: contractAddress.toLowerCase(),
-                beneficiaryAddress: walletAddress.toLowerCase(),
-                network
-              }
-            },
-            update: {
-              tokenAddress: aggregatedVesting.tokenAddress,
-              tokenSymbol: aggregatedVesting.tokenSymbol,
-              tokenName: aggregatedVesting.tokenName,
-              totalAmount: aggregatedVesting.totalAmount,
-              vestedAmount: aggregatedVesting.vestedAmount,
-              releasedAmount: aggregatedVesting.releasedAmount,
-              claimableAmount: aggregatedVesting.claimableAmount,
-              remainingAmount: aggregatedVesting.remainingAmount,
-              startTime: aggregatedVesting.startTime,
-              endTime: aggregatedVesting.endTime,
-              vestings: {
-                deleteMany: {}, // Borrar schedules antiguos
-                create: aggregatedVesting.schedules.map((s: any, idx: number) => ({
-                  scheduleId: `schedule-${idx}`,
-                  phase: s.phase,
-                  cliff: 0,
-                  start: s.startTime,
-                  duration: s.endTime - s.startTime,
-                  amountTotal: s.totalAmount,
-                  claimFrequencyInSeconds: 0,
-                  lastClaimDate: s.startTime,
-                  released: s.releasedAmount,
-                  revoked: false
-                }))
-              }
-            },
-            create: {
+              tokenId,
               vestingContract: contractAddress.toLowerCase(),
               beneficiaryAddress: walletAddress.toLowerCase(),
-              network,
-              tokenAddress: aggregatedVesting.tokenAddress,
-              tokenSymbol: aggregatedVesting.tokenSymbol,
-              tokenName: aggregatedVesting.tokenName,
-              totalAmount: aggregatedVesting.totalAmount,
-              vestedAmount: aggregatedVesting.vestedAmount,
-              releasedAmount: aggregatedVesting.releasedAmount,
-              claimableAmount: aggregatedVesting.claimableAmount,
-              remainingAmount: aggregatedVesting.remainingAmount,
-              startTime: aggregatedVesting.startTime,
-              endTime: aggregatedVesting.endTime,
-              vestings: {
-                create: aggregatedVesting.schedules.map((s: any, idx: number) => ({
-                  scheduleId: `schedule-${idx}`,
-                  phase: s.phase,
-                  cliff: 0,
-                  start: s.startTime,
-                  duration: s.endTime - s.startTime,
-                  amountTotal: s.totalAmount,
-                  claimFrequencyInSeconds: 0,
-                  lastClaimDate: s.startTime,
-                  released: s.releasedAmount,
-                  revoked: false
-                }))
-              }
+              network
             }
           });
+
+          if (existingCache) {
+            await prisma.vestingBeneficiaryCache.update({
+              where: { id: existingCache.id },
+              data: {
+                tokenAddress: aggregatedVesting.tokenAddress,
+                tokenSymbol: aggregatedVesting.tokenSymbol,
+                tokenName: aggregatedVesting.tokenName,
+                totalAmount: aggregatedVesting.totalAmount,
+                vestedAmount: aggregatedVesting.vestedAmount,
+                releasedAmount: aggregatedVesting.releasedAmount,
+                claimableAmount: aggregatedVesting.claimableAmount,
+                remainingAmount: aggregatedVesting.remainingAmount,
+                startTime: aggregatedVesting.startTime,
+                endTime: aggregatedVesting.endTime,
+                vestings: {
+                  deleteMany: {}, // Borrar schedules antiguos
+                  create: aggregatedVesting.schedules.map((s: any, idx: number) => ({
+                    scheduleId: `schedule-${idx}`,
+                    phase: s.phase,
+                    cliff: 0,
+                    start: s.startTime,
+                    duration: s.endTime - s.startTime,
+                    amountTotal: s.totalAmount,
+                    claimFrequencyInSeconds: 0,
+                    lastClaimDate: s.startTime,
+                    released: s.releasedAmount,
+                    revoked: false
+                  }))
+                }
+              }
+            });
+          } else {
+            await prisma.vestingBeneficiaryCache.create({
+              data: {
+                vestingContract: contractAddress.toLowerCase(),
+                beneficiaryAddress: walletAddress.toLowerCase(),
+                network,
+                tokenAddress: aggregatedVesting.tokenAddress,
+                tokenSymbol: aggregatedVesting.tokenSymbol,
+                tokenName: aggregatedVesting.tokenName,
+                totalAmount: aggregatedVesting.totalAmount,
+                vestedAmount: aggregatedVesting.vestedAmount,
+                releasedAmount: aggregatedVesting.releasedAmount,
+                claimableAmount: aggregatedVesting.claimableAmount,
+                remainingAmount: aggregatedVesting.remainingAmount,
+                startTime: aggregatedVesting.startTime,
+                endTime: aggregatedVesting.endTime,
+                tokenId,
+                vestings: {
+                  create: aggregatedVesting.schedules.map((s: any, idx: number) => ({
+                    scheduleId: `schedule-${idx}`,
+                    phase: s.phase,
+                    cliff: 0,
+                    start: s.startTime,
+                    duration: s.endTime - s.startTime,
+                    amountTotal: s.totalAmount,
+                    claimFrequencyInSeconds: 0,
+                    lastClaimDate: s.startTime,
+                    released: s.releasedAmount,
+                    revoked: false
+                  }))
+                }
+              }
+            });
+          }
           console.log(`[vesting-info] 💾 Saved to DB: ${contract.name} with ${vestingData.length} schedules`);
         } catch (dbError) {
           console.error(`[vesting-info] ⚠️ Failed to save to DB for ${contract.name}:`, dbError);

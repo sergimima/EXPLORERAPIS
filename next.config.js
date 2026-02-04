@@ -5,6 +5,18 @@ const nextConfig = {
   output: 'standalone',
   experimental: {
     missingSuspenseWithCSRBailout: false,
+    serverComponentsExternalPackages: ['@prisma/client', '@prisma/adapter-pg', 'pg', 'pg-connection-string', 'pg-pool'],
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
   },
   // Configuración para permitir solicitudes a APIs externas
   async rewrites() {

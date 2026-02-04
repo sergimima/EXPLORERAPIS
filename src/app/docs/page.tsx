@@ -105,7 +105,7 @@ export default function ApiDocs() {
           Para implementar estas APIs en tu proyecto, puedes crear rutas API en Next.js que utilicen
           la biblioteca ethers.js para interactuar con las blockchains.
         </p>
-        <Link href="/explorer/tokens" className="btn-primary inline-block">
+        <Link href="/dashboard" className="btn-primary inline-block">
           Probar el Explorador
         </Link>
       </div>

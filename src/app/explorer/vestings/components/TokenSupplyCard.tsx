@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { getTokenSupplyInfo, TokenSupplyInfo } from '@/lib/blockchain';
+import { useToken } from '@/contexts/TokenContext';
 
 interface SupplyCardProps {
   title: string;
@@ -45,6 +46,7 @@ const SupplyCard: React.FC<SupplyCardProps> = ({ title, value, description, icon
 };
 
 const TokenSupplyCard: React.FC = () => {
+  const { activeToken, loading: tokenLoading } = useToken();
   const [supplyInfo, setSupplyInfo] = useState<TokenSupplyInfo | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +57,11 @@ const TokenSupplyCard: React.FC = () => {
   const requestIdRef = useRef<number>(0);
 
   useEffect(() => {
+    if (!activeToken || tokenLoading) {
+      setLoading(false);
+      return;
+    }
+
     // Generar un ID único para esta ejecución del efecto
     const currentRequestId = ++requestIdRef.current;
 
@@ -106,8 +113,13 @@ const TokenSupplyCard: React.FC = () => {
           }
         };
 
-        // Llamar a getTokenSupplyInfo con el callback de progreso
-        const data = await getTokenSupplyInfo(handleProgress);
+        // Llamar a getTokenSupplyInfo con el token activo
+        // vestingContracts: vacío por defecto; configurar en TokenSettings.vestingContractAddresses cuando exista
+        const data = await getTokenSupplyInfo(handleProgress, {
+          tokenAddress: activeToken.address,
+          vestingContracts: [],
+          network: activeToken.network ?? 'base'
+        });
         setSupplyInfo(data);
       } catch (err) {
         console.error('Error al obtener información del suministro:', err);
@@ -128,7 +140,21 @@ const TokenSupplyCard: React.FC = () => {
       // No reseteamos fetchingRef.current aquí para evitar que se inicien nuevas peticiones
       // durante el desmontaje o re-renderizado
     };
-  }, []);
+  }, [activeToken, tokenLoading]);
+
+  if (tokenLoading || !activeToken) {
+    return (
+      <div className="mb-8">
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-8 text-center">
+          {tokenLoading ? (
+            <p className="text-gray-600">Cargando token...</p>
+          ) : (
+            <p className="text-gray-600">No hay token seleccionado</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

@@ -16,6 +16,7 @@ interface TokenTransfer {
 interface ExchangeFlowChartProps {
   transfers: TokenTransfer[];
   days: number;
+  tokenSymbol?: string;
 }
 
 const KNOWN_EXCHANGES = new Set([
@@ -29,7 +30,7 @@ function isExchange(address: string): boolean {
   return KNOWN_EXCHANGES.has(address.toLowerCase());
 }
 
-export default function ExchangeFlowChart({ transfers, days }: ExchangeFlowChartProps) {
+export default function ExchangeFlowChart({ transfers, days, tokenSymbol = 'tokens' }: ExchangeFlowChartProps) {
   // Agrupar por día y calcular net flow
   const flowByDay = new Map<string, number>();
 
@@ -72,7 +73,7 @@ export default function ExchangeFlowChart({ transfers, days }: ExchangeFlowChart
         <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
           <p className="font-semibold text-gray-900">{data.displayDate}</p>
           <p className={`text-sm font-medium ${netFlow > 0 ? 'text-red-600' : 'text-green-600'}`}>
-            {netFlow > 0 ? '↑' : '↓'} {Math.abs(netFlow).toLocaleString()} VTN
+            {netFlow > 0 ? '↑' : '↓'} {Math.abs(netFlow).toLocaleString()} {tokenSymbol}
           </p>
           <p className="text-xs text-gray-500">
             {netFlow > 0 ? 'Entrando a exchanges' : 'Saliendo de exchanges'}

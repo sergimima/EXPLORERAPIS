@@ -5,13 +5,12 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import EditAddressModal from '@/components/EditAddressModal';
 import AdvancedFilters, { AdvancedFiltersState, defaultFilters } from '@/components/AdvancedFilters';
+import { useToken } from '@/contexts/TokenContext';
 
 // Import charts with dynamic loading to avoid SSR issues
 const HolderDistributionChart = dynamic(() => import('@/components/charts/HolderDistributionChart'), { ssr: false });
 const WhaleTimelineChart = dynamic(() => import('@/components/charts/WhaleTimelineChart'), { ssr: false });
 const ExchangeFlowChart = dynamic(() => import('@/components/charts/ExchangeFlowChart'), { ssr: false });
-
-const VTN_TOKEN_ADDRESS = '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC';
 
 interface TokenTransfer {
   hash: string;
@@ -87,7 +86,8 @@ interface AnalyticsData {
   };
 }
 
-export default function TokenAnalytics() {
+export default function AnalyticsContent() {
+  const { activeToken, loading: tokenLoading } = useToken();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,8 +115,10 @@ export default function TokenAnalytics() {
   const [appliedFilters, setAppliedFilters] = useState<AdvancedFiltersState>(defaultFilters);
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [days, threshold]);
+    if (activeToken && !tokenLoading) {
+      fetchAnalytics();
+    }
+  }, [days, threshold, activeToken, tokenLoading]);
 
   // Cargar nombres guardados cuando cambian los datos (optimizado - solo BD)
   useEffect(() => {
@@ -408,7 +410,7 @@ export default function TokenAnalytics() {
           </svg>
         </button>
         <Link
-          href={`/explorer/tokens?wallet=${address}`}
+          href={`/dashboard?tab=tokens&wallet=${address}`}
           className="text-green-600 hover:text-green-800 hover:bg-green-50 p-1 rounded transition-colors inline-flex"
           title="Ver tokens de esta wallet"
           onClick={(e) => e.stopPropagation()}
@@ -435,13 +437,49 @@ export default function TokenAnalytics() {
     return sorted;
   }, [filteredData, whaleSortBy]);
 
+  // Mostrar mensaje si no hay token seleccionado
+  if (tokenLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Cargando tokens...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeToken) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+          <div className="text-6xl mb-4">🪙</div>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+            No hay token seleccionado
+          </h2>
+          <p className="text-gray-600 mb-4">
+            Selecciona un token del menú superior o agrega uno nuevo en Settings
+          </p>
+          <a
+            href="/settings/tokens"
+            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Agregar Token
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   if (loading && !data) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Cargando análisis del token...</p>
+            <p className="text-gray-600">Cargando análisis de {activeToken.symbol}...</p>
           </div>
         </div>
       </div>
@@ -467,16 +505,25 @@ export default function TokenAnalytics() {
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Análisis de Token VTN</h1>
+        <div className="flex items-center gap-4 mb-2">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg font-bold">
+            {activeToken.symbol.substring(0, 2)}
+          </div>
+          <div>
+            <h1 className="text-4xl font-bold">Análisis de {activeToken.symbol}</h1>
+            <p className="text-gray-600">{activeToken.name}</p>
+          </div>
+        </div>
         <p className="text-gray-600">
           Token: <a
-            href={`https://basescan.org/token/${VTN_TOKEN_ADDRESS}`}
+            href={`https://basescan.org/token/${activeToken.address}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline font-mono"
+            className="text-blue-600 hover:underline font-mono text-sm"
           >
-            {VTN_TOKEN_ADDRESS}
+            {activeToken.address}
           </a>
+          {' '} <span className="text-xs text-gray-500 uppercase">({activeToken.network})</span>
         </p>
       </div>
 
@@ -536,7 +583,7 @@ export default function TokenAnalytics() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Umbral para transferencias grandes (VTN)
+              Umbral para transferencias grandes ({activeToken.symbol})
             </label>
             <input
               type="number"
@@ -576,7 +623,7 @@ export default function TokenAnalytics() {
       {/* Price & Liquidity Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md p-6 text-white">
-          <h3 className="text-sm font-medium text-blue-100 mb-2">Precio VTN</h3>
+          <h3 className="text-sm font-medium text-blue-100 mb-2">Precio {activeToken.symbol}</h3>
           <p className="text-3xl font-bold">${data.priceData.price.toFixed(6)}</p>
           {data.liquidityData?.priceChange24h !== undefined && (
             <p className={`text-sm mt-2 ${data.liquidityData.priceChange24h >= 0 ? 'text-green-200' : 'text-red-200'}`}>
@@ -606,7 +653,7 @@ export default function TokenAnalytics() {
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-600 mb-2">Net Flow a CEX</h3>
           <p className={`text-3xl font-bold ${parseFloat(data.statistics.netFlowToExchanges) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-            {parseFloat(data.statistics.netFlowToExchanges) > 0 ? '↗' : '↙'} {formatNumber(Math.abs(parseFloat(data.statistics.netFlowToExchanges)))} VTN
+            {parseFloat(data.statistics.netFlowToExchanges) > 0 ? '↗' : '↙'} {formatNumber(Math.abs(parseFloat(data.statistics.netFlowToExchanges)))} {activeToken.symbol}
           </p>
           <p className="text-xs text-gray-500 mt-1">
             {parseFloat(data.statistics.netFlowToExchanges) > 0 ? 'Presión de venta' : 'Menos presión'}
@@ -667,7 +714,7 @@ export default function TokenAnalytics() {
 
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-600 mb-2">Volumen Total</h3>
-          <p className="text-3xl font-bold text-green-600">{formatNumber(data.statistics.totalVolume)} VTN</p>
+          <p className="text-3xl font-bold text-green-600">{formatNumber(data.statistics.totalVolume)} {activeToken.symbol}</p>
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6">
@@ -754,10 +801,10 @@ export default function TokenAnalytics() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <HolderDistributionChart holders={data.topHolders} />
-                <WhaleTimelineChart transfers={filteredData.transfers} threshold={parseInt(threshold)} />
+                <WhaleTimelineChart transfers={filteredData.transfers} threshold={parseInt(threshold)} tokenSymbol={activeToken.symbol} />
               </div>
               <div>
-                <ExchangeFlowChart transfers={filteredData.transfers} days={days} />
+                <ExchangeFlowChart transfers={filteredData.transfers} days={days} tokenSymbol={activeToken.symbol} />
               </div>
             </div>
           )}
@@ -770,11 +817,11 @@ export default function TokenAnalytics() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-gray-50 rounded-lg p-4">
                     <p className="text-sm text-gray-600">Transferencia Promedio</p>
-                    <p className="text-xl font-semibold">{formatNumber(data.statistics.averageTransferSize)} VTN</p>
+                    <p className="text-xl font-semibold">{formatNumber(data.statistics.averageTransferSize)} {activeToken.symbol}</p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-4">
                     <p className="text-sm text-gray-600">Umbral para Grandes Transferencias</p>
-                    <p className="text-xl font-semibold">{formatNumber(data.statistics.largeTransferThreshold)} VTN</p>
+                    <p className="text-xl font-semibold">{formatNumber(data.statistics.largeTransferThreshold)} {activeToken.symbol}</p>
                   </div>
                 </div>
               </div>
@@ -821,7 +868,7 @@ export default function TokenAnalytics() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold">
-                              {formatNumber(holder.balance)} VTN
+                              {formatNumber(holder.balance)} {activeToken.symbol}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">
                               {holder.percentage}%
@@ -840,7 +887,7 @@ export default function TokenAnalytics() {
           {activeTab === 'whales' && (
             <div>
               <h3 className="text-lg font-semibold mb-4">
-                Transferencias Grandes (≥ {formatNumber(threshold)} VTN)
+                Transferencias Grandes (≥ {formatNumber(threshold)} {activeToken.symbol})
               </h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -910,7 +957,7 @@ export default function TokenAnalytics() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right">
                             <span className="font-semibold text-orange-600">
-                              {formatNumber(transfer.valueFormatted)} VTN
+                              {formatNumber(transfer.valueFormatted)} {activeToken.symbol}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -994,7 +1041,7 @@ export default function TokenAnalytics() {
                             {savedName || holder.label || '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
-                            {formatNumber(holder.balance)} VTN
+                            {formatNumber(holder.balance)} {activeToken.symbol}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">
                             {holder.percentage}%
@@ -1047,7 +1094,7 @@ export default function TokenAnalytics() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <span className={`font-semibold ${transfer.isLargeTransfer ? 'text-orange-600' : 'text-gray-900'}`}>
-                            {formatNumber(transfer.valueFormatted)} VTN
+                            {formatNumber(transfer.valueFormatted)} {activeToken.symbol}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
