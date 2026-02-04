@@ -10,7 +10,7 @@ import { prisma } from '@/lib/db';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const tenantContext = await getTenantContext();
 
@@ -18,7 +18,7 @@ export async function GET(
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
-  const tokenId = params.id;
+  const { id: tokenId } = await params;
 
   // Verificar que el token pertenece a la organización
   const token = await prisma.token.findFirst({
@@ -45,8 +45,8 @@ export async function GET(
     where.isActive = activeFilter === 'true';
   }
 
-  // Obtener vesting contracts
-  const vestingContracts = await prisma.vestingContract.findMany({
+  // Obtener contratos (vesting, staking, etc.)
+  const contracts = await prisma.contract.findMany({
     where,
     orderBy: {
       createdAt: 'desc'
@@ -54,8 +54,8 @@ export async function GET(
   });
 
   return NextResponse.json({
-    contracts: vestingContracts,
-    total: vestingContracts.length
+    contracts,
+    total: contracts.length
   });
 }
 
@@ -66,7 +66,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const tenantContext = await getTenantContext();
 
@@ -74,7 +74,7 @@ export async function POST(
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
-  const tokenId = params.id;
+  const { id: tokenId } = await params;
 
   // Verificar que el token pertenece a la organización
   const token = await prisma.token.findFirst({
@@ -126,8 +126,13 @@ export async function POST(
     );
   }
 
+  // Validar category contra el enum ContractCategory
+  const validCategories = ['VESTING', 'STAKING', 'LIQUIDITY', 'DAO', 'TREASURY', 'MARKETING', 'TEAM', 'OTHER'] as const;
+  const categoryValue = category?.trim()?.toUpperCase() || 'OTHER';
+  const contractCategory = validCategories.includes(categoryValue) ? categoryValue : 'OTHER';
+
   // Verificar que no exista duplicado
-  const existing = await prisma.vestingContract.findFirst({
+  const existing = await prisma.contract.findFirst({
     where: {
       tokenId,
       address: address.toLowerCase(),
@@ -137,26 +142,26 @@ export async function POST(
 
   if (existing) {
     return NextResponse.json(
-      { error: 'Ya existe un vesting contract con esta dirección y red para este token' },
+      { error: 'Ya existe un contrato con esta dirección y red para este token' },
       { status: 409 }
     );
   }
 
-  // Crear el vesting contract
-  const vestingContract = await prisma.vestingContract.create({
+  // Crear el contrato
+  const newContract = await prisma.contract.create({
     data: {
       tokenId,
       name: name.trim(),
       address: address.toLowerCase(),
       network,
-      category: category?.trim() || null,
+      category: contractCategory,
       description: description?.trim() || null,
       createdBy: tenantContext.userId
     }
   });
 
   return NextResponse.json({
-    message: 'Vesting contract creado correctamente',
-    contract: vestingContract
+    message: 'Contrato creado correctamente',
+    contract: newContract
   }, { status: 201 });
 }

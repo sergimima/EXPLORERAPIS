@@ -588,7 +588,7 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
                     });
                     
                     return (
-                      <tfoot className="bg-gray-100 font-medium">
+                      <tfoot className="bg-gray-100 dark:bg-gray-700 font-medium">
                         <tr>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <strong>TOTALES DEL CONTRATO</strong>

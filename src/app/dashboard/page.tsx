@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Network } from '@/lib/types';
 import dynamic from 'next/dynamic';
@@ -13,6 +14,7 @@ import VestingInfo from '@/components/VestingInfo';
 import VestingSummary from '@/components/VestingSummary';
 import AirdropAssignments from '@/components/AirdropAssignments';
 import VestingContractList from '../explorer/vestings/components/VestingContractList';
+import TokenOverview from '@/components/TokenOverview';
 import { fetchTokenTransfers, CustomApiKeys } from '@/lib/blockchain';
 import { clearWalletCache } from '@/actions/wallet';
 import { useToken, type TokenData } from '@/contexts/TokenContext';
@@ -29,9 +31,9 @@ const AnalyticsContent = dynamic(
   { ssr: false, loading: () => <div className="text-center py-8">Cargando Analytics...</div> }
 );
 
-export default function UnifiedExplorer() {
+function UnifiedExplorerContent() {
   const searchParams = useSearchParams();
-  const { activeToken } = useToken();
+  const { activeToken, setActiveTokenId, tokens } = useToken();
 
   // Estado principal
   const [activeTab, setActiveTab] = useState<'tokens' | 'vestings' | 'analytics'>('tokens');
@@ -39,6 +41,14 @@ export default function UnifiedExplorer() {
   const [network, setNetwork] = useState<Network>('base');
   const [tokenFilter, setTokenFilter] = useState<string>('');
   const [contractAddress, setContractAddress] = useState('');
+
+  // Restaurar wallet desde localStorage al cargar
+  useEffect(() => {
+    const savedWallet = localStorage.getItem('lastSearchedWallet');
+    if (savedWallet) {
+      setWallet(savedWallet);
+    }
+  }, []);
   const [showContractDetails, setShowContractDetails] = useState(false);
 
   // Helper para obtener custom API keys del token activo
@@ -54,10 +64,16 @@ export default function UnifiedExplorer() {
     };
   };
 
-  // Leer parámetros URL al cargar (soportar redirecciones desde /explorer/tokens)
+  // Leer parámetros URL al cargar (soportar redirecciones desde settings, explorer)
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     const walletParam = searchParams.get('wallet');
+    const tokenParam = searchParams.get('token');
+
+    // Cambiar token activo si viene en URL (ej: desde "Ir al dashboard" en settings)
+    if (tokenParam && tokens.some((t: { id: string }) => t.id === tokenParam)) {
+      setActiveTokenId(tokenParam);
+    }
 
     // Setear tab si viene en URL
     if (tabParam && (tabParam === 'tokens' || tabParam === 'vestings' || tabParam === 'analytics')) {
@@ -75,7 +91,17 @@ export default function UnifiedExplorer() {
         }
       }, 100);
     }
-  }, [searchParams]);
+  }, [searchParams, tokens, setActiveTokenId]);
+
+  // Actualizar URL cuando cambia el tab activo
+  useEffect(() => {
+    const currentTab = searchParams.get('tab');
+    if (currentTab !== activeTab) {
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('tab', activeTab);
+      window.history.pushState({}, '', newUrl.toString());
+    }
+  }, [activeTab]);
 
   // Estados para la sección de tokens
   const [transfers, setTransfers] = useState<any[]>([]);
@@ -111,7 +137,7 @@ export default function UnifiedExplorer() {
   });
 
   const [searchCount, setSearchCount] = useState<number>(0);
-  const [tokenSubTab, setTokenSubTab] = useState<string>('balance');
+  const [tokenSubTab, setTokenSubTab] = useState<string>('wallet');
 
   // Función para buscar datos de tokens
   const handleTokenSearch = async () => {
@@ -176,6 +202,9 @@ export default function UnifiedExplorer() {
         });
 
       await Promise.all([transfersPromise, balancesPromise, airdropsPromise]);
+      
+      // Guardar wallet en localStorage para restaurarla la próxima vez
+      localStorage.setItem('lastSearchedWallet', wallet);
     } catch (err) {
       setError('Error al obtener los datos. Por favor, inténtalo de nuevo.');
       console.error("Error general:", err);
@@ -345,14 +374,14 @@ export default function UnifiedExplorer() {
       <h1 className="text-4xl font-bold mb-8">Blockchain Explorer Dashboard</h1>
 
       {/* Navegación Principal por Tabs */}
-      <div className="bg-white rounded-lg shadow-md mb-6">
-        <div className="border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-6">
+        <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="flex space-x-8 px-6" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('tokens')}
               className={`py-4 px-1 border-b-2 font-medium text-lg transition-colors ${activeTab === 'tokens'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:border-gray-600'
                 }`}
             >
               🪙 Tokens & Balances
@@ -361,7 +390,7 @@ export default function UnifiedExplorer() {
               onClick={() => setActiveTab('vestings')}
               className={`py-4 px-1 border-b-2 font-medium text-lg transition-colors ${activeTab === 'vestings'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:border-gray-600'
                 }`}
             >
               🔒 Vesting Contracts
@@ -370,7 +399,7 @@ export default function UnifiedExplorer() {
               onClick={() => setActiveTab('analytics')}
               className={`py-4 px-1 border-b-2 font-medium text-lg transition-colors ${activeTab === 'analytics'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:border-gray-600'
                 }`}
             >
               📊 Analytics
@@ -382,8 +411,15 @@ export default function UnifiedExplorer() {
       {/* Contenido según el tab activo */}
       {activeTab === 'tokens' && (
         <div>
+          {/* Overview - Solo mostrar si no se ha buscado nada aún */}
+          {searchCount === 0 && (
+            <div className="mb-8">
+              <TokenOverview network={network} />
+            </div>
+          )}
+
           {/* Controles de búsqueda */}
-          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <WalletInput value={wallet} onChange={setWallet} />
               <NetworkSelector value={network} onChange={setNetwork} />
@@ -407,7 +443,7 @@ export default function UnifiedExplorer() {
 
             {isLoading && (
               <div className="mt-4 mb-4">
-                <p className="text-sm text-gray-600 mb-2">Cargando datos... ({Math.round(loadingProgress)}%)</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Cargando datos... ({Math.round(loadingProgress)}%)</p>
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
                   <div
                     className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
@@ -418,91 +454,84 @@ export default function UnifiedExplorer() {
             )}
           </div>
 
-          {/* Sub-tabs para diferentes vistas de tokens */}
-          <div className="bg-white rounded-lg shadow-md">
-            <div className="border-b border-gray-200">
+          {/* Sub-tabs simplificados (3 en lugar de 5) */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+            <div className="border-b border-gray-200 dark:border-gray-700">
               <nav className="flex space-x-8 px-6" aria-label="Token tabs">
                 <button
-                  onClick={() => setTokenSubTab('balance')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'balance'
+                  onClick={() => setTokenSubTab('wallet')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'wallet'
                     ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:border-gray-600'
                     }`}
                 >
-                  Balance de Tokens
-                </button>
-                <button
-                  onClick={() => setTokenSubTab('transfers')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'transfers'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                >
-                  Transferencias
+                  👛 Wallet
                 </button>
                 <button
                   onClick={() => setTokenSubTab('vesting')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'vesting'
                     ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:border-gray-600'
                     }`}
                 >
-                  Información de Vesting
-                </button>
-                <button
-                  onClick={() => setTokenSubTab('vestingSummary')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'vestingSummary'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                >
-                  Resumen de Vesting
+                  🔒 Vesting
                 </button>
                 <button
                   onClick={() => setTokenSubTab('airdrops')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'airdrops'
                     ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:border-gray-600'
                     }`}
                 >
-                  Airdrops
+                  🎁 Airdrops
                 </button>
               </nav>
             </div>
 
             <div className="p-6">
-              {tokenSubTab === 'balance' && (
-                <TokenBalance
-                  walletAddress={wallet}
-                  network={network}
-                  isLoading={loadingStates.balances}
-                  searchTriggered={searchCount}
-                  preloadedData={dataFetched.balances ? tokenBalances : undefined}
-                />
+              {/* Tab "Wallet" - Balance + Transferencias en una sola vista */}
+              {tokenSubTab === 'wallet' && (
+                <div className="space-y-6">
+                  <TokenBalance
+                    walletAddress={wallet}
+                    network={network}
+                    isLoading={loadingStates.balances}
+                    searchTriggered={searchCount}
+                    preloadedData={dataFetched.balances ? tokenBalances : undefined}
+                  />
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4">Historial de Transferencias</h3>
+                    <TokenTransfersList
+                      transfers={transfers}
+                      isLoading={loadingStates.transfers}
+                      onAddressClick={handleAddressClick}
+                      onRefresh={handleRefreshTransfers}
+                      onClearCache={handleClearCache}
+                    />
+                  </div>
+                </div>
               )}
-              {tokenSubTab === 'transfers' && (
-                <TokenTransfersList
-                  transfers={transfers}
-                  isLoading={loadingStates.transfers}
-                  onAddressClick={handleAddressClick}
-                  onRefresh={handleRefreshTransfers}
-                  onClearCache={handleClearCache}
-                />
-              )}
+
+              {/* Tab "Vesting" - Información + Resumen integrados */}
               {tokenSubTab === 'vesting' && (
-                <VestingInfo
-                  walletAddress={wallet}
-                  network={network}
-                  isLoading={loadingStates.vesting}
-                  searchTriggered={searchCount}
-                  preloadedData={dataFetched.vesting ? vestingSchedules : undefined}
-                />
+                <div className="space-y-6">
+                  <VestingInfo
+                    walletAddress={wallet}
+                    network={network}
+                    isLoading={loadingStates.vesting}
+                    searchTriggered={searchCount}
+                    preloadedData={dataFetched.vesting ? vestingSchedules : undefined}
+                  />
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4">Resumen de Contratos de Vesting</h3>
+                    <VestingSummary
+                      network={network}
+                    />
+                  </div>
+                </div>
               )}
-              {tokenSubTab === 'vestingSummary' && (
-                <VestingSummary
-                  network={network}
-                />
-              )}
+
+              {/* Tab "Airdrops" - Sin cambios */}
               {tokenSubTab === 'airdrops' && (
                 <AirdropAssignments
                   walletAddress={wallet}
@@ -536,17 +565,27 @@ export default function UnifiedExplorer() {
               }}
             />
           ) : (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
-              <p className="text-yellow-800">
-                No hay un token activo seleccionado. Por favor, selecciona un token primero.
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 mb-8 text-center">
+              <div className="text-5xl mb-4">🪙</div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No hay ningún token configurado
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 mb-4">
+                Añade tu primer token ERC20 para empezar a analizar vestings, holders y transferencias
               </p>
+              <a
+                href="/settings/tokens"
+                className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              >
+                Añadir Token en Settings
+              </a>
             </div>
           )}
 
           {/* Campo para ingresar dirección de contrato manualmente */}
-          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
             <div className="mb-6">
-              <label htmlFor="contract-address" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="contract-address" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Dirección del Contrato de Vesting
               </label>
               <div className="flex gap-2">
@@ -559,19 +598,15 @@ export default function UnifiedExplorer() {
                     setShowContractDetails(false);
                   }}
                   placeholder="0x..."
-                  className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
                 />
               </div>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Ingresa la dirección del contrato de vesting para ver su estado.
               </p>
               <div className="mt-4">
                 <button
-                  onClick={() => {
-                    console.log("🔍 Botón 'Buscar Contrato' clickeado. Dirección:", contractAddress);
-                    setShowContractDetails(true);
-                    console.log("✅ showContractDetails establecido a true");
-                  }}
+                  onClick={() => setShowContractDetails(true)}
                   disabled={!contractAddress}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
@@ -580,15 +615,6 @@ export default function UnifiedExplorer() {
               </div>
             </div>
           </div>
-
-
-          {(() => {
-            console.log("🔍 Debug VestingSummary:");
-            console.log("  - showContractDetails:", showContractDetails);
-            console.log("  - contractAddress:", contractAddress);
-            console.log("  - Condición cumplida:", showContractDetails && contractAddress);
-            return null;
-          })()}
 
           {showContractDetails && contractAddress && (
             <div className="mt-8">
@@ -608,5 +634,21 @@ export default function UnifiedExplorer() {
         </div>
       )}
     </div>
+  );
+}
+
+
+export default function UnifiedExplorer() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Cargando Dashboard...</p>
+        </div>
+      </div>
+    }>
+      <UnifiedExplorerContent />
+    </Suspense>
   );
 }

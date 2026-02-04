@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const tenantContext = await getTenantContext();
 
@@ -16,7 +16,7 @@ export async function GET(
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
-  const tokenId = params.id;
+  const { id: tokenId } = await params;
 
   // Verificar que el token pertenece a la organización
   const token = await prisma.token.findFirst({
@@ -41,16 +41,24 @@ export async function GET(
   });
 
   return NextResponse.json({
-    abis: abis.map(abi => ({
-      id: abi.id,
-      contractAddress: abi.contractAddress,
-      network: abi.network,
-      source: abi.source,
-      createdAt: abi.createdAt,
-      updatedAt: abi.updatedAt,
-      // No incluir el ABI completo por defecto (puede ser muy grande)
-      hasAbi: true
-    }))
+    abis: abis.map(abi => {
+      // Calcular contadores de métodos y eventos
+      const abiArray = Array.isArray(abi.abi) ? abi.abi : [];
+      const methodCount = abiArray.filter((item: any) => item.type === 'function').length;
+      const eventCount = abiArray.filter((item: any) => item.type === 'event').length;
+
+      return {
+        id: abi.id,
+        contractAddress: abi.contractAddress,
+        network: abi.network,
+        source: abi.source,
+        createdAt: abi.createdAt,
+        updatedAt: abi.updatedAt,
+        abi: abi.abi, // Incluir ABI completo
+        methodCount,
+        eventCount
+      };
+    })
   });
 }
 
@@ -60,7 +68,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const tenantContext = await getTenantContext();
 
@@ -68,7 +76,7 @@ export async function POST(
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
-  const tokenId = params.id;
+  const { id: tokenId } = await params;
 
   // Verificar que el token pertenece a la organización
   const token = await prisma.token.findFirst({
@@ -89,7 +97,7 @@ export async function POST(
     return NextResponse.json({ error: 'Body inválido' }, { status: 400 });
   }
 
-  const { contractAddress, network, abi, source = 'UPLOADED' } = body;
+  const { contractAddress, network, abi, source = 'UPLOADED', autoDetect } = body;
 
   // Validar campos requeridos
   if (!contractAddress) {
@@ -106,22 +114,48 @@ export async function POST(
     );
   }
 
-  // Validar que abi sea un array válido
-  if (!abi || !Array.isArray(abi)) {
-    return NextResponse.json(
-      { error: 'El campo "abi" debe ser un array válido' },
-      { status: 400 }
-    );
-  }
+  let finalAbi = abi;
+  let finalSource = source;
 
-  // Validar formato básico del ABI
-  try {
-    JSON.stringify(abi);
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'El ABI no es un JSON válido' },
-      { status: 400 }
-    );
+  // Si autoDetect está activo, obtener ABI desde BaseScan
+  if (autoDetect) {
+    try {
+      const { getContractABI } = await import('@/lib/blockchain');
+      const detectedAbi = await getContractABI(contractAddress, network);
+
+      if (!detectedAbi || !Array.isArray(detectedAbi)) {
+        return NextResponse.json(
+          { error: 'No se pudo detectar el ABI desde BaseScan' },
+          { status: 400 }
+        );
+      }
+
+      finalAbi = detectedAbi;
+      finalSource = 'BASESCAN';
+    } catch (error: any) {
+      return NextResponse.json(
+        { error: `Error al detectar ABI: ${error.message}` },
+        { status: 500 }
+      );
+    }
+  } else {
+    // Validar que abi sea un array válido (solo si no es autoDetect)
+    if (!finalAbi || !Array.isArray(finalAbi)) {
+      return NextResponse.json(
+        { error: 'El campo "abi" debe ser un array válido' },
+        { status: 400 }
+      );
+    }
+
+    // Validar formato básico del ABI
+    try {
+      JSON.stringify(finalAbi);
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'El ABI no es un JSON válido' },
+        { status: 400 }
+      );
+    }
   }
 
   // Normalizar dirección
@@ -140,14 +174,19 @@ export async function POST(
       tokenId: token.id,
       contractAddress: normalizedAddress,
       network,
-      abi,
-      source
+      abi: finalAbi,
+      source: finalSource
     },
     update: {
-      abi,
-      source
+      abi: finalAbi,
+      source: finalSource
     }
   });
+
+  // Calcular contadores
+  const abiArray = Array.isArray(customAbi.abi) ? customAbi.abi : [];
+  const methodCount = abiArray.filter((item: any) => item.type === 'function').length;
+  const eventCount = abiArray.filter((item: any) => item.type === 'event').length;
 
   return NextResponse.json({
     message: 'ABI guardado correctamente',
@@ -157,7 +196,9 @@ export async function POST(
       network: customAbi.network,
       source: customAbi.source,
       createdAt: customAbi.createdAt,
-      updatedAt: customAbi.updatedAt
+      updatedAt: customAbi.updatedAt,
+      methodCount,
+      eventCount
     }
   });
 }

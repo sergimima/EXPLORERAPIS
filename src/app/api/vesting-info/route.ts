@@ -37,11 +37,12 @@ export async function GET(request: NextRequest) {
     console.log(`[vesting-info] Fetching vesting info for wallet ${walletAddress}, force=${forceRefresh}`);
 
     // Fetch active vesting contracts from database
-    const vestingContracts = await prisma.vestingContract.findMany({
+    const vestingContracts = await prisma.contract.findMany({
       where: {
         tokenId,
         network,
-        isActive: true
+        isActive: true,
+        category: 'VESTING'
       },
       orderBy: {
         createdAt: 'asc'

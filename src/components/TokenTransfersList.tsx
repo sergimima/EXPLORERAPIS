@@ -29,7 +29,7 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
         <div className="flex justify-center items-center h-40">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
@@ -39,7 +39,7 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
 
   if (transfers.length === 0) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Transferencias de Tokens</h2>
           <div className="flex space-x-2">
@@ -75,7 +75,7 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md overflow-x-auto">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Transferencias de Tokens</h2>
         <div className="flex space-x-2">
@@ -108,7 +108,7 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tx Hash</th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200">
           {transfers.map((transfer, index) => (
             <tr key={index}>
               <td className="px-6 py-4 whitespace-nowrap">

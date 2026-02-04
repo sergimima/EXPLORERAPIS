@@ -109,7 +109,7 @@ async function main() {
   for (const contract of VOTTUN_VESTING_CONTRACTS) {
     try {
       // Verificar si ya existe
-      const existing = await prisma.vestingContract.findFirst({
+      const existing = await prisma.contract.findFirst({
         where: {
           tokenId: vtnToken.id,
           address: contract.address.toLowerCase(),
@@ -124,13 +124,13 @@ async function main() {
       }
 
       // Crear el contrato
-      await prisma.vestingContract.create({
+      await prisma.contract.create({
         data: {
           tokenId: vtnToken.id,
           name: contract.name,
           address: contract.address.toLowerCase(),
           network: 'base',
-          category: contract.category,
+          category: 'VESTING', // Usar el enum ContractCategory
           description: contract.description,
           isActive: true
         }

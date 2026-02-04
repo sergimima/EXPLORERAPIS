@@ -170,7 +170,7 @@ export default function AdvancedFilters({
                       amountRange: { ...filters.amountRange, min: e.target.value },
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 />
               </div>
               <div>
@@ -183,7 +183,7 @@ export default function AdvancedFilters({
                       amountRange: { ...filters.amountRange, max: e.target.value },
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 />
               </div>
             </div>
@@ -204,7 +204,7 @@ export default function AdvancedFilters({
                       dateRange: { ...filters.dateRange, from: e.target.value },
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 />
               </div>
               <div>
@@ -216,7 +216,7 @@ export default function AdvancedFilters({
                       dateRange: { ...filters.dateRange, to: e.target.value },
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 />
               </div>
             </div>
@@ -249,7 +249,7 @@ export default function AdvancedFilters({
                 value={newExcludedAddress}
                 onChange={(e) => setNewExcludedAddress(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addExcludedAddress()}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono"
               />
               <button
                 onClick={addExcludedAddress}

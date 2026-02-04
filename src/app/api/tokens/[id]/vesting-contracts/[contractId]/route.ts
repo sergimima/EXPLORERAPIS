@@ -9,7 +9,7 @@ import { prisma } from '@/lib/db';
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; contractId: string } }
+  { params }: { params: Promise<{ id: string; contractId: string }> }
 ) {
   const tenantContext = await getTenantContext();
 
@@ -17,8 +17,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
-  const tokenId = params.id;
-  const contractId = params.contractId;
+  const { id: tokenId, contractId } = await params;
 
   // Verificar que el token pertenece a la organización
   const token = await prisma.token.findFirst({
@@ -32,8 +31,8 @@ export async function PATCH(
     return NextResponse.json({ error: 'Token no encontrado' }, { status: 404 });
   }
 
-  // Verificar que el vesting contract existe y pertenece al token
-  const existingContract = await prisma.vestingContract.findFirst({
+  // Verificar que el contrato existe y pertenece al token
+  const existingContract = await prisma.contract.findFirst({
     where: {
       id: contractId,
       tokenId
@@ -42,7 +41,7 @@ export async function PATCH(
 
   if (!existingContract) {
     return NextResponse.json(
-      { error: 'Vesting contract no encontrado' },
+      { error: 'Contrato no encontrado' },
       { status: 404 }
     );
   }
@@ -80,7 +79,9 @@ export async function PATCH(
   }
 
   if (category !== undefined) {
-    updateData.category = category?.trim() || null;
+    const validCategories = ['VESTING', 'STAKING', 'LIQUIDITY', 'DAO', 'TREASURY', 'MARKETING', 'TEAM', 'OTHER'] as const;
+    const categoryValue = category?.trim()?.toUpperCase() || 'OTHER';
+    updateData.category = validCategories.includes(categoryValue) ? categoryValue : 'OTHER';
   }
 
   if (description !== undefined) {
@@ -95,8 +96,8 @@ export async function PATCH(
     );
   }
 
-  // Actualizar el vesting contract
-  const updatedContract = await prisma.vestingContract.update({
+  // Actualizar el contrato
+  const updatedContract = await prisma.contract.update({
     where: {
       id: contractId
     },
@@ -104,18 +105,18 @@ export async function PATCH(
   });
 
   return NextResponse.json({
-    message: 'Vesting contract actualizado correctamente',
+    message: 'Contrato actualizado correctamente',
     contract: updatedContract
   });
 }
 
 /**
  * DELETE /api/tokens/[id]/vesting-contracts/[contractId]
- * Eliminar un vesting contract
+ * Eliminar un contrato
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; contractId: string } }
+  { params }: { params: Promise<{ id: string; contractId: string }> }
 ) {
   const tenantContext = await getTenantContext();
 
@@ -123,8 +124,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
-  const tokenId = params.id;
-  const contractId = params.contractId;
+  const { id: tokenId, contractId } = await params;
 
   // Verificar que el token pertenece a la organización
   const token = await prisma.token.findFirst({
@@ -138,8 +138,8 @@ export async function DELETE(
     return NextResponse.json({ error: 'Token no encontrado' }, { status: 404 });
   }
 
-  // Verificar que el vesting contract existe y pertenece al token
-  const existingContract = await prisma.vestingContract.findFirst({
+  // Verificar que el contrato existe y pertenece al token
+  const existingContract = await prisma.contract.findFirst({
     where: {
       id: contractId,
       tokenId
@@ -148,13 +148,13 @@ export async function DELETE(
 
   if (!existingContract) {
     return NextResponse.json(
-      { error: 'Vesting contract no encontrado' },
+      { error: 'Contrato no encontrado' },
       { status: 404 }
     );
   }
 
-  // Eliminar el vesting contract
-  await prisma.vestingContract.delete({
+  // Eliminar el contrato
+  await prisma.contract.delete({
     where: {
       id: contractId
     }

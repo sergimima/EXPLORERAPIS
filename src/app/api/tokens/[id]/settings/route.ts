@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const tenantContext = await getTenantContext();
 
@@ -12,7 +12,7 @@ export async function PUT(
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
-  const tokenId = params.id;
+  const { id: tokenId } = await params;
   const settings = await request.json();
 
   // Verificar que el token pertenece a la org

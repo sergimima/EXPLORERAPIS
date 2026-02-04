@@ -1,4 +1,5 @@
 'use client';
+import { useTheme } from '@/components/ThemeProvider';
 
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ZAxis } from 'recharts';
 

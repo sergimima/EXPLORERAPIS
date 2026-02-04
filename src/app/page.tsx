@@ -38,7 +38,7 @@ export default function Home() {
             <div className="w-full h-full p-6 bg-[#0A0B0D]/50 backdrop-blur-md rounded-2xl flex items-center justify-center">
               <div className="text-center">
                 <div className="text-4xl mb-2">📊</div>
-                <div className="text-sm text-[#A78BFA]">Token Analytics</div>
+                <div className="text-sm text-[#A78BFA]">TokenLens</div>
               </div>
             </div>
           </div>
@@ -244,7 +244,7 @@ export default function Home() {
               <div className="w-12 h-12 flex items-center justify-center bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] rounded-xl shadow-lg shadow-[#6366F1]/30">
                 <span className="text-[28px]">📊</span>
               </div>
-              <h3 className="text-2xl font-bold">Token Analytics</h3>
+              <h3 className="text-2xl font-bold">TokenLens Analytics</h3>
               <p className="text-[15px] text-[#9CA3AF] leading-[1.6]">
                 Real-time tracking of token balances, transfers, and supply metrics across Base network.
               </p>

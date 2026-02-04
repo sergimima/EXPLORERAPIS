@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; abiId: string } }
+  { params }: { params: Promise<{ id: string; abiId: string }> }
 ) {
   const tenantContext = await getTenantContext();
 
@@ -16,7 +16,7 @@ export async function GET(
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
-  const { id: tokenId, abiId } = params;
+  const { id: tokenId, abiId } = await params;
 
   // Verificar que el token pertenece a la organización
   const token = await prisma.token.findFirst({
@@ -59,7 +59,7 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; abiId: string } }
+  { params }: { params: Promise<{ id: string; abiId: string }> }
 ) {
   const tenantContext = await getTenantContext();
 
@@ -67,7 +67,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
-  const { id: tokenId, abiId } = params;
+  const { id: tokenId, abiId } = await params;
 
   // Verificar que el token pertenece a la organización
   const token = await prisma.token.findFirst({
@@ -111,7 +111,7 @@ export async function DELETE(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; abiId: string } }
+  { params }: { params: Promise<{ id: string; abiId: string }> }
 ) {
   const tenantContext = await getTenantContext();
 
@@ -119,7 +119,7 @@ export async function PUT(
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
-  const { id: tokenId, abiId } = params;
+  const { id: tokenId, abiId } = await params;
 
   // Verificar que el token pertenece a la organización
   const token = await prisma.token.findFirst({

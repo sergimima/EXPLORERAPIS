@@ -1,6 +1,7 @@
 'use client';
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
+import { useTheme } from '@/components/ThemeProvider';
 
 interface TokenTransfer {
   hash: string;
@@ -31,6 +32,9 @@ function isExchange(address: string): boolean {
 }
 
 export default function ExchangeFlowChart({ transfers, days, tokenSymbol = 'tokens' }: ExchangeFlowChartProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   // Agrupar por día y calcular net flow
   const flowByDay = new Map<string, number>();
 
@@ -70,12 +74,12 @@ export default function ExchangeFlowChart({ transfers, days, tokenSymbol = 'toke
       const data = payload[0].payload;
       const netFlow = data.netFlow;
       return (
-        <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
-          <p className="font-semibold text-gray-900">{data.displayDate}</p>
-          <p className={`text-sm font-medium ${netFlow > 0 ? 'text-red-600' : 'text-green-600'}`}>
+        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+          <p className="font-semibold text-gray-900 dark:text-gray-100">{data.displayDate}</p>
+          <p className={`text-sm font-medium ${netFlow > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
             {netFlow > 0 ? '↑' : '↓'} {Math.abs(netFlow).toLocaleString()} {tokenSymbol}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-400">
             {netFlow > 0 ? 'Entrando a exchanges' : 'Saliendo de exchanges'}
           </p>
         </div>
@@ -92,15 +96,15 @@ export default function ExchangeFlowChart({ transfers, days, tokenSymbol = 'toke
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h3 className="text-lg font-semibold mb-4">Flujo Neto a Exchanges</h3>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+      <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Flujo Neto a Exchanges</h3>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="displayDate" />
-          <YAxis tickFormatter={formatYAxis} />
+          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#E5E7EB'} />
+          <XAxis dataKey="displayDate" stroke={isDark ? '#9CA3AF' : '#6B7280'} />
+          <YAxis tickFormatter={formatYAxis} stroke={isDark ? '#9CA3AF' : '#6B7280'} />
           <Tooltip content={<CustomTooltip />} />
-          <ReferenceLine y={0} stroke="#000" />
+          <ReferenceLine y={0} stroke={isDark ? '#6B7280' : '#000'} />
           <Bar dataKey="netFlow" radius={[8, 8, 0, 0]}>
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.netFlow > 0 ? '#EF4444' : '#10B981'} />
@@ -108,7 +112,7 @@ export default function ExchangeFlowChart({ transfers, days, tokenSymbol = 'toke
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div className="mt-4 text-sm text-gray-600">
+      <div className="mt-4 text-sm text-gray-600 dark:text-gray-300 dark:text-gray-300">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-red-500 rounded"></div>

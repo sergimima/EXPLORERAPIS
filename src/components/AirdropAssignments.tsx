@@ -200,7 +200,7 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
                 value={userEmail}
                 onChange={(e) => setUserEmail(e.target.value)}
                 placeholder="usuario@ejemplo.com"
-                className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="flex-grow px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               />
               <button
                 onClick={fetchUserByEmail}
@@ -226,7 +226,7 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
                 placeholder="Ej: 000871ee-abe0-4550-81cb-d52a4d541553"
-                className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="flex-grow px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               />
               <button
                 onClick={fetchUserById}

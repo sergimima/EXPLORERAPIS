@@ -102,40 +102,56 @@ The project uses PostgreSQL with Prisma ORM for data persistence and caching.
 
 **Data Models (Multi-Tenant Isolated):**
 
-5. **KnownAddress** - Labeled blockchain addresses
+5. **Contract** - Generic contract model (vesting, staking, liquidity, etc.)
+   - Supports any type of smart contract with categorization
+   - Categories (enum): VESTING, STAKING, LIQUIDITY, DAO, TREASURY, MARKETING, TEAM, OTHER
+   - Each contract can have a custom ABI (via CustomAbi relation)
+   - Fields: name, address, network, category, isActive, description
+   - Managed via `/settings/tokens/[id]` page
+   - **Multi-tenant**: Filtered by tokenId
+
+6. **CustomAbi** - ABIs for multiple contract addresses
+   - Supports multiple ABIs per token (one per contractAddress + network combo)
+   - Unique constraint: [tokenId, contractAddress, network]
+   - Source types: STANDARD, UPLOADED, BASESCAN
+   - Auto-detection from BaseScan API supported
+   - Includes methodCount and eventCount for each ABI
+   - **Multi-tenant**: Filtered by tokenId
+
+7. **KnownAddress** - Labeled blockchain addresses
    - Stores names and metadata for contracts, exchanges, wallets
    - Types: CONTRACT, WALLET, EXCHANGE, VESTING, TOKEN, UNKNOWN
    - Used to display friendly names throughout the UI
    - Managed via `/admin/addresses` panel
    - **Multi-tenant**: Filtered by tokenId
 
-6. **TransferCache** - Incremental transfer history cache
+8. **TransferCache** - Incremental transfer history cache
    - Stores token transfers with deduplication by hash
    - Implements incremental sync (only fetches new transfers since last timestamp)
    - Reduces API calls by ~90% after initial load
    - Indexed by tokenAddress, timestamp, and hash
    - **Multi-tenant**: Filtered by tokenId
 
-7. **HolderSnapshot** - Periodic holder snapshots
+9. **HolderSnapshot** - Periodic holder snapshots
    - Stores top holder data every 5 minutes
    - Includes balance, percentage, contract/exchange flags
    - Enables historical holder analysis
    - Indexed by tokenAddress, network, and snapshotAt
    - **Multi-tenant**: Filtered by tokenId
 
-8. **TokenSupplyCache** - Token supply information cache
-   - Caches total, circulating, and locked supply
-   - 5-minute TTL to balance freshness and API usage
-   - ⚠️ Currently using in-memory cache, migration to DB pending
-   - **Multi-tenant**: Filtered by tokenId
-
-9. **VestingCache** - Vesting contract cache
-   - **Multi-tenant**: Filtered by tokenId
-
-10. **VestingTransferCache** - Vesting transfer cache
+10. **TokenSupplyCache** - Token supply information cache
+    - Caches total, circulating, and locked supply
+    - 5-minute TTL to balance freshness and API usage
+    - Migrated to DB model (previously in-memory)
     - **Multi-tenant**: Filtered by tokenId
 
-11. **VestingBeneficiaryCache** - Vesting beneficiary cache
+11. **VestingCache** - Vesting contract cache
+    - **Multi-tenant**: Filtered by tokenId
+
+12. **VestingTransferCache** - Vesting transfer cache
+    - **Multi-tenant**: Filtered by tokenId
+
+13. **VestingBeneficiaryCache** - Vesting beneficiary cache
     - **Multi-tenant**: Filtered by tokenId
 
 **Performance Benefits:**
@@ -728,7 +744,7 @@ src/
 - `Token` - Token configuration per org
 - `OrganizationMember` - User-org relationships
 - `CustomAbi` - ABIs for tokens and contracts (tokenId + contractAddress + network)
-- `VestingContract` - Vesting contract configuration (tokenId FK)
+- `Contract` - Generic contract model supporting all types (vesting, staking, liquidity, DAO, treasury, etc.) with category enum (tokenId FK)
 - `KnownAddress` - Address labels (tokenId FK)
 - `TransferCache` - Transfer history (tokenId FK)
 - `HolderSnapshot` - Holder snapshots (tokenId FK)
@@ -822,17 +838,19 @@ npx prisma db push
 ---
 
 **Last Updated:** 2025-02-04
-**Version:** 3.6 (Sprint 2.3 Completado - Supply Configuration)
+**Version:** 3.9 (Sprint 2.5 + Settings UI Refactor)
 
 ### Sprint Status:
 - ✅ **Sprint 1.1:** NextAuth Setup (COMPLETADO)
 - ✅ **Sprint 1.2:** Tenant Context & API Isolation (COMPLETADO)
 - ✅ **Sprint 1.3:** Organization Settings (COMPLETADO)
 - ✅ **Sprint 2.1:** Token Management + Custom API Keys (COMPLETADO)
-- ✅ **Sprint 2.2:** Custom ABIs + Vesting Contracts (COMPLETADO)
+- ✅ **Sprint 2.2:** Custom ABIs + Contracts (COMPLETADO - modelo genérico con enum)
 - ✅ **Sprint 2.3:** Token Supply Custom Configuration (COMPLETADO)
-- ⏳ **Sprint 2.4:** APIs Multi-Tenant Completas (PENDIENTE - 2-3h)
-- ⏳ **Sprint 2.5:** Invitación de Miembros (PENDIENTE - 3-4h)
+- ✅ **Refactor:** VestingContract → Contract (modelo genérico para todos los tipos)
+- ✅ **Sprint 2.4:** APIs Multi-Tenant Completas (COMPLETADO)
+- ✅ **Sprint 2.5:** Invitación de Miembros (COMPLETADO)
+- ✅ **UI Refactor:** Settings con Sidebar (COMPLETADO)
 
 ### Trabajo Completado Hoy (2025-02-04):
 
@@ -890,4 +908,149 @@ npx tsx prisma/migrate-abis.ts    # Migrar ABIs
 - [src/app/settings/tokens/[id]/page.tsx](src/app/settings/tokens/[id]/page.tsx)
 - [src/app/api/tokens/[id]/abi/detect/route.ts](src/app/api/tokens/[id]/abi/detect/route.ts)
 
-**Next Sprint:** 2.4 - APIs Multi-Tenant Completas (2-3 horas)
+---
+
+**✅ Refactor: VestingContract → Contract (Generic Model)**
+
+**1. Modelo Refactorizado:**
+- ✅ `VestingContract` → `Contract` (nombre más genérico)
+- ✅ Enum `ContractCategory` creado: VESTING, STAKING, LIQUIDITY, DAO, TREASURY, MARKETING, TEAM, OTHER
+- ✅ Campo `category` ahora es tipo `ContractCategory` con default `OTHER`
+- ✅ Tabla en BD: `vesting_contracts` → `contracts`
+
+**2. Migración ejecutada:**
+- ✅ 8 contratos migrados exitosamente con categorías mapeadas
+- ✅ Frontend actualizado con dropdown de categorías
+
+**Resultado:** El sistema ahora soporta cualquier tipo de contrato (no solo vesting), todos bien organizados por categoría.
+
+---
+
+**✅ Sprint 2.4: APIs Multi-Tenant Completas (COMPLETADO - 2025-02-04)**
+
+**1. APIs Actualizadas con Tenant Context:**
+- ✅ `/api/tokens/transfers` - Validación de autenticación y acceso al token
+- ✅ `/api/search` - Filtrado por tokenId en KnownAddress, Token, y TransferCache
+- ✅ `/api/test-vtn` - Marcado como deprecated con warnings
+
+**2. Mejoras de Seguridad:**
+- Validación de tenant context en todas las APIs públicas
+- Verificación de permisos por organización
+- Filtrado de datos por tokenId para aislamiento multi-tenant
+
+**3. Deprecación:**
+- `/api/test-vtn` mantiene funcionalidad pero devuelve warning de deprecación
+- Recomendación: usar `/api/tokens/[id]` y `/api/token-analytics`
+
+**Archivos modificados:**
+- [src/app/api/tokens/transfers/route.ts](src/app/api/tokens/transfers/route.ts)
+- [src/app/api/search/route.ts](src/app/api/search/route.ts)
+- [src/app/api/test-vtn/route.ts](src/app/api/test-vtn/route.ts)
+
+---
+
+**✅ Sprint 2.5: Invitación de Miembros (COMPLETADO - 2025-02-04)**
+
+**1. Modelo Prisma:**
+- ✅ Modelo `Invitation` con relaciones a Organization y User
+- ✅ Campos: id, organizationId, email, role, token, invitedBy, expiresAt, acceptedAt, createdAt
+- ✅ Índices en token, organizationId, email
+- ✅ Migración aplicada exitosamente
+
+**2. APIs Creadas:**
+- ✅ [POST /api/organizations/invite](src/app/api/organizations/invite/route.ts) - Crear invitaciones con token único
+- ✅ [GET /api/organizations/invitations](src/app/api/organizations/invitations/route.ts) - Listar invitaciones pendientes
+- ✅ [DELETE /api/organizations/invitations/[id]](src/app/api/organizations/invitations/[id]/route.ts) - Cancelar invitaciones
+- ✅ [POST /api/invitations/[token]/accept](src/app/api/invitations/[token]/accept/route.ts) - Aceptar invitaciones
+
+**3. Servicio de Email:**
+- ✅ [src/lib/email.ts](src/lib/email.ts) - Helper para enviar emails con Resend
+- ✅ Template HTML profesional para invitaciones
+- ✅ Integración en API de invitaciones
+- ✅ Fallback graceful si no hay API key configurada
+
+**4. UI Actualizada:**
+- ✅ [src/app/settings/organization/page.tsx](src/app/settings/organization/page.tsx) - Modal de invitación completo
+- ✅ Lista de invitaciones pendientes con opción de cancelar
+- ✅ Formulario con email y selector de rol (VIEWER, MEMBER, ADMIN)
+- ✅ [src/app/invite/[token]/page.tsx](src/app/invite/[token]/page.tsx) - Página de aceptación
+- ✅ Flujo completo: crear cuenta automáticamente o agregar a organización existente
+
+**Configuración necesaria:**
+```bash
+# .env.local
+RESEND_API_KEY=re_xxxxx          # API key de Resend (opcional)
+RESEND_FROM_EMAIL=noreply@...    # Email remitente (opcional)
+```
+
+**Comandos ejecutados:**
+```bash
+npx prisma db push               # Aplicar schema con Invitation
+npx prisma generate              # Generar cliente
+npm install resend               # Instalar Resend
+```
+
+---
+
+**✅ UI Refactor: Settings con Sidebar (COMPLETADO - 2025-02-04)**
+
+**Problema:** Páginas de settings dispersas sin navegación clara. `/settings/organization` duplicaba funcionalidad.
+
+**Solución:** Reorganización completa con sidebar persistente y estructura clara.
+
+**1. Layout con Sidebar:**
+- ✅ [src/app/settings/layout.tsx](src/app/settings/layout.tsx) - Layout principal con sidebar
+- ✅ Navegación visual con iconos y descripciones
+- ✅ Items activos destacados
+- ✅ Diseño consistente con `/admin` panel
+
+**2. Estructura Final:**
+```
+/settings/
+├── layout.tsx          # Sidebar persistente
+├── page.tsx            # Redirect a /general
+│
+├── /general/           # 🏢 General Settings
+│   └── page.tsx        - Información de organización
+│                       - Nombre, slug, org ID
+│                       - Propietario
+│
+├── /members/           # 👥 Team Members
+│   └── page.tsx        - Lista de miembros activos
+│                       - Sistema de invitaciones
+│                       - Modal "Invitar Miembro"
+│                       - Invitaciones pendientes
+│
+└── /tokens/            # 🪙 Token Management
+    └── page.tsx        - Lista de tokens
+                        - Modal "Agregar Token"
+                        - Configuración de tokens
+```
+
+**3. Archivos Creados/Actualizados:**
+- ✅ [src/app/settings/layout.tsx](src/app/settings/layout.tsx) - Nuevo layout con sidebar
+- ✅ [src/app/settings/page.tsx](src/app/settings/page.tsx) - Redirect a /general
+- ✅ [src/app/settings/general/page.tsx](src/app/settings/general/page.tsx) - Info de organización
+- ✅ [src/app/settings/members/page.tsx](src/app/settings/members/page.tsx) - Miembros + invitaciones
+- ✅ [src/app/settings/tokens/page.tsx](src/app/settings/tokens/page.tsx) - Gestión de tokens (mejorado)
+- ✅ [src/components/Navbar.tsx](src/components/Navbar.tsx) - Dropdown actualizado
+- ✅ [src/app/invite/[token]/page.tsx](src/app/invite/[token]/page.tsx) - Redirect actualizado
+
+**4. Archivos Eliminados:**
+- ❌ `src/app/settings/organization/` - Eliminado (duplicado)
+
+**5. Navbar Actualizado:**
+- Settings dropdown ahora muestra:
+  - 🏢 General
+  - 👥 Members
+  - 🪙 Tokens
+- User menu link apunta a `/settings`
+
+**Acceso al Sistema de Invitaciones:**
+1. Header → Settings → 👥 Members
+2. Sidebar (cuando estés en /settings)
+3. URL directa: `/settings/members`
+
+---
+
+**Next Sprint:** Fase 4 - Integración con Stripe (6-8 horas)

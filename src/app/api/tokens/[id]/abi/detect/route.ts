@@ -9,7 +9,7 @@ import axios from 'axios';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const tenantContext = await getTenantContext();
 
@@ -17,7 +17,7 @@ export async function POST(
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
-  const tokenId = params.id;
+  const { id: tokenId } = await params;
 
   // Obtener el token con su información
   const token = await prisma.token.findFirst({

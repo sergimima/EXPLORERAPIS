@@ -128,7 +128,7 @@ export default function EditAddressModal({
                 value={formAddress}
                 onChange={(e) => setFormAddress(e.target.value)}
                 placeholder="0x..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
               />
             ) : (
               <div className="text-xs font-mono text-gray-600 bg-gray-50 p-2 rounded break-all">
@@ -147,7 +147,7 @@ export default function EditAddressModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Mi Wallet Personal"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -159,7 +159,7 @@ export default function EditAddressModal({
             <select
               value={type}
               onChange={(e) => setType(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="WALLET">Wallet</option>
               <option value="CONTRACT">Contract</option>
@@ -180,7 +180,7 @@ export default function EditAddressModal({
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder="Ej: Team, Investor, Marketing..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -194,7 +194,7 @@ export default function EditAddressModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descripción adicional..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -208,7 +208,7 @@ export default function EditAddressModal({
               value={tags}
               onChange={(e) => setTags(e.target.value)}
               placeholder="vesting, important, monitored"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -222,14 +222,14 @@ export default function EditAddressModal({
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="h-10 w-20 border border-gray-300 rounded cursor-pointer"
+                className="h-10 w-20 border border-gray-300 dark:border-gray-600 rounded cursor-pointer"
               />
               <input
                 type="text"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
                 placeholder="#3B82F6"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
               />
             </div>
           </div>

@@ -93,13 +93,13 @@ export default function GlobalSearch() {
     // Navegar según tipo
     switch (result.type) {
       case 'address':
-        router.push(`/explorer/tokens?wallet=${result.value}`);
+        router.push(`/dashboard?tab=tokens&wallet=${result.value}`);
         break;
       case 'transaction':
         window.open(`https://basescan.org/tx/${result.value}`, '_blank');
         break;
       case 'token':
-        router.push(`/explorer/analytics?token=${result.value}`);
+        router.push(`/dashboard?tab=analytics&token=${result.value}`);
         break;
     }
   };
@@ -138,11 +138,11 @@ export default function GlobalSearch() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:border-blue-500 transition-colors"
+        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 transition-colors"
       >
         <span className="text-gray-600">🔍</span>
-        <span className="text-gray-500 text-sm">Buscar...</span>
-        <kbd className="ml-auto px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded">
+        <span className="text-gray-500 dark:text-gray-400 text-sm">Buscar...</span>
+        <kbd className="ml-auto px-2 py-1 text-xs bg-gray-100 border border-gray-300 dark:border-gray-600 rounded">
           {typeof navigator !== 'undefined' && navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+K
         </kbd>
       </button>
@@ -222,9 +222,9 @@ export default function GlobalSearch() {
         {/* Footer */}
         <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
           <div className="flex gap-4">
-            <span><kbd className="px-2 py-1 bg-white border border-gray-300 rounded">↑↓</kbd> Navegar</span>
-            <span><kbd className="px-2 py-1 bg-white border border-gray-300 rounded">↵</kbd> Seleccionar</span>
-            <span><kbd className="px-2 py-1 bg-white border border-gray-300 rounded">Esc</kbd> Cerrar</span>
+            <span><kbd className="px-2 py-1 bg-white border border-gray-300 dark:border-gray-600 rounded">↑↓</kbd> Navegar</span>
+            <span><kbd className="px-2 py-1 bg-white border border-gray-300 dark:border-gray-600 rounded">↵</kbd> Seleccionar</span>
+            <span><kbd className="px-2 py-1 bg-white border border-gray-300 dark:border-gray-600 rounded">Esc</kbd> Cerrar</span>
           </div>
         </div>
       </div>

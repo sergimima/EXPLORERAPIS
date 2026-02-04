@@ -206,7 +206,7 @@ export default function AdminAddressesPage() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
@@ -218,7 +218,7 @@ export default function AdminAddressesPage() {
                 setTypeFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Todos</option>
               {types.map((type) => (
@@ -279,7 +279,7 @@ export default function AdminAddressesPage() {
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3 text-left">
                   <input
@@ -400,7 +400,7 @@ export default function AdminAddressesPage() {
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-3 py-1 bg-white border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 ← Anterior
               </button>
@@ -422,7 +422,7 @@ export default function AdminAddressesPage() {
                     className={`px-3 py-1 rounded text-sm ${
                       currentPage === pageNum
                         ? 'bg-blue-600 text-white'
-                        : 'bg-white border border-gray-300 hover:bg-gray-50'
+                        : 'bg-white border border-gray-300 dark:border-gray-600 hover:bg-gray-50'
                     }`}
                   >
                     {pageNum}
@@ -432,7 +432,7 @@ export default function AdminAddressesPage() {
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-3 py-1 bg-white border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 Siguiente →
               </button>

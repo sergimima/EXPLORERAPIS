@@ -1,4 +1,5 @@
 'use client';
+import { useTheme } from '@/components/ThemeProvider';
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 

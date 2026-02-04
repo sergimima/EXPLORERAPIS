@@ -488,7 +488,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
               value={contractAddress}
               onChange={(e) => setContractAddress(e.target.value)}
               placeholder="Dirección del contrato de vesting"
-              className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button
               onClick={handleSearch}
@@ -505,7 +505,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
       )}
       
       {summary && (
-        <div className="bg-gray-50 p-4 rounded-md mb-6">
+        <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-md mb-6">
           <h3 className="text-lg font-semibold mb-2">Información del Contrato</h3>
           {loadingBasic && (
             <div className="flex justify-center items-center my-8">
@@ -808,7 +808,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                         {summary.beneficiaries.map((beneficiary: any, index: number) => (
                           <React.Fragment key={index}>
                             {/* Fila principal del beneficiario con totales */}
-                            <tr className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b-2 border-gray-300 ${beneficiary.hasError ? 'bg-red-50' : ''} ${beneficiary.noVestings ? 'bg-yellow-50' : ''}`}>
+                            <tr className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b-2 border-gray-300 dark:border-gray-600 ${beneficiary.hasError ? 'bg-red-50' : ''} ${beneficiary.noVestings ? 'bg-yellow-50' : ''}`}>
                               <td className="py-2 px-4 font-mono text-sm font-semibold">
                                 {beneficiary.address}
                                 {beneficiary.vestings && <span className="ml-2 text-xs text-blue-500">({beneficiary.vestings.length} vestings)</span>}
@@ -867,7 +867,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                               const endTime = vesting.start && vesting.duration ? vesting.start + vesting.duration : 0;
 
                               return (
-                              <tr key={`${index}-${vestingIndex}`} className="bg-gray-100 text-sm">
+                              <tr key={`${index}-${vestingIndex}`} className="bg-gray-100 dark:bg-gray-700 text-sm">
                                 <td className="py-1 px-4 border-b pl-8 font-mono">
                                   <div className="text-gray-600">{vesting.phase || 'Sin fase'}</div>
                                   <div className="text-xs text-gray-400">ID: {vesting.scheduleId || 'N/A'}</div>

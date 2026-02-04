@@ -23,7 +23,7 @@ export default function ApiDocs() {
           <h3 className="text-lg font-medium mb-2">GET /api/tokens/transfers</h3>
           <p className="mb-2">Obtiene las transferencias de tokens para una dirección de wallet específica.</p>
           
-          <div className="bg-gray-100 p-4 rounded-md mb-4">
+          <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md mb-4">
             <h4 className="font-medium mb-2">Parámetros</h4>
             <ul className="list-disc pl-6">
               <li className="mb-1"><code className="bg-gray-200 px-1 rounded">wallet</code> - Dirección de la wallet a consultar (requerido)</li>
@@ -32,7 +32,7 @@ export default function ApiDocs() {
             </ul>
           </div>
           
-          <div className="bg-gray-100 p-4 rounded-md">
+          <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md">
             <h4 className="font-medium mb-2">Ejemplo de respuesta</h4>
             <pre className="bg-gray-800 text-green-400 p-4 rounded-md overflow-x-auto">
 {`[
@@ -65,7 +65,7 @@ export default function ApiDocs() {
           <h3 className="text-lg font-medium mb-2">GET /api/tokens/balance</h3>
           <p className="mb-2">Obtiene el balance de tokens para una dirección de wallet específica.</p>
           
-          <div className="bg-gray-100 p-4 rounded-md mb-4">
+          <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md mb-4">
             <h4 className="font-medium mb-2">Parámetros</h4>
             <ul className="list-disc pl-6">
               <li className="mb-1"><code className="bg-gray-200 px-1 rounded">wallet</code> - Dirección de la wallet a consultar (requerido)</li>
@@ -73,7 +73,7 @@ export default function ApiDocs() {
             </ul>
           </div>
           
-          <div className="bg-gray-100 p-4 rounded-md">
+          <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md">
             <h4 className="font-medium mb-2">Ejemplo de respuesta</h4>
             <pre className="bg-gray-800 text-green-400 p-4 rounded-md overflow-x-auto">
 {`[

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getTenantContext } from '@/lib/tenant-context';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,16 @@ interface SearchResult {
 
 export async function GET(request: NextRequest) {
   try {
+    // Validar tenant context
+    const tenantContext = await getTenantContext();
+
+    if (!tenantContext) {
+      return NextResponse.json(
+        { error: 'No autenticado' },
+        { status: 401 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
 
@@ -21,17 +32,23 @@ export async function GET(request: NextRequest) {
 
     const results: SearchResult[] = [];
     const queryLower = query.toLowerCase().trim();
+    const tokenId = tenantContext.activeToken?.id;
 
-    // 1. Buscar en KnownAddress (direcciones etiquetadas)
+    // 1. Buscar en KnownAddress (direcciones etiquetadas) - filtrado por tokenId
     try {
       const knownAddresses = await prisma.knownAddress.findMany({
         where: {
-          OR: [
-            { address: { contains: queryLower, mode: 'insensitive' } },
-            { name: { contains: queryLower, mode: 'insensitive' } },
-            { description: { contains: queryLower, mode: 'insensitive' } },
-            { category: { contains: queryLower, mode: 'insensitive' } },
-          ],
+          AND: [
+            { tokenId: tokenId },
+            {
+              OR: [
+                { address: { contains: queryLower, mode: 'insensitive' } },
+                { name: { contains: queryLower, mode: 'insensitive' } },
+                { description: { contains: queryLower, mode: 'insensitive' } },
+                { category: { contains: queryLower, mode: 'insensitive' } },
+              ],
+            }
+          ]
         },
         take: 5,
       });
@@ -80,14 +97,19 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 4. Buscar tokens conocidos en la base de datos
+    // 4. Buscar tokens de la organización
     try {
       const tokens = await prisma.token.findMany({
         where: {
-          OR: [
-            { address: { contains: queryLower, mode: 'insensitive' } },
-            { symbol: { contains: queryLower, mode: 'insensitive' } },
-          ],
+          AND: [
+            { organizationId: tenantContext.organizationId },
+            {
+              OR: [
+                { address: { contains: queryLower, mode: 'insensitive' } },
+                { symbol: { contains: queryLower, mode: 'insensitive' } },
+              ],
+            }
+          ]
         },
         take: 3,
       });
@@ -104,14 +126,19 @@ export async function GET(request: NextRequest) {
       console.error('Error buscando tokens:', error);
     }
 
-    // 5. Buscar en TransferCache (direcciones que han hecho transfers)
+    // 5. Buscar en TransferCache (direcciones que han hecho transfers) - filtrado por tokenId
     try {
       const transferAddresses = await prisma.transferCache.findMany({
         where: {
-          OR: [
-            { from: { contains: queryLower, mode: 'insensitive' } },
-            { to: { contains: queryLower, mode: 'insensitive' } },
-          ],
+          AND: [
+            { tokenId: tokenId },
+            {
+              OR: [
+                { from: { contains: queryLower, mode: 'insensitive' } },
+                { to: { contains: queryLower, mode: 'insensitive' } },
+              ],
+            }
+          ]
         },
         select: {
           from: true,

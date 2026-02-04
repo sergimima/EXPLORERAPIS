@@ -145,7 +145,7 @@ const TokenSupplyCard: React.FC = () => {
   if (tokenLoading || !activeToken) {
     return (
       <div className="mb-8">
-        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-8 text-center">
+        <div className="bg-gray-100 dark:bg-gray-700 dark:bg-gray-800 rounded-lg p-8 text-center">
           {tokenLoading ? (
             <p className="text-gray-600">Cargando token...</p>
           ) : (
@@ -191,7 +191,7 @@ const TokenSupplyCard: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-gray-100 bg-gray-100 rounded-lg p-4 animate-pulse">
+              <div key={i} className="bg-gray-100 dark:bg-gray-700 bg-gray-100 rounded-lg p-4 animate-pulse">
                 <div className="h-4 bg-gray-200 bg-gray-200 rounded w-1/2 mb-4"></div>
                 <div className="h-8 bg-gray-200 bg-gray-200 rounded w-3/4 mb-2"></div>
                 <div className="h-3 bg-gray-200 bg-gray-200 rounded w-5/6"></div>

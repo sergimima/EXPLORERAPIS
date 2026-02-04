@@ -36,7 +36,7 @@ export default function TokenSelector() {
 
   return (
     <div className="relative group">
-      <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+      <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 transition-colors">
         {/* Token Icon */}
         <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
           {activeToken?.symbol.substring(0, 2) || '??'}

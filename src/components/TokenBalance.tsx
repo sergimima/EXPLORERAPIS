@@ -123,7 +123,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
 
   if (isLoading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
         <div className="flex justify-center items-center h-40">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
@@ -131,8 +131,26 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
     );
   }
 
+  // Empty state cuando no hay wallet
+  if (!walletAddress) {
+    return (
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
+        <h2 className="text-xl font-semibold mb-4">Balance de Tokens</h2>
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">👛</div>
+          <p className="text-gray-600 dark:text-gray-300 mb-2">
+            Introduce una dirección de wallet arriba para ver los balances
+          </p>
+          <p className="text-sm text-gray-500">
+            Puedes pegar una dirección Ethereum (0x...) o ENS name
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
       <h2 className="text-xl font-semibold mb-4">Balance de Tokens</h2>
 
       {loading ? (
@@ -148,7 +166,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
           )}
 
           {tokenBalances.length > 0 ? (
-            <table className="min-w-full bg-white">
+            <table className="min-w-full bg-white dark:bg-gray-800">
               <thead>
                 <tr>
                   <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -161,7 +179,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
               </thead>
               <tbody>
                 {tokenBalances.map((token, index) => (
-                  <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr key={index} className={index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50'}>
                     <td className="py-2 px-4 border-b border-gray-200">
                       <div className="flex items-center">
                         <div className="ml-4">
@@ -192,17 +210,17 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
               </tbody>
             </table>
           ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No se encontraron tokens para esta wallet.</p>
-              <button
-                onClick={() => {
-                  setShowMockData(true);
-                  setTokenBalances(mockTokenBalances);
-                }}
-                className="text-blue-600 hover:text-blue-800 underline"
-              >
-                Mostrar datos de ejemplo
-              </button>
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">📭</div>
+              <p className="text-gray-700 dark:text-gray-200 dark:text-gray-200 font-medium mb-2">
+                No se encontraron tokens para esta wallet
+              </p>
+              <p className="text-sm text-gray-500 mb-4">
+                Esta wallet no tiene balances de tokens ERC20 en {network === 'base' ? 'Base Mainnet' : network}
+              </p>
+              <p className="text-xs text-gray-400">
+                Verifica la dirección o prueba en otra red
+              </p>
             </div>
           )}
         </>

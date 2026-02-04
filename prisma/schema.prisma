@@ -30,6 +30,7 @@ model User {
   organizationId  String?
   organization    Organization? @relation(fields: [organizationId], references: [id])
   memberships     OrganizationMember[]
+  sentInvitations Invitation[] @relation("SentInvitations")
 
   // Metadata
   createdAt       DateTime  @default(now())
@@ -107,6 +108,7 @@ model Organization {
   users       User[]
   members     OrganizationMember[]
   tokens      Token[]
+  invitations Invitation[]
 
   // Suscripción
   subscription Subscription?
@@ -146,6 +148,30 @@ enum MemberRole {
 }
 
 // ==================================================
+// INVITATIONS (Sprint 2.5)
+// ==================================================
+
+model Invitation {
+  id             String      @id @default(cuid())
+  organizationId String
+  email          String
+  role           MemberRole  @default(MEMBER)
+  token          String      @unique
+  invitedBy      String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime    @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter        User         @relation("SentInvitations", fields: [invitedBy], references: [id])
+
+  @@index([token])
+  @@index([organizationId])
+  @@index([email])
+  @@map("invitations")
+}
+
+// ==================================================
 // TOKENS (Multi-token support)
 // ==================================================
 
@@ -167,9 +193,9 @@ model Token {
   // Settings
   settings       TokenSettings?
 
-  // Custom ABIs y Vesting Contracts (Sprint 2.2)
-  customAbis        CustomAbi[]
-  vestingContracts  VestingContract[]
+  // Custom ABIs y Contracts (Sprint 2.2)
+  customAbis     CustomAbi[]
+  contracts      Contract[]
 
   // Relations (data aislado por token)
   knownAddresses          KnownAddress[]
@@ -249,19 +275,30 @@ model CustomAbi {
   @@map("custom_abis")
 }
 
-model VestingContract {
-  id          String   @id @default(cuid())
+enum ContractCategory {
+  VESTING      // Vesting contracts (token release schedules)
+  STAKING      // Staking contracts
+  LIQUIDITY    // Liquidity pools
+  DAO          // DAO governance contracts
+  TREASURY     // Treasury/reserve contracts
+  MARKETING    // Marketing wallets/contracts
+  TEAM         // Team allocation contracts
+  OTHER        // Other contract types
+}
+
+model Contract {
+  id          String            @id @default(cuid())
   tokenId     String
 
   // Información del contrato
-  name        String   // "Vottun World", "Investors", etc.
-  address     String   // Dirección del contrato
-  network     String   @default("base")
+  name        String            // "Vottun World", "Investors", "Uniswap Pool", etc.
+  address     String            // Dirección del contrato
+  network     String            @default("base")
+  category    ContractCategory  @default(OTHER)
 
   // Status y metadata
   isActive    Boolean  @default(true)
   description String?
-  category    String?  // "investors", "team", "marketing", etc.
 
   // Metadata
   createdAt   DateTime @default(now())
@@ -273,7 +310,8 @@ model VestingContract {
   @@unique([tokenId, address, network])
   @@index([tokenId])
   @@index([address])
-  @@map("vesting_contracts")
+  @@index([category])
+  @@map("contracts")
 }
 
 // ==================================================
