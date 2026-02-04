@@ -22,7 +22,7 @@ export default function Navbar() {
   const isAdmin = session.user?.role === 'ADMIN' || session.user?.role === 'SUPER_ADMIN';
 
   return (
-    <nav className="bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700">
+    <nav className="bg-card shadow-md border-b border-border">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo / Brand */}
@@ -35,7 +35,7 @@ export default function Navbar() {
                 height={32}
                 className="h-8 w-auto"
               />
-              <span className="text-xl font-bold text-gray-900 dark:text-white">TokenLens</span>
+              <span className="text-xl font-bold text-card-foreground">TokenLens</span>
             </Link>
           </div>
 
@@ -53,8 +53,8 @@ export default function Navbar() {
               href="/dashboard"
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 pathname === '/dashboard'
-                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-accent text-accent-foreground'
+                  : 'text-secondary-foreground hover:bg-muted'
               }`}
             >
               Dashboard
@@ -65,28 +65,28 @@ export default function Navbar() {
               <button
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   pathname.startsWith('/settings')
-                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-secondary-foreground hover:bg-muted'
                 }`}
               >
                 Settings ▾
               </button>
-              <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-10 hidden group-hover:block border border-gray-200 dark:border-gray-700">
+              <div className="absolute left-0 mt-2 w-48 bg-card rounded-md shadow-lg py-1 z-10 hidden group-hover:block border border-border">
                 <Link
                   href="/settings/general"
-                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="block px-4 py-2 text-sm text-secondary-foreground hover:bg-muted"
                 >
                   🏢 General
                 </Link>
                 <Link
                   href="/settings/members"
-                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="block px-4 py-2 text-sm text-secondary-foreground hover:bg-muted"
                 >
                   👥 Members
                 </Link>
                 <Link
                   href="/settings/tokens"
-                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="block px-4 py-2 text-sm text-secondary-foreground hover:bg-muted"
                 >
                   🪙 Tokens
                 </Link>
@@ -99,8 +99,8 @@ export default function Navbar() {
                 href="/admin/dashboard"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   pathname.startsWith('/admin')
-                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-secondary-foreground hover:bg-muted'
                 }`}
               >
                 Admin
@@ -115,9 +115,9 @@ export default function Navbar() {
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-secondary-foreground hover:bg-muted"
             >
-              <div className="w-8 h-8 bg-blue-600 dark:bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold">
                 {session.user?.name?.charAt(0) || session.user?.email?.charAt(0) || 'U'}
               </div>
               <span className="hidden md:block">{session.user?.name || session.user?.email}</span>
@@ -125,23 +125,23 @@ export default function Navbar() {
             </button>
 
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-10 border border-gray-200 dark:border-gray-700">
-                <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+              <div className="absolute right-0 mt-2 w-48 bg-card rounded-md shadow-lg py-1 z-10 border border-border">
+                <div className="px-4 py-2 text-xs text-muted-foreground border-b border-border">
                   {session.user?.email}
-                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  <div className="text-xs text-muted-foreground mt-1">
                     Role: {session.user?.role}
                   </div>
                 </div>
                 <Link
                   href="/settings"
-                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="block px-4 py-2 text-sm text-secondary-foreground hover:bg-muted"
                   onClick={() => setShowUserMenu(false)}
                 >
                   ⚙️ Settings
                 </Link>
                 <button
                   onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-                  className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="block w-full text-left px-4 py-2 text-sm text-destructive hover:bg-muted"
                 >
                   Cerrar Sesión
                 </button>

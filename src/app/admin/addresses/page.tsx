@@ -279,7 +279,7 @@ export default function AdminAddressesPage() {
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200">
+            <thead className="bg-background border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3 text-left">
                   <input

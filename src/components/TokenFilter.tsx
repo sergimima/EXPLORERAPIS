@@ -8,7 +8,7 @@ interface TokenFilterProps {
 const TokenFilter: React.FC<TokenFilterProps> = ({ value, onChange }) => {
   return (
     <div className="flex flex-col">
-      <label htmlFor="tokenFilter" className="text-sm font-medium text-gray-700 mb-1">
+      <label htmlFor="tokenFilter" className="text-sm font-medium text-foreground mb-1">
         Filtrar por Token (opcional)
       </label>
       <input

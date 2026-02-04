@@ -34,9 +34,9 @@ export default function HolderDistributionChart({ holders }: HolderDistributionC
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
+        <div className="bg-card p-3 rounded-lg shadow-lg border border-border">
           <p className="font-semibold text-gray-900">{data.name}</p>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             {data.value}% del supply
           </p>
           <p className="text-xs text-gray-500">
@@ -49,7 +49,7 @@ export default function HolderDistributionChart({ holders }: HolderDistributionC
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-card rounded-lg shadow-md p-6 border border-border">
       <h3 className="text-lg font-semibold mb-4">Distribución de Holders</h3>
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
@@ -75,7 +75,7 @@ export default function HolderDistributionChart({ holders }: HolderDistributionC
         <p>
           <span className="font-semibold">Concentración Top 10:</span> {top10.toFixed(1)}%
         </p>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           {top10 > 70 ? '⚠️ Alta concentración' : top10 > 50 ? '⚠️ Concentración media' : '✅ Distribución saludable'}
         </p>
       </div>

@@ -8,7 +8,7 @@ interface WalletInputProps {
 const WalletInput: React.FC<WalletInputProps> = ({ value, onChange }) => {
   return (
     <div className="flex flex-col">
-      <label htmlFor="wallet" className="text-sm font-medium text-gray-700 mb-1">
+      <label htmlFor="wallet" className="text-sm font-medium text-foreground mb-1">
         Dirección de Wallet
       </label>
       <input

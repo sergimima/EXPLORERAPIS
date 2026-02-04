@@ -123,9 +123,9 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+      <div className="bg-card p-6 rounded-lg shadow-md">
         <div className="flex justify-center items-center h-40">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       </div>
     );
@@ -134,11 +134,11 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
   // Empty state cuando no hay wallet
   if (!walletAddress) {
     return (
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
+      <div className="bg-card p-6 rounded-lg shadow-md mb-8">
         <h2 className="text-xl font-semibold mb-4">Balance de Tokens</h2>
         <div className="text-center py-12">
           <div className="text-6xl mb-4">👛</div>
-          <p className="text-gray-600 dark:text-gray-300 mb-2">
+          <p className="text-secondary mb-2">
             Introduce una dirección de wallet arriba para ver los balances
           </p>
           <p className="text-sm text-gray-500">
@@ -150,48 +150,48 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
+    <div className="bg-card p-6 rounded-lg shadow-md mb-8">
       <h2 className="text-xl font-semibold mb-4">Balance de Tokens</h2>
 
       {loading ? (
         <div className="flex justify-center items-center h-40">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       ) : (
         <>
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded mb-4">
               {error}
             </div>
           )}
 
           {tokenBalances.length > 0 ? (
-            <table className="min-w-full bg-white dark:bg-gray-800">
+            <table className="min-w-full bg-card">
               <thead>
                 <tr>
                   <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Token
                   </th>
-                  <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="py-2 px-4 border-b border-border bg-muted text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Balance
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {tokenBalances.map((token, index) => (
-                  <tr key={index} className={index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50'}>
+                  <tr key={index} className={index % 2 === 0 ? 'bg-card' : 'bg-muted/50'}>
                     <td className="py-2 px-4 border-b border-gray-200">
                       <div className="flex items-center">
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-card-foreground">
                             {token.tokenName} ({token.tokenSymbol})
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-muted-foreground">
                             <a
                               href={`${getExplorerUrl(network)}/token/${token.tokenAddress}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800"
+                              className="text-primary hover:opacity-80"
                             >
                               {token.tokenAddress.substring(0, 6)}...{token.tokenAddress.substring(token.tokenAddress.length - 4)}
                             </a>
@@ -212,13 +212,13 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
           ) : (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">📭</div>
-              <p className="text-gray-700 dark:text-gray-200 dark:text-gray-200 font-medium mb-2">
+              <p className="text-secondary-foreground font-medium mb-2">
                 No se encontraron tokens para esta wallet
               </p>
               <p className="text-sm text-gray-500 mb-4">
                 Esta wallet no tiene balances de tokens ERC20 en {network === 'base' ? 'Base Mainnet' : network}
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 Verifica la dirección o prueba en otra red
               </p>
             </div>

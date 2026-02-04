@@ -92,7 +92,7 @@ export default function AbiSettingsPage() {
   };
 
   if (loading) {
-    return <div className="text-gray-500">Cargando...</div>;
+    return <div className="text-muted-foreground">Cargando...</div>;
   }
 
   return (
@@ -100,13 +100,13 @@ export default function AbiSettingsPage() {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold mb-2">ABI del Token</h2>
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           Configura el ABI del contrato. Por defecto se usa el ABI estándar ERC20.
         </p>
       </div>
 
       {/* ABI Source Selection */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-card rounded-lg shadow p-6 border border-border">
         <h3 className="text-lg font-semibold mb-4">Tipo de ABI</h3>
 
         <div className="flex gap-4">
@@ -135,7 +135,7 @@ export default function AbiSettingsPage() {
       {abiSource === 'custom' && (
         <>
           {/* Actions */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-card rounded-lg shadow p-6 border border-border">
             <h3 className="text-lg font-semibold mb-4">Acciones Rápidas</h3>
 
             <div className="flex gap-3">
@@ -150,7 +150,7 @@ export default function AbiSettingsPage() {
                 <button
                   onClick={handleDelete}
                   disabled={saving}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 font-medium"
+                  className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
                 >
                   ↺ Volver a Estándar
                 </button>
@@ -160,7 +160,7 @@ export default function AbiSettingsPage() {
 
           {/* Current ABI Info */}
           {customAbi && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="bg-success/10 border border-success rounded-lg p-4">
               <div className="flex items-start gap-3">
                 <div className="text-2xl">✅</div>
                 <div className="flex-1">
@@ -177,7 +177,7 @@ export default function AbiSettingsPage() {
           )}
 
           {/* ABI Editor */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-card rounded-lg shadow p-6 border border-border">
             <h3 className="text-lg font-semibold mb-4">Editor de ABI</h3>
 
             <div>
@@ -191,7 +191,7 @@ export default function AbiSettingsPage() {
                 className="w-full px-3 py-2 border rounded font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={12}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Pega el ABI en formato JSON. Puedes obtenerlo desde BaseScan o usar auto-detección.
               </p>
             </div>
@@ -199,15 +199,15 @@ export default function AbiSettingsPage() {
             <button
               onClick={handleSave}
               disabled={saving || !abiJson}
-              className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {saving ? 'Guardando...' : 'Guardar ABI'}
             </button>
           </div>
 
           {/* Info Box */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
+          <div className="bg-accent border border-border rounded-lg p-4">
+            <p className="text-sm text-accent-foreground">
               <strong>💡 Tip:</strong> El ABI custom solo se aplica al contrato del token principal.
               Para otros contratos (vesting, staking, etc.), configura ABIs individuales en la sección "Contratos".
             </p>
@@ -217,16 +217,16 @@ export default function AbiSettingsPage() {
 
       {/* Standard ABI Info */}
       {abiSource === 'standard' && (
-        <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 rounded-lg p-6">
+        <div className="bg-background border border-border rounded-lg p-6">
           <div className="flex items-start gap-3">
             <div className="text-2xl">📄</div>
             <div className="flex-1">
-              <p className="font-medium text-gray-900 mb-2">Usando ABI Estándar ERC20</p>
-              <p className="text-sm text-gray-600">
+              <p className="font-medium text-card-foreground mb-2">Usando ABI Estándar ERC20</p>
+              <p className="text-sm text-muted-foreground">
                 El ABI estándar incluye los métodos básicos de ERC20: transfer, balanceOf, approve, transferFrom, etc.
                 Es suficiente para la mayoría de tokens.
               </p>
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-muted-foreground mt-2">
                 Si tu token tiene métodos custom (mint, burn, pause, etc.), cambia a "ABI Custom" para tener acceso completo.
               </p>
             </div>

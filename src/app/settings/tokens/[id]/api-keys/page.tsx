@@ -43,23 +43,23 @@ export default function ApiKeysSettingsPage() {
   };
 
   if (loading) {
-    return <div className="text-gray-500">Cargando...</div>;
+    return <div className="text-muted-foreground">Cargando...</div>;
   }
 
   return (
     <div className="max-w-3xl space-y-6">
       {/* Header */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h2 className="text-xl font-semibold text-blue-900 mb-2">
+      <div className="bg-accent border border-border rounded-lg p-4">
+        <h2 className="text-xl font-semibold text-card-foreground mb-2">
           API Keys Personalizadas
         </h2>
-        <p className="text-sm text-blue-700">
+        <p className="text-sm text-accent-foreground">
           Por defecto se usan las API keys del platform. Configura tus propias keys si tienes límites más altos o quieres mayor control.
         </p>
       </div>
 
       {/* API Keys */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-card rounded-lg shadow p-6 border border-border">
         <div className="space-y-6">
           {/* BaseScan */}
           <div>
@@ -77,7 +77,7 @@ export default function ApiKeysSettingsPage() {
               href="https://basescan.org/apis"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:text-blue-700 mt-1 inline-block"
+              className="text-xs text-primary hover:opacity-80 mt-1 inline-block"
             >
               Obtener API key →
             </a>
@@ -95,7 +95,7 @@ export default function ApiKeysSettingsPage() {
               placeholder="Si está vacío, usa la key del platform"
               className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Usado para obtener transfers históricos en Base network
             </p>
           </div>
@@ -116,7 +116,7 @@ export default function ApiKeysSettingsPage() {
               href="https://moralis.io"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:text-blue-700 mt-1 inline-block"
+              className="text-xs text-primary hover:opacity-80 mt-1 inline-block"
             >
               Obtener API key →
             </a>
@@ -138,7 +138,7 @@ export default function ApiKeysSettingsPage() {
               href="https://www.quicknode.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:text-blue-700 mt-1 inline-block"
+              className="text-xs text-primary hover:opacity-80 mt-1 inline-block"
             >
               Obtener endpoint →
             </a>
@@ -148,7 +148,7 @@ export default function ApiKeysSettingsPage() {
 
       {/* Info Box */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <p className="text-sm text-yellow-800">
+        <p className="text-sm text-warning-foreground">
           <strong>💡 Tip:</strong> Las API keys se almacenan de forma segura y solo se usan para este token.
           Si dejas los campos vacíos, se usarán las keys globales del platform (con rate limits compartidos).
         </p>
@@ -159,7 +159,7 @@ export default function ApiKeysSettingsPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
           {saving ? 'Guardando...' : 'Guardar Cambios'}
         </button>

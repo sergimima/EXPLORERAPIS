@@ -177,7 +177,7 @@ export default function AdminImportPage() {
       {/* Formato del CSV */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <h3 className="font-semibold text-gray-900 mb-3">Formato del CSV</h3>
-        <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 font-mono text-xs overflow-x-auto">
+        <div className="bg-background p-4 rounded border border-gray-200 font-mono text-xs overflow-x-auto">
           <div className="text-gray-600 mb-1">
             address,name,type,category,description,tags
           </div>
@@ -249,7 +249,7 @@ export default function AdminImportPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900 border-b">
+              <thead className="bg-background border-b">
                 <tr>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
                     Address

@@ -29,9 +29,9 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+      <div className="bg-card p-6 rounded-lg shadow-md">
         <div className="flex justify-center items-center h-40">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       </div>
     );
@@ -39,14 +39,14 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
 
   if (transfers.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+      <div className="bg-card p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Transferencias de Tokens</h2>
           <div className="flex space-x-2">
             {onRefresh && (
               <button
                 onClick={onRefresh}
-                className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium transition-colors"
+                className="px-3 py-1 bg-accent text-accent-foreground rounded hover:opacity-80 text-sm font-medium transition-colors"
               >
                 Actualizar
               </button>
@@ -54,14 +54,14 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
             {onClearCache && (
               <button
                 onClick={onClearCache}
-                className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium transition-colors"
+                className="px-3 py-1 bg-destructive/10 text-destructive rounded hover:opacity-80 text-sm font-medium transition-colors"
               >
                 Limpiar y Recargar
               </button>
             )}
           </div>
         </div>
-        <p className="text-center text-gray-500 py-8">
+        <p className="text-center text-muted-foreground py-8">
           No se encontraron transferencias de tokens para esta wallet.
         </p>
       </div>
@@ -75,14 +75,14 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md overflow-x-auto">
+    <div className="bg-card p-6 rounded-lg shadow-md overflow-x-auto">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Transferencias de Tokens</h2>
         <div className="flex space-x-2">
           {onRefresh && (
             <button
               onClick={onRefresh}
-              className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium transition-colors"
+              className="px-3 py-1 bg-accent text-accent-foreground rounded hover:opacity-80 text-sm font-medium transition-colors"
             >
               Actualizar
             </button>
@@ -90,38 +90,38 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
           {onClearCache && (
             <button
               onClick={onClearCache}
-              className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium transition-colors"
+              className="px-3 py-1 bg-destructive/10 text-destructive rounded hover:opacity-80 text-sm font-medium transition-colors"
             >
               Limpiar y Recargar
             </button>
           )}
         </div>
       </div>
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+      <table className="min-w-full divide-y divide-border">
+        <thead className="bg-muted">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Desde</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hasta</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tx Hash</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Token</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Desde</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Hasta</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Cantidad</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Fecha</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Tx Hash</th>
           </tr>
         </thead>
-        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200">
+        <tbody className="bg-card divide-y divide-gray-200">
           {transfers.map((transfer, index) => (
             <tr key={index}>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
                   <div className="ml-4">
-                    <div className="text-sm font-medium text-gray-900">{transfer.tokenSymbol}</div>
-                    <div className="text-sm text-gray-500">{transfer.tokenName}</div>
+                    <div className="text-sm font-medium text-card-foreground">{transfer.tokenSymbol}</div>
+                    <div className="text-sm text-muted-foreground">{transfer.tokenName}</div>
                   </div>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div
-                  className="text-sm text-blue-600 hover:text-blue-900 cursor-pointer"
+                  className="text-sm text-primary hover:opacity-80 cursor-pointer"
                   onClick={() => handleAddressClick(transfer.from)}
                   title="Haz clic para buscar esta dirección"
                 >
@@ -130,7 +130,7 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div
-                  className="text-sm text-blue-600 hover:text-blue-900 cursor-pointer"
+                  className="text-sm text-primary hover:opacity-80 cursor-pointer"
                   onClick={() => handleAddressClick(transfer.to)}
                   title="Haz clic para buscar esta dirección"
                 >
@@ -138,10 +138,10 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900">{formatAmount(transfer.amount, transfer.decimals)}</div>
+                <div className="text-sm text-card-foreground">{formatAmount(transfer.amount, transfer.decimals)}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900">
+                <div className="text-sm text-card-foreground">
                   {new Date(transfer.timestamp * 1000).toLocaleString()}
                 </div>
               </td>
@@ -150,7 +150,7 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
                   href={`https://basescan.org/tx/${transfer.transactionHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-900 text-sm"
+                  className="text-primary hover:opacity-80 text-sm"
                 >
                   {shortenAddress(transfer.transactionHash)}
                 </a>

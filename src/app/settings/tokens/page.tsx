@@ -35,8 +35,8 @@ export default function TokensSettings() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando tokens...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Cargando tokens...</p>
         </div>
       </div>
     );
@@ -45,19 +45,19 @@ export default function TokensSettings() {
   return (
     <div className="max-w-6xl">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Tokens</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-2">
+        <h1 className="text-3xl font-bold text-card-foreground">Tokens</h1>
+        <p className="text-muted-foreground mt-2">
           Gestiona los tokens ERC20 de tu organización
         </p>
       </div>
 
       {tokens.length === 0 ? (
-        <div className="bg-white border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-12 text-center">
+        <div className="bg-card border-2 border-dashed border-border rounded-lg p-12 text-center">
           <div className="text-6xl mb-4">🪙</div>
-          <h3 className="text-xl font-semibold mb-2 text-gray-900">
+          <h3 className="text-xl font-semibold mb-2 text-card-foreground">
             No hay tokens configurados
           </h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-muted-foreground mb-6">
             Agrega tu primer token ERC20 para empezar a analizar transacciones, holders y métricas avanzadas
           </p>
           <button
@@ -73,7 +73,7 @@ export default function TokensSettings() {
           <div className="flex justify-end mb-4">
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center gap-2"
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:opacity-90 inline-flex items-center gap-2"
             >
               <span>➕</span>
               Agregar Token
@@ -82,18 +82,18 @@ export default function TokensSettings() {
 
           <div className="grid gap-4">
             {tokens.map((token) => (
-              <div key={token.id} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div key={token.id} className="bg-white border border-border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-4 mb-4">
-                      <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                      <div className="w-14 h-14 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center text-primary-foreground font-bold text-lg shadow-md">
                         {token.symbol.substring(0, 2)}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-xl font-bold text-gray-900">{token.symbol}</h3>
+                          <h3 className="text-xl font-bold text-card-foreground">{token.symbol}</h3>
                           {token.isActive && (
-                            <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">
+                            <span className="bg-success/10 text-success px-2 py-0.5 rounded text-xs font-medium">
                               ✓ Activo
                             </span>
                           )}
@@ -103,28 +103,28 @@ export default function TokensSettings() {
                             </span>
                           )}
                         </div>
-                        <p className="text-gray-600">{token.name}</p>
+                        <p className="text-muted-foreground">{token.name}</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
-                        <span className="text-gray-500 dark:text-gray-400 text-xs font-medium block mb-1">Contract Address</span>
-                        <div className="font-mono text-xs break-all text-gray-900">
+                      <div className="bg-background rounded-lg p-3">
+                        <span className="text-muted-foreground text-xs font-medium block mb-1">Contract Address</span>
+                        <div className="font-mono text-xs break-all text-card-foreground">
                           {token.address}
                         </div>
                       </div>
-                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
-                        <span className="text-gray-500 dark:text-gray-400 text-xs font-medium block mb-1">Network</span>
-                        <div className="capitalize text-gray-900">{token.network}</div>
+                      <div className="bg-background rounded-lg p-3">
+                        <span className="text-muted-foreground text-xs font-medium block mb-1">Network</span>
+                        <div className="capitalize text-card-foreground">{token.network}</div>
                       </div>
-                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
-                        <span className="text-gray-500 dark:text-gray-400 text-xs font-medium block mb-1">Decimals</span>
-                        <div className="text-gray-900">{token.decimals}</div>
+                      <div className="bg-background rounded-lg p-3">
+                        <span className="text-muted-foreground text-xs font-medium block mb-1">Decimals</span>
+                        <div className="text-card-foreground">{token.decimals}</div>
                       </div>
-                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
-                        <span className="text-gray-500 dark:text-gray-400 text-xs font-medium block mb-1">Whale Threshold</span>
-                        <div className="text-gray-900">
+                      <div className="bg-background rounded-lg p-3">
+                        <span className="text-muted-foreground text-xs font-medium block mb-1">Whale Threshold</span>
+                        <div className="text-card-foreground">
                           {Number(token.settings?.whaleThreshold || 0).toLocaleString()} {token.symbol}
                         </div>
                       </div>
@@ -202,7 +202,7 @@ function AddTokenModal({ onClose, onSuccess }: any) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
-        <h2 className="text-2xl font-bold mb-4 text-gray-900">Agregar Token</h2>
+        <h2 className="text-2xl font-bold mb-4 text-card-foreground">Agregar Token</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
@@ -220,7 +220,7 @@ function AddTokenModal({ onClose, onSuccess }: any) {
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="0x..."
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-input dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
             <p className="text-xs text-gray-500 mt-1">
@@ -235,7 +235,7 @@ function AddTokenModal({ onClose, onSuccess }: any) {
             <select
               value={network}
               onChange={(e) => setNetwork(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-input dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="base">Base Mainnet</option>
               <option value="base-testnet">Base Testnet (Goerli)</option>
@@ -253,7 +253,7 @@ function AddTokenModal({ onClose, onSuccess }: any) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 font-medium"
+              className="flex-1 px-4 py-2 border border-input dark:border-gray-600 rounded-lg hover:bg-gray-50 font-medium"
             >
               Cancelar
             </button>

@@ -22,7 +22,7 @@ import { useToken, type TokenData } from '@/contexts/TokenContext';
 // Importar dinámicamente componentes pesados
 const TokenSupplyCard = dynamic(
   () => import('../explorer/vestings/components/TokenSupplyCard'),
-  { ssr: false, loading: () => <div className="h-40 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse mb-8"></div> }
+  { ssr: false, loading: () => <div className="h-40 bg-muted rounded-lg animate-pulse mb-8"></div> }
 );
 
 // Importar Analytics de forma dinámica para mejor performance
@@ -374,14 +374,14 @@ function UnifiedExplorerContent() {
       <h1 className="text-4xl font-bold mb-8">Blockchain Explorer Dashboard</h1>
 
       {/* Navegación Principal por Tabs */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-6">
-        <div className="border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-card rounded-lg shadow-md mb-6">
+        <div className="border-b border-border">
           <nav className="flex space-x-8 px-6" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('tokens')}
               className={`py-4 px-1 border-b-2 font-medium text-lg transition-colors ${activeTab === 'tokens'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:border-gray-600'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-secondary-foreground hover:border-border'
                 }`}
             >
               🪙 Tokens & Balances
@@ -389,8 +389,8 @@ function UnifiedExplorerContent() {
             <button
               onClick={() => setActiveTab('vestings')}
               className={`py-4 px-1 border-b-2 font-medium text-lg transition-colors ${activeTab === 'vestings'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:border-gray-600'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-secondary-foreground hover:border-border'
                 }`}
             >
               🔒 Vesting Contracts
@@ -398,8 +398,8 @@ function UnifiedExplorerContent() {
             <button
               onClick={() => setActiveTab('analytics')}
               className={`py-4 px-1 border-b-2 font-medium text-lg transition-colors ${activeTab === 'analytics'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:border-gray-600'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-secondary-foreground hover:border-border'
                 }`}
             >
               📊 Analytics
@@ -419,7 +419,7 @@ function UnifiedExplorerContent() {
           )}
 
           {/* Controles de búsqueda */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
+          <div className="bg-card p-6 rounded-lg shadow-md mb-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <WalletInput value={wallet} onChange={setWallet} />
               <NetworkSelector value={network} onChange={setNetwork} />
@@ -436,17 +436,17 @@ function UnifiedExplorerContent() {
             </div>
 
             {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded mb-4">
                 {error}
               </div>
             )}
 
             {isLoading && (
               <div className="mt-4 mb-4">
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Cargando datos... ({Math.round(loadingProgress)}%)</p>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <p className="text-sm text-secondary mb-2">Cargando datos... ({Math.round(loadingProgress)}%)</p>
+                <div className="w-full bg-muted rounded-full h-2.5">
                   <div
-                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                    className="bg-primary h-2.5 rounded-full transition-all duration-300"
                     style={{ width: `${loadingProgress}%` }}
                   ></div>
                 </div>
@@ -455,14 +455,14 @@ function UnifiedExplorerContent() {
           </div>
 
           {/* Sub-tabs simplificados (3 en lugar de 5) */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <div className="border-b border-gray-200 dark:border-gray-700">
+          <div className="bg-card rounded-lg shadow-md">
+            <div className="border-b border-border">
               <nav className="flex space-x-8 px-6" aria-label="Token tabs">
                 <button
                   onClick={() => setTokenSubTab('wallet')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'wallet'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:border-gray-600'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-secondary-foreground hover:border-gray-300 dark:border-gray-600'
                     }`}
                 >
                   👛 Wallet
@@ -470,8 +470,8 @@ function UnifiedExplorerContent() {
                 <button
                   onClick={() => setTokenSubTab('vesting')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'vesting'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:border-gray-600'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-secondary-foreground hover:border-gray-300 dark:border-gray-600'
                     }`}
                 >
                   🔒 Vesting
@@ -479,8 +479,8 @@ function UnifiedExplorerContent() {
                 <button
                   onClick={() => setTokenSubTab('airdrops')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'airdrops'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:border-gray-600'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-secondary-foreground hover:border-gray-300 dark:border-gray-600'
                     }`}
                 >
                   🎁 Airdrops
@@ -565,12 +565,12 @@ function UnifiedExplorerContent() {
               }}
             />
           ) : (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 mb-8 text-center">
+            <div className="bg-accent border border-border rounded-lg p-8 mb-8 text-center">
               <div className="text-5xl mb-4">🪙</div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-card-foreground mb-2">
                 No hay ningún token configurado
               </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
+              <p className="text-secondary mb-4">
                 Añade tu primer token ERC20 para empezar a analizar vestings, holders y transferencias
               </p>
               <a
@@ -583,9 +583,9 @@ function UnifiedExplorerContent() {
           )}
 
           {/* Campo para ingresar dirección de contrato manualmente */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
+          <div className="bg-card p-6 rounded-lg shadow-md mb-8">
             <div className="mb-6">
-              <label htmlFor="contract-address" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              <label htmlFor="contract-address" className="block text-sm font-medium text-secondary-foreground mb-2">
                 Dirección del Contrato de Vesting
               </label>
               <div className="flex gap-2">
@@ -598,17 +598,17 @@ function UnifiedExplorerContent() {
                     setShowContractDetails(false);
                   }}
                   placeholder="0x..."
-                  className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  className="flex-1 p-2 border border-input rounded-md focus:ring-primary focus:border-primary bg-background text-foreground"
                 />
               </div>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Ingresa la dirección del contrato de vesting para ver su estado.
               </p>
               <div className="mt-4">
                 <button
                   onClick={() => setShowContractDetails(true)}
                   disabled={!contractAddress}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:bg-muted disabled:cursor-not-allowed"
                 >
                   Buscar Contrato
                 </button>
@@ -644,7 +644,7 @@ export default function UnifiedExplorer() {
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Cargando Dashboard...</p>
+          <p className="text-secondary">Cargando Dashboard...</p>
         </div>
       </div>
     }>

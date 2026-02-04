@@ -453,7 +453,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
   }, [initialContractAddress, network]);
 
   return (
-    <div className="bg-white shadow-md rounded-lg p-6">
+    <div className="bg-card shadow-md rounded-lg p-6 border border-border">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Resumen de Contrato de Vesting</h2>
         {summary && (
@@ -462,7 +462,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
               onClick={handleSearch}
               disabled={loadingBasic || loadingDetails}
               className={`px-4 py-2 rounded-md text-white ${
-                (loadingBasic || loadingDetails) ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'
+                (loadingBasic || loadingDetails) ? 'bg-muted' : 'bg-success hover:opacity-90'
               }`}
             >
               {(loadingBasic || loadingDetails) ? 'Refrescando...' : '🔄 Refrescar'}
@@ -471,7 +471,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
               onClick={handleClearCacheAndReload}
               disabled={loadingBasic || loadingDetails}
               className={`px-4 py-2 rounded-md text-white ${
-                (loadingBasic || loadingDetails) ? 'bg-gray-400' : 'bg-red-600 hover:bg-red-700'
+                (loadingBasic || loadingDetails) ? 'bg-muted' : 'bg-destructive hover:opacity-90'
               }`}
             >
               {(loadingBasic || loadingDetails) ? 'Borrando...' : '🗑️ Recargar desde cero'}
@@ -488,40 +488,40 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
               value={contractAddress}
               onChange={(e) => setContractAddress(e.target.value)}
               placeholder="Dirección del contrato de vesting"
-              className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground"
             />
             <button
               onClick={handleSearch}
               disabled={loadingBasic || loadingDetails}
-              className={`px-4 py-2 rounded-md text-white ${
-                (loadingBasic || loadingDetails) ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+              className={`px-4 py-2 rounded-md text-primary-foreground ${
+                (loadingBasic || loadingDetails) ? 'bg-muted' : 'bg-primary hover:opacity-90'
               }`}
             >
               {(loadingBasic || loadingDetails) ? 'Buscando...' : 'Buscar'}
             </button>
           </div>
-          {error && <p className="text-red-500 mt-2">{error}</p>}
+          {error && <p className="text-destructive mt-2">{error}</p>}
         </div>
       )}
       
       {summary && (
-        <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-md mb-6">
+        <div className="bg-background p-4 rounded-md mb-6">
           <h3 className="text-lg font-semibold mb-2">Información del Contrato</h3>
           {loadingBasic && (
             <div className="flex justify-center items-center my-8">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-              <span className="ml-3 text-gray-600">Cargando información básica del contrato...</span>
+              <span className="ml-3 text-muted-foreground">Cargando información básica del contrato...</span>
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-gray-600">Dirección del Contrato:</p>
+              <p className="text-sm text-muted-foreground">Dirección del Contrato:</p>
               <p className="font-medium">
                 <a
                   href={`${getExplorerUrl(network)}/address/${summary.contractAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800"
+                  className="text-primary hover:opacity-80"
                 >
                   {summary.contractAddress}
                 </a>
@@ -530,21 +530,21 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
             
             {summary.contractType && (
               <div>
-                <p className="text-sm text-gray-600">Tipo de Contrato:</p>
+                <p className="text-sm text-muted-foreground">Tipo de Contrato:</p>
                 <p className="font-medium">{summary.contractType}</p>
               </div>
             )}
             
             {summary.tokenAddress && (
               <div>
-                <p className="text-sm text-gray-600">Token:</p>
+                <p className="text-sm text-muted-foreground">Token:</p>
                 <p className="font-medium">
                   {summary.tokenName} ({summary.tokenSymbol})
                   <a
                     href={`${getExplorerUrl(network)}/token/${summary.tokenAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 ml-2"
+                    className="text-primary hover:opacity-80 ml-2"
                   >
                     Ver
                   </a>
@@ -554,7 +554,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
             
             {summary.creationDate && (
               <div>
-                <p className="text-sm text-gray-600">Fecha de Creación:</p>
+                <p className="text-sm text-muted-foreground">Fecha de Creación:</p>
                 <p className="font-medium">{new Date(summary.creationDate).toLocaleString()}</p>
               </div>
             )}
@@ -563,24 +563,24 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
           {/* Resumen de tokens */}
           <div className="mt-6">
             <h4 className="text-md font-semibold mb-2">Resumen de Tokens</h4>
-            <div className="bg-white p-3 rounded-md border border-gray-200">
+            <div className="bg-card p-3 rounded-md border border-border">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600">Total Tokens IN:</p>
-                  <p className="font-medium text-green-600">
+                  <p className="text-sm text-muted-foreground">Total Tokens IN:</p>
+                  <p className="font-medium text-success">
                     {summary.totalTokensIn ? parseFloat(summary.totalTokensIn).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0'} {summary.tokenSymbol}
                   </p>
                 </div>
                 
                 <div>
-                  <p className="text-sm text-gray-600">Total Tokens OUT:</p>
-                  <p className="font-medium text-red-600">
+                  <p className="text-sm text-muted-foreground">Total Tokens OUT:</p>
+                  <p className="font-medium text-destructive">
                     {summary.totalTokensOut ? parseFloat(summary.totalTokensOut).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0'} {summary.tokenSymbol}
                   </p>
                 </div>
                 
                 <div>
-                  <p className="text-sm text-gray-600">Balance Actual en Contrato:</p>
+                  <p className="text-sm text-muted-foreground">Balance Actual en Contrato:</p>
                   <p className="font-medium">
                     {summary.lastTokenBalance ? parseFloat(summary.lastTokenBalance).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0'} {summary.tokenSymbol}
                   </p>
@@ -592,10 +592,10 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
           {/* Desglose de vesting */}
           <div className="mt-6">
             <h4 className="text-md font-semibold mb-2">Desglose de Vesting</h4>
-            <div className="bg-white p-3 rounded-md border border-gray-200">
+            <div className="bg-card p-3 rounded-md border border-border">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600">Total Vested:</p>
+                  <p className="text-sm text-muted-foreground">Total Vested:</p>
                   <p className="font-medium">
                     {summary.totalVested ? parseFloat(summary.totalVested).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
                      (summary.totalTokensIn ? parseFloat(summary.totalTokensIn).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0')} {summary.tokenSymbol}
@@ -603,7 +603,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                 </div>
                 
                 <div>
-                  <p className="text-sm text-gray-600">Total Liberado:</p>
+                  <p className="text-sm text-muted-foreground">Total Liberado:</p>
                   <p className="font-medium">
                     {summary.totalReleased ? parseFloat(summary.totalReleased).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
                      (summary.totalTokensOut ? parseFloat(summary.totalTokensOut).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0')} {summary.tokenSymbol}
@@ -611,7 +611,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                 </div>
                 
                 <div>
-                  <p className="text-sm text-gray-600">Pendiente de Vesting:</p>
+                  <p className="text-sm text-muted-foreground">Pendiente de Vesting:</p>
                   <p className="font-medium">
                     {summary.remainingToVest ? parseFloat(summary.remainingToVest).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
                      (summary.totalVested && summary.totalReleased ? 
@@ -623,8 +623,8 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                 </div>
                 
                 <div>
-                  <p className="text-sm text-gray-600">Tokens Bloqueados:</p>
-                  <p className="font-medium text-orange-600">
+                  <p className="text-sm text-muted-foreground">Tokens Bloqueados:</p>
+                  <p className="font-medium text-warning">
                     {summary.lockedTokens ? parseFloat(summary.lockedTokens).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
                      (summary.totalVested && summary.totalReleased ? 
                       (parseFloat(summary.totalVested) - parseFloat(summary.totalReleased)).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
@@ -635,15 +635,15 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                 </div>
                 
                 <div>
-                  <p className="text-sm text-gray-600">Tokens Liberables:</p>
-                  <p className="font-medium text-blue-600">
+                  <p className="text-sm text-muted-foreground">Tokens Liberables:</p>
+                  <p className="font-medium text-primary">
                     {summary.releasableTokens ? parseFloat(summary.releasableTokens).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0'} {summary.tokenSymbol}
                   </p>
                 </div>
                 
                 <div>
-                  <p className="text-sm text-gray-600">Tokens Reclamados:</p>
-                  <p className="font-medium text-green-600">
+                  <p className="text-sm text-muted-foreground">Tokens Reclamados:</p>
+                  <p className="font-medium text-success">
                     {summary.claimedTokens ? parseFloat(summary.claimedTokens).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
                      (summary.totalReleased ? parseFloat(summary.totalReleased).toLocaleString(undefined, {maximumFractionDigits: 6}) : 
                       (summary.totalTokensOut ? parseFloat(summary.totalTokensOut).toLocaleString(undefined, {maximumFractionDigits: 6}) : '0'))} {summary.tokenSymbol}
@@ -654,15 +654,15 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
           </div>
           
           {/* Información de beneficiarios en el resumen */}
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="mt-4 p-4 bg-accent border border-border rounded-md">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Beneficiarios</h3>
-              <span className="text-xl font-bold text-blue-600">
+              <span className="text-xl font-bold text-primary">
                 {summary.beneficiaries ? summary.beneficiaries.length : (typeof summary.totalBeneficiaries === 'number' ? summary.totalBeneficiaries : '...')}
               </span>
             </div>
             {!summary.beneficiaries && (
-              <p className="text-sm text-gray-600 mt-2">Cargando información de beneficiarios...</p>
+              <p className="text-sm text-muted-foreground mt-2">Cargando información de beneficiarios...</p>
             )}
           </div>
 
@@ -671,14 +671,14 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
             <h3 className="text-lg font-semibold">Información del Token</h3>
             {summary.tokenAddress && (
               <div>
-                <p className="text-sm text-gray-600">Token:</p>
+                <p className="text-sm text-muted-foreground">Token:</p>
                 <p className="font-medium">
                   {summary.tokenName} ({summary.tokenSymbol})
                   <a
                     href={`${getExplorerUrl(network)}/token/${summary.tokenAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 ml-2"
+                    className="text-primary hover:opacity-80 ml-2"
                   >
                     Ver
                   </a>
@@ -690,22 +690,22 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
           {/* Información de schedules */}
           <div className="mt-6">
             <h4 className="text-md font-semibold mb-2">Información de Schedules</h4>
-            <div className="bg-white p-3 rounded-md border border-gray-200">
+            <div className="bg-card p-3 rounded-md border border-border">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 {/* Schedules activos */}
-                <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                  <h4 className="text-sm font-semibold text-gray-500 mb-1">Número de Schedules Activos:</h4>
+                <div className="bg-card p-4 rounded-lg shadow-sm border border-border">
+                  <h4 className="text-sm font-semibold text-muted-foreground mb-1">Número de Schedules Activos:</h4>
                   <p className="text-2xl font-bold">
                     {summary.totalSchedulesCreated !== undefined ? summary.totalSchedulesCreated : '...'}
                   </p>
                   {summary.totalSchedulesCreated === 0 && summary.beneficiaries && summary.beneficiaries.length > 0 && (
-                    <p className="text-xs text-orange-500">Cargando schedules...</p>
+                    <p className="text-xs text-warning">Cargando schedules...</p>
                   )}
                 </div>
                 
                 {summary.totalSchedulesCreated !== undefined && summary.totalSchedulesCreated > 0 && (
-                  <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                    <h4 className="text-sm font-semibold text-gray-500 mb-1">Total de Schedules Creados:</h4>
+                  <div className="bg-card p-4 rounded-lg shadow-sm border border-border">
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-1">Total de Schedules Creados:</h4>
                     <p className="text-2xl font-bold">{summary.totalSchedulesCreated || 0}</p>
                   </div>
                 )}
@@ -719,9 +719,9 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                       Beneficiarios ({summary.totalBeneficiaries})
                       {summary.validBeneficiaries !== undefined && (
                         <span className="ml-2 text-sm font-normal">
-                          <span className="text-green-600">{summary.validBeneficiaries} válidos</span>
+                          <span className="text-success">{summary.validBeneficiaries} válidos</span>
                           {summary.errorBeneficiaries !== undefined && summary.errorBeneficiaries > 0 && (
-                            <span className="ml-2 text-red-600">{summary.errorBeneficiaries} con errores</span>
+                            <span className="ml-2 text-destructive">{summary.errorBeneficiaries} con errores</span>
                           )}
                         </span>
                       )}
@@ -730,14 +730,14 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                     {/* Botones para cargar/actualizar detalles */}
                     <div className="flex gap-2 items-center">
                       {beneficiariesLastUpdate && (
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-muted-foreground">
                           Última actualización: {beneficiariesLastUpdate.toLocaleString()}
                         </span>
                       )}
                       <button
                         onClick={() => loadBeneficiaryDetails(false)}
                         disabled={loadingBeneficiaries}
-                        className={`px-4 py-2 rounded-md flex items-center ${loadingBeneficiaries ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                        className={`px-4 py-2 rounded-md flex items-center ${loadingBeneficiaries ? 'bg-muted cursor-not-allowed' : 'bg-primary hover:opacity-90 text-primary-foreground'}`}
                       >
                         {loadingBeneficiaries ? (
                           <>
@@ -761,7 +761,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                         <button
                           onClick={() => loadBeneficiaryDetails(true)}
                           disabled={loadingBeneficiaries}
-                          className={`px-4 py-2 rounded-md flex items-center ${loadingBeneficiaries ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+                          className={`px-4 py-2 rounded-md flex items-center ${loadingBeneficiaries ? 'bg-muted cursor-not-allowed' : 'bg-destructive hover:opacity-90 text-destructive-foreground'}`}
                         >
                           {loadingBeneficiaries ? (
                             <>
@@ -784,16 +784,16 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                     </div>
                   </div>
                   {loadingDetails && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                      <p className="text-sm text-blue-600">Cargando información detallada de beneficiarios...</p>
+                    <div className="mb-4 p-3 bg-accent border border-border rounded-md">
+                      <p className="text-sm text-primary">Cargando información detallada de beneficiarios...</p>
                     </div>
                   )}
                   
                   {/* Tabla de beneficiarios (solo se muestra si se están cargando los detalles o ya se han cargado) */}
                   {showDetails && (
                     <div className="overflow-x-auto">
-                    <table className="min-w-full bg-white border border-gray-200 rounded-md">
-                      <thead className="bg-gray-50">
+                    <table className="min-w-full bg-card border border-border rounded-md">
+                      <thead className="bg-muted">
                         <tr>
                           <th className="py-2 px-4 border-b text-left">Dirección</th>
                           <th className="py-2 px-4 border-b text-center">Total Tokens</th>
@@ -808,18 +808,18 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                         {summary.beneficiaries.map((beneficiary: any, index: number) => (
                           <React.Fragment key={index}>
                             {/* Fila principal del beneficiario con totales */}
-                            <tr className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b-2 border-gray-300 dark:border-gray-600 ${beneficiary.hasError ? 'bg-red-50' : ''} ${beneficiary.noVestings ? 'bg-yellow-50' : ''}`}>
+                            <tr className={`${index % 2 === 0 ? 'bg-muted' : 'bg-card'} border-b-2 border-border ${beneficiary.hasError ? 'bg-destructive/10' : ''} ${beneficiary.noVestings ? 'bg-warning/10' : ''}`}>
                               <td className="py-2 px-4 font-mono text-sm font-semibold">
                                 {beneficiary.address}
-                                {beneficiary.vestings && <span className="ml-2 text-xs text-blue-500">({beneficiary.vestings.length} vestings)</span>}
-                                {beneficiary.hasError && <span className="ml-2 text-xs text-red-500">(Error: {beneficiary.error || 'Desconocido'})</span>}
+                                {beneficiary.vestings && <span className="ml-2 text-xs text-primary">({beneficiary.vestings.length} vestings)</span>}
+                                {beneficiary.hasError && <span className="ml-2 text-xs text-destructive">(Error: {beneficiary.error || 'Desconocido'})</span>}
                                 {beneficiary.noVestings && <span className="ml-2 text-xs text-yellow-500">(Sin vestings)</span>}
                               </td>
                               <td className="py-2 px-4 text-right font-semibold">
                                 {beneficiary.totalAmount ? parseFloat(beneficiary.totalAmount).toLocaleString(undefined, { maximumFractionDigits: 4 }) : 
                                  (beneficiary.amount ? parseFloat(beneficiary.amount).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0')}
                               </td>
-                              <td className="py-2 px-4 text-right text-red-600 font-semibold">
+                              <td className="py-2 px-4 text-right text-destructive font-semibold">
                                 {beneficiary.totalClaimed ? parseFloat(beneficiary.totalClaimed).toLocaleString(undefined, { maximumFractionDigits: 4 }) : 
                                  (beneficiary.claimed ? parseFloat(beneficiary.claimed).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0')}
                               </td>
@@ -827,14 +827,14 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                                 {beneficiary.totalRemaining ? parseFloat(beneficiary.totalRemaining).toLocaleString(undefined, { maximumFractionDigits: 4 }) : 
                                  (beneficiary.remaining ? parseFloat(beneficiary.remaining).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0')}
                               </td>
-                              <td className="py-2 px-4 text-right text-green-600 font-semibold">
+                              <td className="py-2 px-4 text-right text-success font-semibold">
                                 {beneficiary.totalReleasable ? parseFloat(beneficiary.totalReleasable).toLocaleString(undefined, { maximumFractionDigits: 4 }) : 
                                  (beneficiary.releasable ? parseFloat(beneficiary.releasable).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0')}
                               </td>
                               <td className="py-2 px-4 text-center">
                                 {beneficiary.vestings && beneficiary.vestings.length > 0 ? (
                                   <button
-                                    className="text-blue-500 hover:text-blue-700 text-sm"
+                                    className="text-primary hover:opacity-80 text-sm"
                                     onClick={() => {
                                       const expandedRows = {...expandedBeneficiaries};
                                       expandedRows[index] = !expandedRows[index];
@@ -844,14 +844,14 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                                     {expandedBeneficiaries[index] ? 'Ocultar detalles' : 'Ver detalles'}
                                   </button>
                                 ) : (
-                                  <span className="text-gray-400 text-sm">No hay vestings</span>
+                                  <span className="text-muted-foreground text-sm">No hay vestings</span>
                                 )}
                               </td>
                               <td className="py-2 px-4 text-center">
                                 <button
                                   onClick={() => refreshSingleBeneficiary(beneficiary.address)}
                                   disabled={loadingBeneficiaries}
-                                  className="text-blue-500 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                  className="text-primary hover:opacity-80 disabled:text-muted-foreground disabled:cursor-not-allowed"
                                   title="Actualizar datos de este beneficiario"
                                 >
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -867,10 +867,10 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                               const endTime = vesting.start && vesting.duration ? vesting.start + vesting.duration : 0;
 
                               return (
-                              <tr key={`${index}-${vestingIndex}`} className="bg-gray-100 dark:bg-gray-700 text-sm">
+                              <tr key={`${index}-${vestingIndex}`} className="bg-muted text-sm">
                                 <td className="py-1 px-4 border-b pl-8 font-mono">
-                                  <div className="text-gray-600">{vesting.phase || 'Sin fase'}</div>
-                                  <div className="text-xs text-gray-400">ID: {vesting.scheduleId || 'N/A'}</div>
+                                  <div className="text-card-foreground">{vesting.phase || 'Sin fase'}</div>
+                                  <div className="text-xs text-muted-foreground">ID: {vesting.scheduleId || 'N/A'}</div>
                                 </td>
                                 <td className="py-1 px-4 border-b text-right">
                                   {vesting.amount ? parseFloat(vesting.amount).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
@@ -917,17 +917,17 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
           {summary.allTokensVested !== undefined && (
             <div className="mt-6">
               <h4 className="text-md font-semibold mb-2">Estado de Vesting</h4>
-              <div className={`p-4 rounded-md ${summary.allTokensVested ? 'bg-green-50 border border-green-200' : 'bg-orange-50 border border-orange-200'}`}>
-                <p className={`font-bold text-lg ${summary.allTokensVested ? 'text-green-600' : 'text-orange-600'}`}>
+              <div className={`p-4 rounded-md ${summary.allTokensVested ? 'bg-success/10 border border-success' : 'bg-warning/10 border border-warning'}`}>
+                <p className={`font-bold text-lg ${summary.allTokensVested ? 'text-success' : 'text-warning'}`}>
                   {summary.allTokensVested ? 'SÍ - Todos los tokens han sido vested' : 'NO - Aún quedan tokens por vestear'}
                 </p>
                 {summary.allTokensVested && (
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     El contrato ha distribuido todos los tokens a los beneficiarios.
                   </p>
                 )}
                 {!summary.allTokensVested && summary.remainingToVest && summary.remainingToVest !== '0' && (
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Quedan aproximadamente {parseFloat(summary.remainingToVest).toLocaleString(undefined, {maximumFractionDigits: 6})} {summary.tokenSymbol} por distribuir.
                   </p>
                 )}
@@ -936,13 +936,13 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
           )}
           
           <div className="mt-4 text-right">
-            <p className="text-xs text-gray-500">Última actualización: {new Date(summary.lastUpdated).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Última actualización: {new Date(summary.lastUpdated).toLocaleString()}</p>
           </div>
           
           {summary.error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600">Error:</p>
-              <p className="font-medium text-red-600">{summary.error}</p>
+            <div className="mt-4 p-3 bg-destructive/10 border border-destructive rounded-md">
+              <p className="text-sm text-destructive">Error:</p>
+              <p className="font-medium text-destructive">{summary.error}</p>
             </div>
           )}
         </div>
@@ -955,11 +955,11 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
             {searchHistory.map((item, index) => (
               <div 
                 key={index} 
-                className="p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer"
+                className="p-2 border border-border rounded-md hover:bg-muted cursor-pointer"
                 onClick={() => loadFromHistory(item)}
               >
                 <p className="font-medium">{item.contractAddress}</p>
-                <div className="flex justify-between text-sm text-gray-600">
+                <div className="flex justify-between text-sm text-muted-foreground">
                   <span>{item.tokenName} ({item.tokenSymbol})</span>
                   <span>{new Date(item.lastUpdated).toLocaleString()}</span>
                 </div>

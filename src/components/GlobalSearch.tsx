@@ -112,7 +112,7 @@ export default function GlobalSearch() {
     return (
       <>
         {text.substring(0, index)}
-        <span className="bg-yellow-200 text-gray-900 font-semibold">
+        <span className="bg-warning/30 text-warning-foreground font-semibold">
           {text.substring(index, index + query.length)}
         </span>
         {text.substring(index + query.length)}
@@ -138,10 +138,10 @@ export default function GlobalSearch() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 transition-colors"
+        className="flex items-center gap-2 px-4 py-2 bg-card border border-input rounded-lg hover:border-primary transition-colors"
       >
-        <span className="text-gray-600">🔍</span>
-        <span className="text-gray-500 dark:text-gray-400 text-sm">Buscar...</span>
+        <span className="text-muted-foreground">🔍</span>
+        <span className="text-muted-foreground text-sm">Buscar...</span>
         <kbd className="ml-auto px-2 py-1 text-xs bg-gray-100 border border-gray-300 dark:border-gray-600 rounded">
           {typeof navigator !== 'undefined' && navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+K
         </kbd>
@@ -158,10 +158,10 @@ export default function GlobalSearch() {
       />
 
       {/* Modal */}
-      <div className="fixed top-20 left-1/2 -translate-x-1/2 w-full max-w-2xl bg-white rounded-lg shadow-2xl z-50 overflow-hidden">
+      <div className="fixed top-20 left-1/2 -translate-x-1/2 w-full max-w-2xl bg-card rounded-lg shadow-2xl z-50 overflow-hidden border border-border">
         {/* Search Input */}
-        <div className="flex items-center gap-3 p-4 border-b border-gray-200">
-          <span className="text-gray-400 text-xl">🔍</span>
+        <div className="flex items-center gap-3 p-4 border-b border-border">
+          <span className="text-muted-foreground text-xl">🔍</span>
           <input
             ref={inputRef}
             type="text"
@@ -172,7 +172,7 @@ export default function GlobalSearch() {
             className="flex-1 text-lg outline-none"
           />
           {isSearching && (
-            <div className="animate-spin text-blue-500">⏳</div>
+            <div className="animate-spin text-primary">⏳</div>
           )}
         </div>
 
@@ -192,21 +192,21 @@ export default function GlobalSearch() {
                 <button
                   key={`${result.type}-${result.value}`}
                   onClick={() => handleSelectResult(result)}
-                  className={`w-full px-4 py-3 flex items-start gap-3 hover:bg-gray-100 transition-colors ${
-                    index === selectedIndex ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                  className={`w-full px-4 py-3 flex items-start gap-3 hover:bg-muted transition-colors ${
+                    index === selectedIndex ? 'bg-accent border-l-4 border-primary' : ''
                   }`}
                 >
                   <span className="text-2xl flex-shrink-0">{getIcon(result.type)}</span>
                   <div className="flex-1 text-left">
-                    <div className="font-medium text-gray-900">
+                    <div className="font-medium text-card-foreground">
                       {result.label || highlightMatch(result.value, query)}
                     </div>
                     {result.description && (
-                      <div className="text-sm text-gray-500 mt-1">
+                      <div className="text-sm text-muted-foreground mt-1">
                         {highlightMatch(result.description, query)}
                       </div>
                     )}
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="text-xs text-muted-foreground mt-1">
                       {result.type === 'address' && 'Dirección'}
                       {result.type === 'transaction' && 'Transacción'}
                       {result.type === 'token' && 'Token'}
@@ -220,11 +220,11 @@ export default function GlobalSearch() {
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
+        <div className="px-4 py-3 bg-muted border-t border-border flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex gap-4">
-            <span><kbd className="px-2 py-1 bg-white border border-gray-300 dark:border-gray-600 rounded">↑↓</kbd> Navegar</span>
-            <span><kbd className="px-2 py-1 bg-white border border-gray-300 dark:border-gray-600 rounded">↵</kbd> Seleccionar</span>
-            <span><kbd className="px-2 py-1 bg-white border border-gray-300 dark:border-gray-600 rounded">Esc</kbd> Cerrar</span>
+            <span><kbd className="px-2 py-1 bg-card border border-input rounded">↑↓</kbd> Navegar</span>
+            <span><kbd className="px-2 py-1 bg-card border border-input rounded">↵</kbd> Seleccionar</span>
+            <span><kbd className="px-2 py-1 bg-card border border-input rounded">Esc</kbd> Cerrar</span>
           </div>
         </div>
       </div>

@@ -90,14 +90,14 @@ export default function EditAddressModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-card rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto border border-border">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold">
             {isNewAddress ? 'Añadir Nueva Dirección' : 'Editar Dirección Conocida'}
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -128,10 +128,10 @@ export default function EditAddressModal({
                 value={formAddress}
                 onChange={(e) => setFormAddress(e.target.value)}
                 placeholder="0x..."
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
               />
             ) : (
-              <div className="text-xs font-mono text-gray-600 bg-gray-50 p-2 rounded break-all">
+              <div className="text-xs font-mono text-muted-foreground bg-muted p-2 rounded break-all">
                 {address}
               </div>
             )}
@@ -147,7 +147,7 @@ export default function EditAddressModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Mi Wallet Personal"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -159,7 +159,7 @@ export default function EditAddressModal({
             <select
               value={type}
               onChange={(e) => setType(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="WALLET">Wallet</option>
               <option value="CONTRACT">Contract</option>
@@ -180,7 +180,7 @@ export default function EditAddressModal({
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder="Ej: Team, Investor, Marketing..."
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -194,7 +194,7 @@ export default function EditAddressModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descripción adicional..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -208,7 +208,7 @@ export default function EditAddressModal({
               value={tags}
               onChange={(e) => setTags(e.target.value)}
               placeholder="vesting, important, monitored"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -222,14 +222,14 @@ export default function EditAddressModal({
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="h-10 w-20 border border-gray-300 dark:border-gray-600 rounded cursor-pointer"
+                className="h-10 w-20 border border-input rounded cursor-pointer"
               />
               <input
                 type="text"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
                 placeholder="#3B82F6"
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                className="flex-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
               />
             </div>
           </div>
@@ -246,7 +246,7 @@ export default function EditAddressModal({
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {isSaving ? (
               <>

@@ -70,7 +70,7 @@ const renderTimelineProgress = (schedule: VestingSchedule) => {
   const progress = (elapsedDuration / totalDuration) * 100;
 
   return (
-    <div className="w-full bg-blue-600" style={{ width: `${progress}%` }}></div>
+    <div className="w-full bg-primary" style={{ width: `${progress}%` }}></div>
   );
 };
 
@@ -376,7 +376,7 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
 
   if (isLoading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="bg-card p-6 rounded-lg shadow-md border border-border">
         <div className="flex justify-center items-center h-40">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
@@ -385,7 +385,7 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
+    <div className="bg-card p-6 rounded-lg shadow-md border border-border">
       <h2 className="text-xl font-semibold mb-4">Información de Vesting</h2>
       
       <div className="mb-6">
@@ -402,7 +402,7 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
             <button
               onClick={handleRefreshVestingInfo}
               disabled={loading || !walletAddress}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 bg-success text-success-foreground rounded hover:opacity-90 disabled:bg-muted disabled:cursor-not-allowed transition-colors"
               title="Actualizar desde blockchain (fuerza búsqueda RPC)"
             >
               🔄 Actualizar
@@ -412,7 +412,7 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
           {loading && (
             <div className="flex items-center">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-muted-foreground">
                 Comprobando contrato {processedContracts + 1} de {vestingContracts.length}: 
                 <span className="font-mono ml-1">{currentContract}</span>
               </span>
@@ -420,32 +420,32 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
           )}
         </div>
 
-        <div className="mb-4 p-3 bg-gray-50 rounded-md">
-          <p className="text-sm text-gray-700">
+        <div className="mb-4 p-3 bg-muted rounded-md">
+          <p className="text-sm text-card-foreground">
             <strong>Wallet:</strong> {walletAddress || 'No especificada'}
           </p>
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-card-foreground">
             <strong>Red:</strong> {network || 'No especificada'}
           </p>
         </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
         
         {loading && processedContracts > 0 && (
-          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+          <div className="w-full bg-muted rounded-full h-2.5 mb-4">
             <div 
-              className="bg-blue-600 h-2.5 rounded-full" 
+              className="bg-primary h-2.5 rounded-full" 
               style={{ width: `${(processedContracts / vestingContracts.length) * 100}%` }}
             ></div>
           </div>
         )}
         
         {statusMessages.length > 0 && (
-          <div className="mt-4 mb-4 p-3 bg-gray-50 rounded-md max-h-40 overflow-y-auto">
+          <div className="mt-4 mb-4 p-3 bg-muted rounded-md max-h-40 overflow-y-auto">
             <h3 className="text-sm font-medium mb-2">Log de operaciones:</h3>
             <ul className="text-xs space-y-1">
               {statusMessages.map((msg, index) => (
@@ -457,7 +457,7 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
       </div>
 
       {vestingSchedules.length === 0 && !loading ? (
-        <p className="text-center text-gray-500">
+        <p className="text-center text-muted-foreground">
           No se encontró información de vesting para esta wallet. Haz clic en "Consultar Todos los Contratos de Vesting" para buscar.
         </p>
       ) : (
@@ -468,64 +468,64 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
                 Contrato: <span className="font-mono text-sm">{contractAddress}</span>
               </h3>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-border">
+                  <thead className="bg-muted">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Liberado</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reclamable</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reclamado</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bloqueado</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Período</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Próximo Desbloqueo</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Token</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Liberado</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Reclamable</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Reclamado</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Bloqueado</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Período</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Próximo Desbloqueo</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-card divide-y divide-border">
                     {schedules.map((vesting, index) => (
                       <React.Fragment key={index}>
                         {/* Main vesting row with aggregated totals */}
-                        <tr className="bg-blue-50">
+                        <tr className="bg-accent">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <button
                                 onClick={() => toggleRowExpansion(contractIndex * 100 + index)}
-                                className="mr-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs"
+                                className="mr-2 bg-primary hover:opacity-90 text-primary-foreground font-bold py-1 px-2 rounded text-xs"
                                 title={expandedRows[contractIndex * 100 + index] ? "Ocultar schedules" : "Ver schedules"}
                               >
                                 {expandedRows[contractIndex * 100 + index] ? '−' : '+'}
                               </button>
                               <div>
-                                <div className="text-sm font-bold text-gray-900">{vesting.tokenSymbol}</div>
-                                <div className="text-sm text-gray-500">{vesting.tokenName}</div>
+                                <div className="text-sm font-bold text-card-foreground">{vesting.tokenSymbol}</div>
+                                <div className="text-sm text-muted-foreground">{vesting.tokenName}</div>
                                 {vesting.scheduleCount && (
-                                  <div className="text-xs text-blue-600 font-medium">{vesting.scheduleCount} schedules</div>
+                                  <div className="text-xs text-primary font-medium">{vesting.scheduleCount} schedules</div>
                                 )}
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-bold text-gray-900">{vesting.totalAmount}</div>
+                            <div className="text-sm font-bold text-card-foreground">{vesting.totalAmount}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-bold text-gray-900">{vesting.vestedAmount}</div>
+                            <div className="text-sm font-bold text-card-foreground">{vesting.vestedAmount}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-bold text-gray-900">{vesting.claimableAmount}</div>
+                            <div className="text-sm font-bold text-card-foreground">{vesting.claimableAmount}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-bold text-gray-900">{vesting.releasedAmount}</div>
+                            <div className="text-sm font-bold text-card-foreground">{vesting.releasedAmount}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-bold text-gray-900">{vesting.remainingAmount}</div>
+                            <div className="text-sm font-bold text-card-foreground">{vesting.remainingAmount}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
+                            <div className="text-sm text-card-foreground">
                               {new Date(vesting.startTime * 1000).toLocaleDateString()} - {new Date(vesting.endTime * 1000).toLocaleDateString()}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
+                            <div className="text-sm text-card-foreground">
                               {vesting.contractName || 'Vesting'}
                             </div>
                           </td>
@@ -534,32 +534,32 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
                         {/* Expanded section showing individual schedules */}
                         {expandedRows[contractIndex * 100 + index] && vesting.schedules && vesting.schedules.length > 0 && (
                           <tr>
-                            <td colSpan={8} className="px-6 py-4 bg-gray-50">
-                              <div className="text-sm font-medium text-gray-900 mb-3">Schedules Individuales ({vesting.schedules.length})</div>
-                              <table className="min-w-full divide-y divide-gray-200 border">
-                                <thead className="bg-gray-100">
+                            <td colSpan={8} className="px-6 py-4 bg-muted">
+                              <div className="text-sm font-medium text-card-foreground mb-3">Schedules Individuales ({vesting.schedules.length})</div>
+                              <table className="min-w-full divide-y divide-border border">
+                                <thead className="bg-muted">
                                   <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fase</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reclamado</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Restante</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Inicio</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fin</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">#</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Fase</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Total</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Reclamado</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Restante</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Inicio</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Fin</th>
                                   </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-card divide-y divide-border">
                                   {vesting.schedules.map((sched: any, schedIndex: number) => (
                                     <tr key={schedIndex}>
-                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{schedIndex + 1}</td>
-                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{sched.phase || 'N/A'}</td>
-                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{sched.totalAmount}</td>
-                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{sched.releasedAmount}</td>
-                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{sched.remainingAmount}</td>
-                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-card-foreground">{schedIndex + 1}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-card-foreground">{sched.phase || 'N/A'}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-card-foreground">{sched.totalAmount}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-card-foreground">{sched.releasedAmount}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-card-foreground">{sched.remainingAmount}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-muted-foreground">
                                         {new Date(sched.startTime * 1000).toLocaleDateString()}
                                       </td>
-                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-muted-foreground">
                                         {new Date(sched.endTime * 1000).toLocaleDateString()}
                                       </td>
                                     </tr>
@@ -588,24 +588,24 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
                     });
                     
                     return (
-                      <tfoot className="bg-gray-100 dark:bg-gray-700 font-medium">
+                      <tfoot className="bg-muted font-medium">
                         <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
                             <strong>TOTALES DEL CONTRATO</strong>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
                             {totalAmount.toFixed(6)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
                             {totalVestedAmount.toFixed(6)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
                             {totalClaimableAmount.toFixed(6)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
                             {totalReleasedAmount.toFixed(6)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
                             {totalRemainingAmount.toFixed(6)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap"></td>
@@ -620,28 +620,28 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
           ))}
           
           {vestingSchedules.length > 0 && (
-            <div className="mt-8 p-4 bg-blue-50 rounded-lg shadow">
+            <div className="mt-8 p-4 bg-accent rounded-lg shadow border border-border">
               <h3 className="text-lg font-semibold mb-4">Totales Globales (Todos los Contratos)</h3>
               <div className="grid grid-cols-5 gap-4">
                 <div className="bg-white p-4 rounded shadow-sm">
-                  <div className="text-sm text-gray-600">Total</div>
-                  <div className="text-xl font-bold text-gray-900">{totals?.totalAmount}</div>
+                  <div className="text-sm text-muted-foreground">Total</div>
+                  <div className="text-xl font-bold text-card-foreground">{totals?.totalAmount}</div>
                 </div>
                 <div className="bg-white p-4 rounded shadow-sm">
                   <div className="text-sm text-gray-600">Liberado</div>
-                  <div className="text-xl font-bold text-gray-900">{totals?.totalVestedAmount}</div>
+                  <div className="text-xl font-bold text-card-foreground">{totals?.totalVestedAmount}</div>
                 </div>
                 <div className="bg-white p-4 rounded shadow-sm">
-                  <div className="text-sm text-gray-600">Reclamable</div>
-                  <div className="text-xl font-bold text-gray-900">{totals?.totalClaimableAmount}</div>
+                  <div className="text-sm text-muted-foreground">Reclamable</div>
+                  <div className="text-xl font-bold text-card-foreground">{totals?.totalClaimableAmount}</div>
                 </div>
                 <div className="bg-white p-4 rounded shadow-sm">
-                  <div className="text-sm text-gray-600">Reclamado</div>
-                  <div className="text-xl font-bold text-gray-900">{totals?.totalReleasedAmount}</div>
+                  <div className="text-sm text-muted-foreground">Reclamado</div>
+                  <div className="text-xl font-bold text-card-foreground">{totals?.totalReleasedAmount}</div>
                 </div>
                 <div className="bg-white p-4 rounded shadow-sm">
-                  <div className="text-sm text-gray-600">Bloqueado</div>
-                  <div className="text-xl font-bold text-gray-900">{totals?.totalRemainingAmount}</div>
+                  <div className="text-sm text-muted-foreground">Bloqueado</div>
+                  <div className="text-xl font-bold text-card-foreground">{totals?.totalRemainingAmount}</div>
                 </div>
               </div>
             </div>

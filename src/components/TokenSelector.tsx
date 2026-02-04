@@ -8,16 +8,16 @@ export default function TokenSelector() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-md animate-pulse">
-        <div className="w-6 h-6 bg-gray-300 rounded-full"></div>
-        <div className="w-20 h-4 bg-gray-300 rounded"></div>
+      <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md animate-pulse">
+        <div className="w-6 h-6 bg-muted-foreground/30 rounded-full"></div>
+        <div className="w-20 h-4 bg-muted-foreground/30 rounded"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="px-3 py-2 bg-red-50 text-red-600 text-sm rounded-md">
+      <div className="px-3 py-2 bg-destructive/10 text-destructive text-sm rounded-md">
         Error al cargar tokens
       </div>
     );
@@ -27,7 +27,7 @@ export default function TokenSelector() {
     return (
       <Link
         href="/settings/tokens"
-        className="px-3 py-2 bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-md hover:bg-yellow-100 transition-colors"
+        className="px-3 py-2 bg-warning/10 border border-warning/50 text-warning text-sm rounded-md hover:bg-warning/20 transition-colors"
       >
         + Agregar Token
       </Link>
@@ -36,7 +36,7 @@ export default function TokenSelector() {
 
   return (
     <div className="relative group">
-      <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 transition-colors">
+      <button className="flex items-center gap-2 px-3 py-2 bg-card border border-input rounded-md hover:bg-muted transition-colors">
         {/* Token Icon */}
         <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
           {activeToken?.symbol.substring(0, 2) || '??'}
@@ -44,17 +44,17 @@ export default function TokenSelector() {
 
         {/* Token Info */}
         <div className="flex flex-col items-start">
-          <span className="text-sm font-medium text-gray-900">
+          <span className="text-sm font-medium text-card-foreground">
             {activeToken?.symbol || 'Sin token'}
           </span>
-          <span className="text-xs text-gray-500 capitalize">
+          <span className="text-xs text-muted-foreground capitalize">
             {activeToken?.network || ''}
           </span>
         </div>
 
         {/* Dropdown Arrow */}
         <svg
-          className="w-4 h-4 text-gray-500"
+          className="w-4 h-4 text-muted-foreground"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -64,15 +64,15 @@ export default function TokenSelector() {
       </button>
 
       {/* Dropdown Menu */}
-      <div className="absolute left-0 mt-2 w-64 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50 hidden group-hover:block">
+      <div className="absolute left-0 mt-2 w-64 bg-card rounded-md shadow-lg border border-border py-1 z-50 hidden group-hover:block">
         {/* Token List */}
         <div className="max-h-64 overflow-y-auto">
           {tokens.map((token) => (
             <button
               key={token.id}
               onClick={() => setActiveTokenId(token.id)}
-              className={`w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-50 transition-colors ${
-                activeToken?.id === token.id ? 'bg-blue-50' : ''
+              className={`w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-muted transition-colors ${
+                activeToken?.id === token.id ? 'bg-accent' : ''
               }`}
             >
               {/* Token Icon */}
@@ -82,10 +82,10 @@ export default function TokenSelector() {
 
               {/* Token Info */}
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm text-gray-900 truncate">
+                <div className="font-medium text-sm text-card-foreground truncate">
                   {token.symbol}
                 </div>
-                <div className="text-xs text-gray-500 truncate">
+                <div className="text-xs text-muted-foreground truncate">
                   {token.name}
                 </div>
                 <div className="text-xs text-gray-400 capitalize">
@@ -96,7 +96,7 @@ export default function TokenSelector() {
               {/* Selected Indicator */}
               {activeToken?.id === token.id && (
                 <svg
-                  className="w-5 h-5 text-blue-600 flex-shrink-0"
+                  className="w-5 h-5 text-primary flex-shrink-0"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -112,12 +112,12 @@ export default function TokenSelector() {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-gray-200 my-1"></div>
+        <div className="border-t border-border my-1"></div>
 
         {/* Manage Tokens Link */}
         <Link
           href="/settings/tokens"
-          className="block px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors"
+          className="block px-4 py-2 text-sm text-primary hover:bg-muted transition-colors"
         >
           ⚙️ Gestionar Tokens
         </Link>

@@ -15,7 +15,7 @@ const networks = [
 const NetworkSelector: React.FC<NetworkSelectorProps> = ({ value, onChange }) => {
   return (
     <div className="flex flex-col">
-      <label htmlFor="network" className="text-sm font-medium text-gray-700 mb-1">
+      <label htmlFor="network" className="text-sm font-medium text-foreground mb-1">
         Red Blockchain
       </label>
       <select

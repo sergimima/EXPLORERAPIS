@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import Providers from '@/components/Providers';
@@ -11,14 +12,24 @@ export const metadata: Metadata = {
   description: 'Comprehensive analytics and insights for ERC20 tokens. Monitor balances, track transfers, analyze holders, and manage vesting contracts.',
 };
 
+const themeScript = `
+  (function() {
+    var theme = localStorage.getItem('theme');
+    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var isDark = theme === 'dark' || (!theme && prefersDark);
+    document.documentElement.classList.toggle('dark', isDark);
+  })();
+`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
-      <body className={`${jakarta.className} bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200`}>
+    <html lang="es" suppressHydrationWarning>
+      <body className={`${jakarta.className} bg-background text-foreground transition-colors duration-200 min-h-screen`}>
+        <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: themeScript }} />
         <Providers>
           <Navbar />
           {children}

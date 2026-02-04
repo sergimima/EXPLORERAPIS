@@ -77,28 +77,28 @@ export default function TokenSettingsLayout({
   const networkLabel = networkLabels[token?.network || ''] || (token?.network || '-');
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-gray-500 mb-3">
-            <Link href="/settings/tokens" className="hover:text-blue-600">
+          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+            <Link href="/settings/tokens" className="hover:text-primary">
               Tokens
             </Link>
             <span>/</span>
-            <Link href={`/settings/tokens/${tokenId}`} className="hover:text-blue-600">
+            <Link href={`/settings/tokens/${tokenId}`} className="hover:text-primary">
               {token?.symbol || 'Token'}
             </Link>
             <span>/</span>
-            <span className="text-gray-700 dark:text-gray-200 font-medium">{currentLabel}</span>
+            <span className="text-secondary-foreground font-medium">{currentLabel}</span>
           </nav>
 
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="md:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 text-gray-600"
+                className="md:hidden p-2 -ml-2 rounded-lg hover:bg-muted text-muted-foreground"
                 aria-label="Abrir menú"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,7 +111,7 @@ export default function TokenSettingsLayout({
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-bold truncate">{token?.symbol || 'Token'}</h1>
-                  <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded uppercase">
+                  <span className="px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground rounded uppercase">
                     {networkLabel}
                   </span>
                 </div>
@@ -120,7 +120,7 @@ export default function TokenSettingsLayout({
             </div>
             <Link
               href={`/dashboard?token=${tokenId}`}
-              className="flex-shrink-0 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+              className="flex-shrink-0 px-4 py-2 text-sm font-medium text-primary hover:opacity-80 bg-accent hover:bg-accent/80 rounded-lg transition-colors"
             >
               Ir al dashboard →
             </Link>
@@ -152,7 +152,7 @@ export default function TokenSettingsLayout({
             <span className="font-semibold">Menú</span>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
+              className="p-2 rounded-lg hover:bg-muted text-muted-foreground"
               aria-label="Cerrar menú"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,8 +167,8 @@ export default function TokenSettingsLayout({
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isActive(item.href)
-                    ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700 -ml-4 pl-[13px]'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-accent text-accent-foreground border-l-4 border-primary -ml-4 pl-[13px]'
+                    : 'text-foreground hover:bg-muted'
                 }`}
               >
                 <span className="text-lg">{item.icon}</span>

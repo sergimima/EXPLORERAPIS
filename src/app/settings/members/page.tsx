@@ -100,8 +100,8 @@ export default function MembersPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Cargando...</p>
         </div>
       </div>
     );
@@ -110,17 +110,17 @@ export default function MembersPage() {
   return (
     <div className="max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Team Members</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-2">
+        <h1 className="text-3xl font-bold text-card-foreground">Team Members</h1>
+        <p className="text-muted-foreground mt-2">
           Gestiona los miembros de tu organización y envía invitaciones
         </p>
       </div>
 
       {/* Miembros Activos */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+      <div className="bg-card rounded-lg shadow-sm border border-border p-6 mb-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-card-foreground">
               Miembros Activos
             </h2>
             <p className="text-sm text-gray-500 mt-1">
@@ -129,7 +129,7 @@ export default function MembersPage() {
           </div>
           <button
             onClick={() => setShowInviteModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 flex items-center gap-2"
           >
             <span>➕</span>
             Invitar Miembro
@@ -147,7 +147,7 @@ export default function MembersPage() {
                   {member.user.name?.[0]?.toUpperCase() || member.user.email[0].toUpperCase()}
                 </div>
                 <div>
-                  <div className="font-medium text-gray-900">
+                  <div className="font-medium text-card-foreground">
                     {member.user.name || member.user.email}
                   </div>
                   <div className="text-sm text-gray-500">
@@ -183,9 +183,9 @@ export default function MembersPage() {
 
       {/* Invitaciones Pendientes */}
       {invitations.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-card rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-card-foreground">
               Invitaciones Pendientes
             </h2>
             <p className="text-sm text-gray-500 mt-1">
@@ -200,10 +200,10 @@ export default function MembersPage() {
                 className="flex items-center justify-between p-4 border border-yellow-200 rounded-lg bg-yellow-50"
               >
                 <div>
-                  <div className="font-medium text-gray-900">
+                  <div className="font-medium text-card-foreground">
                     📧 {invitation.email}
                   </div>
-                  <div className="text-sm text-gray-600 mt-1">
+                  <div className="text-sm text-muted-foreground mt-1">
                     Rol: <span className="font-medium">{invitation.role}</span>
                     {' • '}
                     Invitado por {invitation.inviter.name || invitation.inviter.email}
@@ -228,8 +228,8 @@ export default function MembersPage() {
       {/* Modal de Invitación */}
       {showInviteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900">
+          <div className="bg-card rounded-lg p-6 w-full max-w-md shadow-xl">
+            <h2 className="text-xl font-semibold mb-4 text-card-foreground">
               Invitar Nuevo Miembro
             </h2>
 
@@ -281,7 +281,7 @@ export default function MembersPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                  className="flex-1 bg-primary text-white px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
                   disabled={inviting}
                 >
                   {inviting ? 'Enviando...' : 'Enviar Invitación'}

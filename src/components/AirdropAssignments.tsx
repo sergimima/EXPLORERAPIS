@@ -162,7 +162,7 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
 
   if (isLoading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="bg-card p-6 rounded-lg shadow-md border border-border">
         <p className="text-center text-gray-500">Cargando...</p>
       </div>
     );
@@ -177,7 +177,7 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
           <div className="flex space-x-4 mb-4">
             <button
               onClick={() => setActiveTab('tokens')}
-              className={`px-4 py-2 rounded ${activeTab === 'tokens' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+              className={`px-4 py-2 rounded ${activeTab === 'tokens' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
             >
               Tokens Asignados
             </button>
@@ -190,7 +190,7 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
           </div>
 
           <div>
-            <label htmlFor="userEmail" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="userEmail" className="block text-sm font-medium text-foreground mb-1">
               Correo Electrónico del Usuario
             </label>
             <div className="flex space-x-2">
@@ -210,7 +210,7 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
                 {loading ? 'Buscando...' : 'Buscar'}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Introduce el correo electrónico del usuario de Vottun que deseas consultar.
             </p>
           </div>
@@ -236,14 +236,14 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
                 {loading ? 'Buscando...' : 'Buscar'}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               O introduce directamente el ID del usuario.
             </p>
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}

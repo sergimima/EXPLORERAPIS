@@ -38,11 +38,11 @@ export default function WhaleTimelineChart({ transfers, threshold = 10000, token
       const data = payload[0].payload;
       const date = new Date(data.timestamp);
       return (
-        <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
-          <p className="font-semibold text-gray-900">
+        <div className="bg-card p-3 rounded-lg shadow-lg border border-border">
+          <p className="font-semibold text-card-foreground">
             {data.amount.toLocaleString()} {tokenSymbol}
           </p>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             {date.toLocaleString()}
           </p>
           <p className="text-xs text-gray-500">
@@ -69,7 +69,7 @@ export default function WhaleTimelineChart({ transfers, threshold = 10000, token
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-card rounded-lg shadow-md p-6 border border-border">
       <h3 className="text-lg font-semibold mb-4">Timeline de Movimientos Grandes</h3>
       <ResponsiveContainer width="100%" height={300}>
         <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
@@ -97,11 +97,11 @@ export default function WhaleTimelineChart({ transfers, threshold = 10000, token
           />
         </ScatterChart>
       </ResponsiveContainer>
-      <div className="mt-4 text-sm text-gray-600">
+      <div className="mt-4 text-sm text-muted-foreground">
         <p>
           <span className="font-semibold">Total mostrado:</span> {data.length} transferencias grandes
         </p>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Umbral: {threshold.toLocaleString()} {tokenSymbol}
         </p>
       </div>

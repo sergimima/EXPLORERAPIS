@@ -44,13 +44,13 @@ export default function SettingsLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <div className="flex">
         {/* Sidebar */}
-        <aside className="w-72 bg-white border-r border-gray-200 min-h-screen sticky top-0">
+        <aside className="w-72 bg-card border-r border-border min-h-screen sticky top-0">
           <div className="p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-2">⚙️ Settings</h2>
-            <p className="text-sm text-gray-500 mb-6">Configuración de tu organización</p>
+            <h2 className="text-xl font-bold text-card-foreground mb-2">⚙️ Settings</h2>
+            <p className="text-sm text-muted-foreground mb-6">Configuración de tu organización</p>
 
             <nav className="space-y-1">
               {navItems.map((item) => (
@@ -62,8 +62,8 @@ export default function SettingsLayout({
                     ${item.disabled
                       ? 'opacity-50 cursor-not-allowed'
                       : isActive(item.href)
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                        ? 'bg-accent text-accent-foreground border border-border'
+                        : 'text-secondary-foreground hover:bg-muted hover:text-foreground'
                     }
                   `}
                   onClick={(e) => item.disabled && e.preventDefault()}
@@ -74,12 +74,12 @@ export default function SettingsLayout({
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{item.label}</span>
                         {item.badge && (
-                          <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                          <span className="text-xs px-2 py-0.5 bg-muted text-muted-foreground rounded-full">
                             {item.badge}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {item.description}
                       </p>
                     </div>
@@ -88,10 +88,10 @@ export default function SettingsLayout({
               ))}
             </nav>
 
-            <div className="pt-6 mt-6 border-t border-gray-200">
+            <div className="pt-6 mt-6 border-t border-border">
               <Link
                 href="/dashboard"
-                className="block px-4 py-2 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors text-sm"
+                className="block px-4 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-sm"
               >
                 ← Volver al Dashboard
               </Link>

@@ -45,13 +45,13 @@ export default function GeneralSettingsPage() {
   };
 
   if (loading) {
-    return <div className="text-gray-500">Cargando...</div>;
+    return <div className="text-muted-foreground">Cargando...</div>;
   }
 
   return (
     <div className="max-w-3xl space-y-6">
       {/* Analytics Settings */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-card rounded-lg shadow p-6 border border-border">
         <h2 className="text-xl font-semibold mb-4">Analytics</h2>
         <p className="text-sm text-gray-600 mb-6">
           Configuración de métricas y comportamiento del analytics dashboard
@@ -67,11 +67,11 @@ export default function GeneralSettingsPage() {
                 type="number"
                 value={settings.whaleThreshold || '10000'}
                 onChange={(e) => setSettings({ ...settings, whaleThreshold: e.target.value })}
-                className="flex-1 px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 px-3 py-2 border border-input rounded focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
               />
-              <span className="text-gray-500 dark:text-gray-400 font-medium">{token?.symbol}</span>
+              <span className="text-muted-foreground font-medium">{token?.symbol}</span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Transfers mayores a este monto se consideran "ballenas"
             </p>
           </div>
@@ -84,9 +84,9 @@ export default function GeneralSettingsPage() {
               type="number"
               value={settings.cacheDurationMinutes || 5}
               onChange={(e) => setSettings({ ...settings, cacheDurationMinutes: parseInt(e.target.value) })}
-              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-primary focus:border-transparent"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Tiempo que se mantienen los datos en caché antes de actualizar
             </p>
           </div>
@@ -99,9 +99,9 @@ export default function GeneralSettingsPage() {
               type="number"
               value={settings.maxTransfersToFetch || 10000}
               onChange={(e) => setSettings({ ...settings, maxTransfersToFetch: parseInt(e.target.value) })}
-              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-primary focus:border-transparent"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Límite de transfers a obtener por petición a la API
             </p>
           </div>
@@ -109,7 +109,7 @@ export default function GeneralSettingsPage() {
       </div>
 
       {/* Exchange Addresses */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-card rounded-lg shadow p-6 border border-border">
         <h2 className="text-xl font-semibold mb-4">
           Exchanges Conocidos
         </h2>
@@ -128,7 +128,7 @@ export default function GeneralSettingsPage() {
               customExchangeAddresses: e.target.value.split('\n').filter(a => a.trim())
             })}
             placeholder="0x3cd751e6b0078be393132286c442345e5dc49699&#10;0x71660c4005ba85c37ccec55d0c4493e66fe775d3"
-            className="w-full px-3 py-2 border rounded font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-input rounded font-mono text-sm bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
             rows={5}
           />
           <p className="text-xs text-gray-500 mt-1">
@@ -142,7 +142,7 @@ export default function GeneralSettingsPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
           {saving ? 'Guardando...' : 'Guardar Cambios'}
         </button>

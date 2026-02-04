@@ -43,7 +43,7 @@ export default function SupplySettingsPage() {
   };
 
   if (loading) {
-    return <div className="text-gray-500">Cargando...</div>;
+    return <div className="text-muted-foreground">Cargando...</div>;
   }
 
   const supplyMethod = settings.supplyMethod || 'API';
@@ -53,7 +53,7 @@ export default function SupplySettingsPage() {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold mb-2">Configuración de Supply</h2>
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           Define cómo obtener el supply del token (total, circulante, locked)
         </p>
       </div>
@@ -72,7 +72,7 @@ export default function SupplySettingsPage() {
             />
             <div className="flex-1">
               <div className="font-medium">API Externa</div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Obtener supply desde endpoints HTTP configurables
               </p>
             </div>
@@ -87,7 +87,7 @@ export default function SupplySettingsPage() {
             />
             <div className="flex-1">
               <div className="font-medium">On-Chain</div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Calcular supply directamente desde el contrato ERC20
               </p>
             </div>
@@ -110,7 +110,7 @@ export default function SupplySettingsPage() {
                 value={settings.supplyApiTotalUrl || ''}
                 onChange={(e) => setSettings({ ...settings, supplyApiTotalUrl: e.target.value })}
                 placeholder="https://api.example.com/v1/total-supply"
-                className="w-full px-3 py-2 border rounded font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-input rounded font-mono text-sm focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Endpoint que devuelve {`{ "totalSupply": "1000000" }`}
@@ -126,7 +126,7 @@ export default function SupplySettingsPage() {
                 value={settings.supplyApiCirculatingUrl || ''}
                 onChange={(e) => setSettings({ ...settings, supplyApiCirculatingUrl: e.target.value })}
                 placeholder="https://api.example.com/v1/circulating-supply"
-                className="w-full px-3 py-2 border rounded font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-input rounded font-mono text-sm focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Endpoint que devuelve {`{ "circulatingSupply": "800000" }`}
@@ -134,8 +134,8 @@ export default function SupplySettingsPage() {
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-            <p className="text-sm text-blue-800">
+          <div className="bg-accent border border-border rounded-lg p-4 mt-4">
+            <p className="text-sm text-accent-foreground">
               💡 <strong>Legacy Fallback:</strong> Si dejas estos campos vacíos, se usará la API de Vottun por defecto
             </p>
           </div>
@@ -148,12 +148,12 @@ export default function SupplySettingsPage() {
           <div className="flex gap-3">
             <div className="text-2xl">✅</div>
             <div className="flex-1">
-              <p className="font-medium text-green-900 mb-2">
+              <p className="font-medium text-success mb-2">
                 Cálculo On-Chain Activado
               </p>
               <p className="text-sm text-green-800 mb-2">
                 El supply se calculará directamente desde el contrato ERC20 usando el método{' '}
-                <code className="bg-green-100 px-1.5 py-0.5 rounded font-mono text-xs">totalSupply()</code>
+                <code className="bg-success/20 px-1.5 py-0.5 rounded font-mono text-xs">totalSupply()</code>
               </p>
               <p className="text-xs text-green-700">
                 <strong>Nota:</strong> El circulating supply será igual al total supply.
@@ -169,7 +169,7 @@ export default function SupplySettingsPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
           {saving ? 'Guardando...' : 'Guardar Cambios'}
         </button>

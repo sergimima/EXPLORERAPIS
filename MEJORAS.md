@@ -1,6 +1,7 @@
-# Mejoras del Dashboard
+# Mejoras y Roadmap de Producto
 
 **Estado:** 🚧 En Progreso | Última actualización: 2025-02-04
+**Alcance:** UX del Dashboard + Features de producto (unificado desde IMPROVEMENTS.md)
 
 ## 1. UX y Primeros Pasos
 
@@ -52,7 +53,34 @@
 
 ---
 
-## 7. Prioridad Sugerida
+## 7. Features de Producto (Futuro)
+
+*Ítems consolidados desde el antiguo IMPROVEMENTS.md*
+
+### Sistema de Alertas
+- Notificaciones automáticas de eventos on-chain (ballenas, cambios de precio, flujo a CEX)
+- Canales: Telegram, Email, Webhooks
+- UI para configurar alertas por token
+- Background worker para evaluación periódica
+
+### API Pública
+- Endpoints REST para terceros (bots, integraciones, otras apps)
+- Sistema de API Keys con rate limiting
+- Planes Pro/Enterprise con límites de llamadas
+
+### PWA
+- Instalable en móvil/desktop
+- Offline básico para datos cacheados
+- Push notifications (opcional)
+
+### AI/ML (Exploración)
+- Clasificación de addresses (whale vs retail)
+- Predicción de comportamiento
+- Requiere dataset histórico significativo
+
+---
+
+## 8. Prioridad Sugerida
 
 | Prioridad | Mejora | Esfuerzo | Estado |
 |-----------|--------|----------|--------|
@@ -65,12 +93,16 @@
 | Media | ~~Búsqueda rápida global~~ | Medio | ✅ Completado |
 | Baja | ~~Dark mode~~ | Alto | ✅ Completado |
 | Baja | Exportar CSV | Medio | ⏳ Pendiente |
+| Baja | Sistema de Alertas | Alto | ⏳ Futuro |
+| Baja | API Pública | Alto | ⏳ Futuro |
+| Baja | PWA | Medio | ⏳ Futuro |
+| Baja | AI/ML | Muy Alto | ⏳ Exploración |
 
 ---
 
 ## 📊 Progreso General
 
-**Completadas:** 8/9 mejoras (89%) 🎉
-**Pendientes:** 1 mejora de prioridad baja (Exportar CSV)
+**Completadas:** 8/9 mejoras de dashboard (89%) 🎉
+**Pendientes:** 1 mejora de prioridad baja (Exportar CSV) + 4 features de producto (Alertas, API, PWA, AI)
 **Tiempo invertido:** ~8h
 **Impacto:** 🚀 Transformación completa de UX - Dashboard profesional y moderno con dark mode completo

@@ -169,7 +169,7 @@ export default function ContractsSettingsPage() {
   };
 
   if (loading) {
-    return <div className="text-gray-500">Cargando...</div>;
+    return <div className="text-muted-foreground">Cargando...</div>;
   }
 
   return (
@@ -178,13 +178,13 @@ export default function ContractsSettingsPage() {
       <div className="flex justify-between items-start">
         <div>
           <h2 className="text-2xl font-bold mb-2">Contratos</h2>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Gestiona todos los contratos del token (vesting, staking, etc.) y sus ABIs
           </p>
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+          className="px-4 py-2 bg-success text-success-foreground rounded-lg hover:opacity-90 font-medium"
         >
           {showAddForm ? 'Cancelar' : '+ Agregar Contrato'}
         </button>
@@ -192,7 +192,7 @@ export default function ContractsSettingsPage() {
 
       {/* Add Contract Form */}
       {showAddForm && (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-card rounded-lg shadow p-6 border border-border">
           <h3 className="text-lg font-semibold mb-4">Nuevo Contrato</h3>
 
           <div className="space-y-4">
@@ -274,7 +274,7 @@ export default function ContractsSettingsPage() {
 
             <button
               onClick={handleAddContract}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 font-medium"
             >
               Agregar Contrato
             </button>
@@ -284,14 +284,14 @@ export default function ContractsSettingsPage() {
 
       {/* Contracts List */}
       {contracts.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
+        <div className="bg-card rounded-lg shadow p-12 text-center border border-border">
           <div className="text-6xl mb-4">📦</div>
           <p className="text-gray-600 mb-4">
             No hay contratos configurados todavía
           </p>
           <button
             onClick={() => setShowAddForm(true)}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 font-medium"
           >
             Agregar Primer Contrato
           </button>
@@ -307,23 +307,23 @@ export default function ContractsSettingsPage() {
             return (
               <div
                 key={contract.id}
-                className="bg-white rounded-lg shadow p-5 hover:shadow-md transition-shadow"
+                className="bg-card rounded-lg shadow p-5 hover:shadow-md transition-shadow border border-border"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="font-semibold text-lg">{contract.name}</h3>
                       {contract.category && (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
+                        <span className="text-xs bg-accent text-accent-foreground px-2 py-1 rounded font-medium">
                           {contract.category}
                         </span>
                       )}
                       {!contract.isActive && (
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium">
+                        <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded font-medium">
                           Inactivo
                         </span>
                       )}
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium">
+                      <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded font-medium">
                         {contract.network}
                       </span>
                     </div>
@@ -333,22 +333,22 @@ export default function ContractsSettingsPage() {
                     </p>
 
                     {contract.description && (
-                      <p className="text-sm text-gray-600 mb-3">{contract.description}</p>
+                      <p className="text-sm text-muted-foreground mb-3">{contract.description}</p>
                     )}
 
                     {/* ABI Status */}
                     <div className="flex items-center gap-2 text-sm">
                       {contractAbi ? (
                         <>
-                          <span className="text-green-600 font-medium">✓ ABI Configurado</span>
-                          <span className="text-gray-500">
+                          <span className="text-success font-medium">✓ ABI Configurado</span>
+                          <span className="text-muted-foreground">
                             ({contractAbi.source} | {contractAbi.methodCount || 0} métodos)
                           </span>
                         </>
                       ) : (
                         <>
-                          <span className="text-orange-600 font-medium">⚠ Sin ABI custom</span>
-                          <span className="text-gray-500">(usando ABI estándar)</span>
+                          <span className="text-warning font-medium">⚠ Sin ABI custom</span>
+                          <span className="text-muted-foreground">(usando ABI estándar)</span>
                         </>
                       )}
                     </div>
@@ -374,14 +374,14 @@ export default function ContractsSettingsPage() {
                               navigator.clipboard.writeText(JSON.stringify(contractAbi.abi, null, 2));
                               alert('ABI copiado!');
                             }}
-                            className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-xs font-medium"
+                            className="px-3 py-1.5 bg-accent text-accent-foreground rounded hover:opacity-80 text-xs font-medium"
                             title="Copiar ABI"
                           >
                             Copiar
                           </button>
                           <button
                             onClick={() => handleDeleteAbi(contractAbi.id)}
-                            className="px-3 py-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200 text-xs font-medium"
+                            className="px-3 py-1.5 bg-destructive/10 text-destructive rounded hover:bg-destructive/20 text-xs font-medium"
                             title="Eliminar ABI"
                           >
                             🗑
@@ -404,14 +404,14 @@ export default function ContractsSettingsPage() {
                         className={`px-3 py-1.5 rounded text-xs font-medium ${
                           contract.isActive
                             ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                            : 'bg-success/10 text-success hover:opacity-80'
                         }`}
                       >
                         {contract.isActive ? 'Desactivar' : 'Activar'}
                       </button>
                       <button
                         onClick={() => handleDeleteContract(contract.id)}
-                        className="px-3 py-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200 text-xs font-medium"
+                        className="px-3 py-1.5 bg-destructive/10 text-destructive rounded hover:bg-destructive/20 text-xs font-medium"
                       >
                         Eliminar
                       </button>
@@ -431,7 +431,7 @@ export default function ContractsSettingsPage() {
             <div className="p-6 border-b flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-semibold">ABI - {selectedAbi.contractAddress}</h3>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   {selectedAbi.source} | {selectedAbi.network} | Métodos: {selectedAbi.methodCount || 0}
                 </p>
               </div>
@@ -440,13 +440,13 @@ export default function ContractsSettingsPage() {
                   setShowAbiModal(false);
                   setSelectedAbi(null);
                 }}
-                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 text-3xl leading-none"
+                className="text-muted-foreground hover:text-card-foreground text-3xl leading-none"
               >
                 ×
               </button>
             </div>
             <div className="p-6 overflow-auto flex-1">
-              <pre className="bg-gray-50 dark:bg-gray-900 p-4 rounded border text-xs font-mono overflow-x-auto">
+              <pre className="bg-background p-4 rounded border text-xs font-mono overflow-x-auto">
                 {JSON.stringify(selectedAbi.abi, null, 2)}
               </pre>
             </div>
@@ -456,7 +456,7 @@ export default function ContractsSettingsPage() {
                   navigator.clipboard.writeText(JSON.stringify(selectedAbi.abi, null, 2));
                   alert('ABI copiado al portapapeles!');
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 font-medium"
               >
                 Copiar ABI
               </button>
@@ -465,7 +465,7 @@ export default function ContractsSettingsPage() {
                   setShowAbiModal(false);
                   setSelectedAbi(null);
                 }}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50 font-medium"
+                className="px-4 py-2 border border-border rounded-lg hover:bg-muted font-medium"
               >
                 Cerrar
               </button>

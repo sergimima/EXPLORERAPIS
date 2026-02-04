@@ -50,19 +50,19 @@ export default function SignInForm() {
 
   return (
     <div className="w-full max-w-md">
-      <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
+      <form onSubmit={handleSubmit} className="bg-card shadow-md rounded-lg px-8 pt-6 pb-8 mb-4 border border-border">
+        <h2 className="text-2xl font-bold mb-6 text-center text-card-foreground">
           Iniciar Sesión
         </h2>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
 
         <div className="mb-4">
-          <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">
+          <label htmlFor="email" className="block text-foreground text-sm font-bold mb-2">
             Email
           </label>
           <input
@@ -70,14 +70,14 @@ export default function SignInForm() {
             type="email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            className="shadow appearance-none border border-input rounded w-full py-2 px-3 bg-background text-foreground leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-primary"
             required
             disabled={isLoading}
           />
         </div>
 
         <div className="mb-6">
-          <label htmlFor="password" className="block text-gray-700 text-sm font-bold mb-2">
+          <label htmlFor="password" className="block text-foreground text-sm font-bold mb-2">
             Contraseña
           </label>
           <input
@@ -85,7 +85,7 @@ export default function SignInForm() {
             type="password"
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
+            className="shadow appearance-none border border-input rounded w-full py-2 px-3 bg-background text-foreground mb-3 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-primary"
             required
             disabled={isLoading}
           />
@@ -95,17 +95,17 @@ export default function SignInForm() {
           <button
             type="submit"
             disabled={isLoading}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-primary hover:opacity-90 text-primary-foreground font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+              <div className="w-full border-t border-input"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">O</span>
+              <span className="px-2 bg-background text-muted-foreground">O</span>
             </div>
           </div>
 
@@ -113,7 +113,7 @@ export default function SignInForm() {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={isLoading}
-            className="bg-white hover:bg-gray-50 text-gray-700 font-semibold py-2 px-4 border border-gray-300 dark:border-gray-600 rounded shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="bg-white hover:bg-gray-50 text-foreground font-semibold py-2 px-4 border border-input rounded shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -138,9 +138,9 @@ export default function SignInForm() {
         </div>
 
         <div className="text-center mt-6">
-          <p className="text-gray-600 text-sm">
+          <p className="text-muted-foreground text-sm">
             ¿No tienes cuenta?{' '}
-            <a href="/auth/signup" className="text-blue-500 hover:text-blue-700 font-semibold">
+            <a href="/auth/signup" className="text-primary hover:opacity-80 font-semibold">
               Regístrate
             </a>
           </p>

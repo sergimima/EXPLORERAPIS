@@ -74,12 +74,12 @@ export default function ExchangeFlowChart({ transfers, days, tokenSymbol = 'toke
       const data = payload[0].payload;
       const netFlow = data.netFlow;
       return (
-        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-          <p className="font-semibold text-gray-900 dark:text-gray-100">{data.displayDate}</p>
+        <div className="bg-card p-3 rounded-lg shadow-lg border border-border">
+          <p className="font-semibold text-card-foreground">{data.displayDate}</p>
           <p className={`text-sm font-medium ${netFlow > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
             {netFlow > 0 ? '↑' : '↓'} {Math.abs(netFlow).toLocaleString()} {tokenSymbol}
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-400">
+          <p className="text-xs text-muted-foreground dark:text-gray-400">
             {netFlow > 0 ? 'Entrando a exchanges' : 'Saliendo de exchanges'}
           </p>
         </div>
@@ -96,8 +96,8 @@ export default function ExchangeFlowChart({ transfers, days, tokenSymbol = 'toke
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-      <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Flujo Neto a Exchanges</h3>
+    <div className="bg-card rounded-lg shadow-md p-6">
+      <h3 className="text-lg font-semibold mb-4 text-card-foreground">Flujo Neto a Exchanges</h3>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#E5E7EB'} />
@@ -112,7 +112,7 @@ export default function ExchangeFlowChart({ transfers, days, tokenSymbol = 'toke
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div className="mt-4 text-sm text-gray-600 dark:text-gray-300 dark:text-gray-300">
+      <div className="mt-4 text-sm text-secondary dark:text-gray-300">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-red-500 rounded"></div>
