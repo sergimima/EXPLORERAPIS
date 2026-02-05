@@ -711,13 +711,13 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                   </div>
                 )}
               </div>
-              
-              {/* Sección de beneficiarios */}
-              {summary?.beneficiaries && (
+
+              {/* Sección de beneficiarios - Siempre visible si hay totalBeneficiaries */}
+              {(summary?.beneficiaries || summary?.totalBeneficiaries) && (
                 <div className="mt-4">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold">
-                      Beneficiarios ({summary.totalBeneficiaries})
+                      Beneficiarios ({summary.totalBeneficiaries || summary.beneficiaries?.length || 0})
                       {summary.validBeneficiaries !== undefined && (
                         <span className="ml-2 text-sm font-normal">
                           <span className="text-success">{summary.validBeneficiaries} válidos</span>
@@ -727,7 +727,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                         </span>
                       )}
                     </h3>
-                    
+
                     {/* Botones para cargar/actualizar detalles */}
                     <div className="flex gap-2 items-center">
                       {beneficiariesLastUpdate && (
@@ -806,7 +806,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                         </tr>
                       </thead>
                       <tbody>
-                        {summary.beneficiaries.map((beneficiary: any, index: number) => (
+                        {summary.beneficiaries?.map((beneficiary: any, index: number) => (
                           <React.Fragment key={index}>
                             {/* Fila principal del beneficiario con totales */}
                             <tr className={`${index % 2 === 0 ? 'bg-muted' : 'bg-card'} border-b-2 border-border ${beneficiary.hasError ? 'bg-destructive/10' : ''} ${beneficiary.noVestings ? 'bg-warning/10' : ''}`}>

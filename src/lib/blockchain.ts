@@ -1728,11 +1728,33 @@ export async function checkVestingContractStatus(
                       const estimatedTotal = totalClaimed * 2;
                       scheduleInfo.amount = estimatedTotal.toString();
                       scheduleInfo.remaining = (estimatedTotal - totalClaimed).toString();
+
+                      // Calcular releasable incluso con variación alta
+                      const currentTime = Math.floor(Date.now() / 1000);
+                      if (currentTime > scheduleInfo.start && scheduleInfo.end > scheduleInfo.start) {
+                        const totalDuration = scheduleInfo.end - scheduleInfo.start;
+                        const elapsed = Math.min(currentTime - scheduleInfo.start, totalDuration);
+                        const percentComplete = elapsed / totalDuration;
+                        const shouldBeReleased = estimatedTotal * percentComplete;
+                        const releasable = Math.max(0, shouldBeReleased - totalClaimed);
+                        scheduleInfo.releasable = releasable.toString();
+                      }
                     }
                   } else {
                     const estimatedTotal = totalClaimed * 2;
                     scheduleInfo.amount = estimatedTotal.toString();
                     scheduleInfo.remaining = (estimatedTotal - totalClaimed).toString();
+
+                    // Calcular releasable incluso con pocas transacciones
+                    const currentTime = Math.floor(Date.now() / 1000);
+                    if (currentTime > scheduleInfo.start && scheduleInfo.end > scheduleInfo.start) {
+                      const totalDuration = scheduleInfo.end - scheduleInfo.start;
+                      const elapsed = Math.min(currentTime - scheduleInfo.start, totalDuration);
+                      const percentComplete = elapsed / totalDuration;
+                      const shouldBeReleased = estimatedTotal * percentComplete;
+                      const releasable = Math.max(0, shouldBeReleased - totalClaimed);
+                      scheduleInfo.releasable = releasable.toString();
+                    }
                   }
 
                   // Añadir a la lista de beneficiarios

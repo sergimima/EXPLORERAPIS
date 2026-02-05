@@ -134,20 +134,20 @@ export default function TokenOverview({ network }: TokenOverviewProps) {
             <div>
               <p className="text-xs text-muted-foreground">Total</p>
               <p className="text-xl font-bold text-card-foreground">
-                {(Number(data?.supply.total) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                {Number(data?.supply.total).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 pt-2 border-t">
               <div>
                 <p className="text-xs text-muted-foreground">Circulante</p>
                 <p className="text-sm font-semibold text-success">
-                  {(Number(data?.supply.circulating) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  {Number(data?.supply.circulating).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Bloqueado</p>
                 <p className="text-sm font-semibold text-warning">
-                  {(Number(data?.supply.locked) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  {Number(data?.supply.locked).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </p>
               </div>
             </div>
@@ -177,7 +177,7 @@ export default function TokenOverview({ network }: TokenOverviewProps) {
             <span className="text-2xl">📈</span>
           </div>
           <p className="text-3xl font-bold text-card-foreground">
-            {(Number(data?.volume24h) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            {Number(data?.volume24h).toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </p>
           <p className="text-xs text-muted-foreground mt-1">{activeToken.symbol}</p>
         </div>
@@ -209,7 +209,7 @@ export default function TokenOverview({ network }: TokenOverviewProps) {
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-card-foreground">
-                    {(Number(transfer.value) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    {Number(transfer.value).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
                   <p className="text-xs text-muted-foreground">{activeToken.symbol}</p>
                 </div>
@@ -231,13 +231,13 @@ export default function TokenOverview({ network }: TokenOverviewProps) {
           <div className="text-center p-4 bg-warning/10 rounded-lg">
             <p className="text-sm text-muted-foreground mb-1">Total Bloqueado</p>
             <p className="text-xl font-bold text-warning">
-              {(Number(data?.vestingStats.totalLocked) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              {Number(data?.vestingStats.totalLocked).toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </p>
           </div>
           <div className="text-center p-4 bg-success/10 rounded-lg">
             <p className="text-sm text-muted-foreground mb-1">Total Liberado</p>
             <p className="text-xl font-bold text-success">
-              {(Number(data?.vestingStats.totalReleased) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              {Number(data?.vestingStats.totalReleased).toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </p>
           </div>
           <div className="text-center p-4 bg-accent rounded-lg">

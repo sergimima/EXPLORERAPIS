@@ -411,12 +411,10 @@ function UnifiedExplorerContent() {
       {/* Contenido según el tab activo */}
       {activeTab === 'tokens' && (
         <div>
-          {/* Overview - Solo mostrar si no se ha buscado nada aún */}
-          {searchCount === 0 && (
-            <div className="mb-8">
-              <TokenOverview network={network} />
-            </div>
-          )}
+          {/* Overview - Dashboard siempre visible */}
+          <div className="mb-8">
+            <TokenOverview network={network} />
+          </div>
 
           {/* Controles de búsqueda */}
           <div className="bg-card p-6 rounded-lg shadow-md mb-8">
