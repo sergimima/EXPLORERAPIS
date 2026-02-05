@@ -30,39 +30,12 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
   const [tokenBalances, setTokenBalances] = useState<TokenInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [showMockData, setShowMockData] = useState<boolean>(false);
-
-  // Datos de ejemplo para cuando no hay tokens reales
-  const mockTokenBalances: TokenInfo[] = [
-    {
-      tokenAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-      tokenSymbol: 'USDC',
-      tokenName: 'USD Coin',
-      balance: '80000000000', // 80000.0 * 10^6
-      decimals: 6
-    },
-    {
-      tokenAddress: '0xfef6980d6d92bac3e99b5a8f2f58a6e1e4c7651a',
-      tokenSymbol: 'ANTHRAX',
-      tokenName: 'Anthrax',
-      balance: '3834000000000000000000', // 3834.0 * 10^18
-      decimals: 18
-    },
-    {
-      tokenAddress: '0xfef6980d6d92bac3e99b5a8f2f58a6e1e4c7651b',
-      tokenSymbol: 'SMALLPOX',
-      tokenName: 'Smallpox',
-      balance: '1278000000000000000000', // 1278.0 * 10^18
-      decimals: 18
-    }
-  ];
 
   // Efecto para usar datos precargados si están disponibles
   useEffect(() => {
     if (preloadedData && preloadedData.length > 0) {
       console.log("Usando datos precargados en TokenBalance:", preloadedData.length, "tokens");
       setTokenBalances(preloadedData);
-      setShowMockData(false);
       setError(null);
     }
   }, [preloadedData]);
@@ -80,7 +53,6 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
 
     setLoading(true);
     setError(null);
-    setShowMockData(false);
 
     try {
       console.log(`Fetching token balances for wallet: ${walletAddress} on network: ${network}`);
@@ -89,19 +61,14 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
 
       if (data && data.length > 0) {
         setTokenBalances(data);
-        setShowMockData(false);
       } else {
-        console.log('No token balances found, showing mock data');
-        setShowMockData(true);
-        setTokenBalances(mockTokenBalances);
+        console.log('No token balances found');
+        setTokenBalances([]);
       }
     } catch (err: any) {
       setError(`Error al obtener los balances de tokens: ${err.message || 'Error desconocido'}`);
       console.error('Error fetching token balances:', err);
-
-      // En caso de error, mostrar datos de ejemplo para desarrollo
-      setShowMockData(true);
-      setTokenBalances(mockTokenBalances);
+      setTokenBalances([]);
     } finally {
       setLoading(false);
     }

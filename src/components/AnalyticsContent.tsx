@@ -22,6 +22,9 @@ interface TokenTransfer {
   timestamp: number;
   blockNumber: number;
   isLargeTransfer: boolean;
+  tokenSymbol: string;
+  tokenName: string;
+  decimals: number;
 }
 
 interface HolderInfo {

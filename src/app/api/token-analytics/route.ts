@@ -28,6 +28,9 @@ interface TokenTransfer {
   timestamp: number;
   blockNumber: number;
   isLargeTransfer: boolean;
+  tokenSymbol: string;
+  tokenName: string;
+  decimals: number;
 }
 
 interface HolderInfo {
@@ -154,7 +157,13 @@ async function fetchNewTransfersFromAPI(
   }
 }
 
-async function getTransfersWithCache(tokenAddress: string, tokenId: string): Promise<any[]> {
+async function getTransfersWithCache(
+  tokenAddress: string,
+  tokenId: string,
+  tokenSymbol: string,
+  tokenName: string,
+  decimals: number
+): Promise<any[]> {
   const network = 'base';
 
   try {
@@ -188,6 +197,9 @@ async function getTransfersWithCache(tokenAddress: string, tokenId: string): Pro
         data: newTransfersRaw.map((tx: any) => ({
           tokenId,
           tokenAddress: tokenAddress.toLowerCase(),
+          tokenSymbol,
+          tokenName,
+          decimals,
           from: tx.from.toLowerCase(),
           to: tx.to.toLowerCase(),
           value: tx.value,
@@ -212,7 +224,10 @@ async function getTransfersWithCache(tokenAddress: string, tokenId: string): Pro
         to: tx.to,
         value: tx.value,
         timeStamp: tx.timeStamp,
-        blockNumber: tx.blockNumber
+        blockNumber: tx.blockNumber,
+        tokenSymbol,
+        tokenName,
+        decimals
       })),
       ...cachedTransfers.map((tx) => ({
         hash: tx.hash,
@@ -220,7 +235,10 @@ async function getTransfersWithCache(tokenAddress: string, tokenId: string): Pro
         to: tx.to,
         value: tx.value,
         timeStamp: tx.timestamp.toString(),
-        blockNumber: tx.blockNumber.toString()
+        blockNumber: tx.blockNumber.toString(),
+        tokenSymbol: tx.tokenSymbol || tokenSymbol,
+        tokenName: tx.tokenName || tokenName,
+        decimals: tx.decimals || decimals
       }))
     ];
 
@@ -834,6 +852,8 @@ export async function GET(request: NextRequest) {
     const apiKeys = getApiKeys(tenantContext);
     const tokenAddress = tenantContext.activeToken.address;
     const tokenSymbol = tenantContext.activeToken.symbol;
+    const tokenName = tenantContext.activeToken.name;
+    const tokenDecimals = tenantContext.activeToken.decimals;
     const tokenId = tenantContext.activeToken.id;
     const network = tenantContext.activeToken.network;
 
@@ -849,7 +869,7 @@ export async function GET(request: NextRequest) {
 
     // Obtener transferencias con caché incremental
     console.log('\n--- TRANSFERS (Incremental Cache) ---');
-    const rawTransfers = await getTransfersWithCache(tokenAddress, tokenId);
+    const rawTransfers = await getTransfersWithCache(tokenAddress, tokenId, tokenSymbol, tokenName, tokenDecimals);
     console.log(`Total transfers: ${rawTransfers.length}`);
 
     // Filtrar por rango de tiempo
@@ -877,10 +897,13 @@ export async function GET(request: NextRequest) {
         from: tx.from,
         to: tx.to,
         value: tx.value,
-        valueFormatted: ethers.formatUnits(value, 18),
+        valueFormatted: ethers.formatUnits(value, tx.decimals || tokenDecimals),
         timestamp: parseInt(tx.timeStamp),
         blockNumber: parseInt(tx.blockNumber),
         isLargeTransfer: value >= thresholdBigInt,
+        tokenSymbol: tx.tokenSymbol || tokenSymbol,
+        tokenName: tx.tokenName || tokenName,
+        decimals: tx.decimals || tokenDecimals
       };
     });
 

@@ -337,7 +337,7 @@ The codebase is hardcoded to work with Vottun Token (VTN):
 ### Component Structure (`src/components/`)
 
 **Token Display Components:**
-- `TokenBalance.tsx` - Displays wallet token balances
+- `TokenBalance.tsx` - Displays wallet token balances with proper empty states (no mock data)
 - `TokenTransfersList.tsx` - Shows token transfers with filtering and sorting
 
 **Vesting Components:**
@@ -614,6 +614,7 @@ Environment variables expected (in `.env` or `.env.local`):
 **Required for Basic Functionality:**
 - `NEXT_PUBLIC_BASESCAN_API_KEY` - For BaseScan API access (contract ABIs, verification)
 - `NEXT_PUBLIC_ETHERSCAN_API_KEY` - For Etherscan V2 API access (transfer history)
+- `NEXT_PUBLIC_ROUTESCAN_API_KEY` - For Routescan API (fallback for BaseScan, multi-chain support)
 
 **Required for Analytics Features:**
 - `NEXT_PUBLIC_MORALIS_API_KEY` - For real holder data from Moralis (top holders endpoint)
@@ -622,7 +623,10 @@ Environment variables expected (in `.env` or `.env.local`):
 **Optional/Free APIs:**
 - DEX Screener API - Used for liquidity data (no key required, free public API)
 
-Default API key `YourApiKeyToken` is used as fallback for BaseScan/Etherscan (rate-limited).
+**API Fallback System:**
+- ABIs: BaseScan → Routescan → Error
+- Transfers: Routescan (primary) or Etherscan V2
+- Default API key `YourApiKeyToken` is used as fallback (rate-limited)
 
 ## TypeScript Configuration
 
@@ -1004,8 +1008,8 @@ npx prisma db push
 
 ---
 
-**Last Updated:** 2025-02-05
-**Version:** 4.0 (Sprint 4.8 - Admin Panel Complete)
+**Last Updated:** 2026-02-05
+**Version:** 4.1 (Routescan Integration + Transfer Cache Fixes)
 
 ### Sprint Status:
 
@@ -1086,6 +1090,34 @@ npx prisma db push
 **Acceso:**
 - Login: superadmin@tokenlens.com / super123
 - URL: http://localhost:4200/admin/dashboard
+
+---
+
+## 🆕 Recent Changes (2026-02-05)
+
+### Routescan API Integration
+- ✅ Added Routescan API support for multi-chain blockchain data
+- ✅ Implemented automatic fallback system: BaseScan → Routescan → Error
+- ✅ Added Routescan API key configuration at both platform and token levels
+- ✅ Updated SystemSettings and TokenSettings models to include `routescanApiKey`
+- ✅ Added Routescan as ABI source tracking option (`BASESCAN`, `ROUTESCAN`, `STANDARD`, `UPLOADED`)
+
+### Transfer Cache Improvements
+- ✅ Fixed "UNKNOWN" token display issue in transfer history
+- ✅ Updated `TransferCache` to properly store `tokenSymbol`, `tokenName`, and `decimals`
+- ✅ Modified analytics API to populate token info when caching transfers
+- ✅ Created backfill script ([backfill-transfer-tokens.ts](prisma/backfill-transfer-tokens.ts)) to update existing records
+- ✅ Both wallet-based and token-based transfers now show correct token information
+
+### UI Improvements
+- ✅ Removed mock data from `TokenBalance.tsx` component
+- ✅ Now shows proper empty state messages instead of fake data (USDC, ANTHRAX, SMALLPOX)
+- ✅ Clear error messages and "no tokens found" states for better UX
+
+### Documentation
+- ✅ Updated CLAUDE.md with Routescan API information
+- ✅ Updated API Key Configuration section
+- ✅ Documented API Fallback System
 
 ---
 
