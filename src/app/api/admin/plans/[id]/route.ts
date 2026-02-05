@@ -10,7 +10,7 @@ import { requireSuperAdmin } from '@/lib/auth-helpers';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await requireSuperAdmin();
   if (!session) {
@@ -21,7 +21,7 @@ export async function GET(
   }
 
   try {
-    const planId = params.id;
+    const { id: planId } = await params;
 
     const plan = await prisma.plan.findUnique({
       where: { id: planId },
@@ -66,7 +66,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await requireSuperAdmin();
   if (!session) {
@@ -77,7 +77,7 @@ export async function PUT(
   }
 
   try {
-    const planId = params.id;
+    const { id: planId } = await params;
     const body = await request.json();
 
     // Verificar que el plan existe
@@ -171,7 +171,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await requireSuperAdmin();
   if (!session) {
@@ -182,7 +182,7 @@ export async function DELETE(
   }
 
   try {
-    const planId = params.id;
+    const { id: planId } = await params;
 
     // Verificar que el plan existe
     const plan = await prisma.plan.findUnique({
