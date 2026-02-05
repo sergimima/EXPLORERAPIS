@@ -76,10 +76,10 @@ export default function ExchangeFlowChart({ transfers, days, tokenSymbol = 'toke
       return (
         <div className="bg-card p-3 rounded-lg shadow-lg border border-border">
           <p className="font-semibold text-card-foreground">{data.displayDate}</p>
-          <p className={`text-sm font-medium ${netFlow > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+          <p className={`text-sm font-medium ${netFlow > 0 ? 'text-destructive' : 'text-success'}`}>
             {netFlow > 0 ? '↑' : '↓'} {Math.abs(netFlow).toLocaleString()} {tokenSymbol}
           </p>
-          <p className="text-xs text-muted-foreground dark:text-gray-400">
+          <p className="text-xs text-muted-foreground">
             {netFlow > 0 ? 'Entrando a exchanges' : 'Saliendo de exchanges'}
           </p>
         </div>
@@ -112,14 +112,14 @@ export default function ExchangeFlowChart({ transfers, days, tokenSymbol = 'toke
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div className="mt-4 text-sm text-secondary dark:text-gray-300">
+      <div className="mt-4 text-sm text-muted-foreground">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-red-500 rounded"></div>
+            <div className="w-3 h-3 bg-destructive rounded"></div>
             <span>Entrando (presión de venta)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-500 rounded"></div>
+            <div className="w-3 h-3 bg-success rounded"></div>
             <span>Saliendo (menos presión)</span>
           </div>
         </div>

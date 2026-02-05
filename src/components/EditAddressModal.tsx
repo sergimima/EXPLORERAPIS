@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 
 interface EditAddressModalProps {
   address: string;
@@ -42,12 +43,12 @@ export default function EditAddressModal({
 
   const handleSave = async () => {
     if (!formAddress.trim()) {
-      alert('La dirección no puede estar vacía');
+      toast.error('La dirección no puede estar vacía');
       return;
     }
 
     if (!name.trim()) {
-      alert('El nombre no puede estar vacío');
+      toast.error('El nombre no puede estar vacío');
       return;
     }
 
@@ -78,7 +79,7 @@ export default function EditAddressModal({
       onClose();
     } catch (error) {
       console.error('Error saving address:', error);
-      alert('Error al guardar la dirección');
+      toast.error('Error al guardar la dirección');
     } finally {
       setIsSaving(false);
     }
@@ -119,7 +120,7 @@ export default function EditAddressModal({
         <div className="space-y-4">
           {/* Dirección */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Dirección *
             </label>
             {isNewAddress ? (
@@ -128,7 +129,7 @@ export default function EditAddressModal({
                 value={formAddress}
                 onChange={(e) => setFormAddress(e.target.value)}
                 placeholder="0x..."
-                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
               />
             ) : (
               <div className="text-xs font-mono text-muted-foreground bg-muted p-2 rounded break-all">
@@ -139,7 +140,7 @@ export default function EditAddressModal({
 
           {/* Nombre */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Nombre *
             </label>
             <input
@@ -147,19 +148,19 @@ export default function EditAddressModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Mi Wallet Personal"
-              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
           {/* Tipo */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Tipo *
             </label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as any)}
-              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="WALLET">Wallet</option>
               <option value="CONTRACT">Contract</option>
@@ -172,7 +173,7 @@ export default function EditAddressModal({
 
           {/* Categoría */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Categoría
             </label>
             <input
@@ -180,13 +181,13 @@ export default function EditAddressModal({
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder="Ej: Team, Investor, Marketing..."
-              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
           {/* Descripción */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Descripción
             </label>
             <textarea
@@ -194,13 +195,13 @@ export default function EditAddressModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descripción adicional..."
               rows={3}
-              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
           {/* Tags */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Tags (separados por comas)
             </label>
             <input
@@ -208,13 +209,13 @@ export default function EditAddressModal({
               value={tags}
               onChange={(e) => setTags(e.target.value)}
               placeholder="vesting, important, monitored"
-              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
           {/* Color */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Color
             </label>
             <div className="flex gap-2">
@@ -229,7 +230,7 @@ export default function EditAddressModal({
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
                 placeholder="#3B82F6"
-                className="flex-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                className="flex-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
               />
             </div>
           </div>
@@ -239,7 +240,7 @@ export default function EditAddressModal({
           <button
             onClick={onClose}
             disabled={isSaving}
-            className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-foreground hover:bg-muted rounded-md transition-colors disabled:opacity-50"
           >
             Cancelar
           </button>

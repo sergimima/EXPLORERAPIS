@@ -85,7 +85,7 @@ export default function SignUpForm() {
 
   return (
     <div className="w-full max-w-md">
-      <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4">
+      <form onSubmit={handleSubmit} className="bg-card shadow-md rounded-lg px-8 pt-6 pb-8 mb-4 border border-border">
         <h2 className="text-2xl font-bold mb-6 text-center text-card-foreground">
           Crear Cuenta
         </h2>

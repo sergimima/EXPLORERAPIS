@@ -378,7 +378,7 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
     return (
       <div className="bg-card p-6 rounded-lg shadow-md border border-border">
         <div className="flex justify-center items-center h-40">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       </div>
     );
@@ -411,7 +411,7 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
           
           {loading && (
             <div className="flex items-center">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mr-2"></div>
               <span className="text-sm text-muted-foreground">
                 Comprobando contrato {processedContracts + 1} de {vestingContracts.length}: 
                 <span className="font-mono ml-1">{currentContract}</span>
@@ -623,23 +623,23 @@ const VestingInfo: React.FC<VestingInfoProps> = ({
             <div className="mt-8 p-4 bg-accent rounded-lg shadow border border-border">
               <h3 className="text-lg font-semibold mb-4">Totales Globales (Todos los Contratos)</h3>
               <div className="grid grid-cols-5 gap-4">
-                <div className="bg-white p-4 rounded shadow-sm">
+                <div className="bg-card p-4 rounded shadow-sm border border-border">
                   <div className="text-sm text-muted-foreground">Total</div>
                   <div className="text-xl font-bold text-card-foreground">{totals?.totalAmount}</div>
                 </div>
-                <div className="bg-white p-4 rounded shadow-sm">
-                  <div className="text-sm text-gray-600">Liberado</div>
+                <div className="bg-card p-4 rounded shadow-sm border border-border">
+                  <div className="text-sm text-muted-foreground">Liberado</div>
                   <div className="text-xl font-bold text-card-foreground">{totals?.totalVestedAmount}</div>
                 </div>
-                <div className="bg-white p-4 rounded shadow-sm">
+                <div className="bg-card p-4 rounded shadow-sm border border-border">
                   <div className="text-sm text-muted-foreground">Reclamable</div>
                   <div className="text-xl font-bold text-card-foreground">{totals?.totalClaimableAmount}</div>
                 </div>
-                <div className="bg-white p-4 rounded shadow-sm">
+                <div className="bg-card p-4 rounded shadow-sm border border-border">
                   <div className="text-sm text-muted-foreground">Reclamado</div>
                   <div className="text-xl font-bold text-card-foreground">{totals?.totalReleasedAmount}</div>
                 </div>
-                <div className="bg-white p-4 rounded shadow-sm">
+                <div className="bg-card p-4 rounded shadow-sm border border-border">
                   <div className="text-sm text-muted-foreground">Bloqueado</div>
                   <div className="text-xl font-bold text-card-foreground">{totals?.totalRemainingAmount}</div>
                 </div>

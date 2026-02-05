@@ -462,7 +462,7 @@ function UnifiedExplorerContent() {
                   onClick={() => setTokenSubTab('wallet')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'wallet'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-secondary-foreground hover:border-gray-300 dark:border-gray-600'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                     }`}
                 >
                   👛 Wallet
@@ -471,7 +471,7 @@ function UnifiedExplorerContent() {
                   onClick={() => setTokenSubTab('vesting')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'vesting'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-secondary-foreground hover:border-gray-300 dark:border-gray-600'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                     }`}
                 >
                   🔒 Vesting
@@ -480,7 +480,7 @@ function UnifiedExplorerContent() {
                   onClick={() => setTokenSubTab('airdrops')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${tokenSubTab === 'airdrops'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-secondary-foreground hover:border-gray-300 dark:border-gray-600'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                     }`}
                 >
                   🎁 Airdrops
@@ -575,7 +575,7 @@ function UnifiedExplorerContent() {
               </p>
               <a
                 href="/settings/tokens"
-                className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 font-medium"
               >
                 Añadir Token en Settings
               </a>
@@ -643,7 +643,7 @@ export default function UnifiedExplorer() {
     <Suspense fallback={
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-secondary">Cargando Dashboard...</p>
         </div>
       </div>

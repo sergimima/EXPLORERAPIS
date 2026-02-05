@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function NewAddressPage() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function NewAddressPage() {
     try {
       // Validar address
       if (!/^0x[a-fA-F0-9]{40}$/.test(formData.address)) {
-        alert('Formato de address inválido');
+        toast.error('Formato de address inválido');
         setLoading(false);
         return;
       }
@@ -48,11 +49,11 @@ export default function NewAddressPage() {
         router.push('/admin/addresses');
       } else {
         const error = await response.json();
-        alert(`Error: ${error.error || 'No se pudo crear la address'}`);
+        toast.error(error.error || 'No se pudo crear la address');
       }
     } catch (error) {
       console.error('Error creating address:', error);
-      alert('Error al crear la address');
+      toast.error('Error al crear la address');
     } finally {
       setLoading(false);
     }
@@ -61,15 +62,15 @@ export default function NewAddressPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">➕ Nueva Address</h1>
-        <p className="text-gray-600 mt-1">Añade una nueva address etiquetada</p>
+        <h1 className="text-3xl font-bold text-card-foreground">➕ Nueva Address</h1>
+        <p className="text-muted-foreground mt-1">Añade una nueva address etiquetada</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="bg-card rounded-lg shadow-md p-6 space-y-6 border border-border">
         {/* Address */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Address <span className="text-red-500">*</span>
+          <label className="block text-sm font-medium text-muted-foreground700 mb-2">
+            Address <span className="text-destructive">*</span>
           </label>
           <input
             type="text"
@@ -77,17 +78,17 @@ export default function NewAddressPage() {
             value={formData.address}
             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             placeholder="0x..."
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-mono"
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Dirección Ethereum válida (42 caracteres, 0x...)
           </p>
         </div>
 
         {/* Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Nombre <span className="text-red-500">*</span>
+          <label className="block text-sm font-medium text-muted-foreground700 mb-2">
+            Nombre <span className="text-destructive">*</span>
           </label>
           <input
             type="text"
@@ -95,19 +96,19 @@ export default function NewAddressPage() {
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             placeholder="Ej: Coinbase, Vottun World, etc."
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
 
         {/* Type */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Tipo <span className="text-red-500">*</span>
+          <label className="block text-sm font-medium text-muted-foreground700 mb-2">
+            Tipo <span className="text-destructive">*</span>
           </label>
           <select
             value={formData.type}
             onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           >
             <option value="Wallet">Wallet</option>
             <option value="Exchange">Exchange</option>
@@ -122,7 +123,7 @@ export default function NewAddressPage() {
 
         {/* Category */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-muted-foreground700 mb-2">
             Categoría
           </label>
           <input
@@ -130,13 +131,13 @@ export default function NewAddressPage() {
             value={formData.category}
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             placeholder="Ej: CEX, Vesting Contract, etc."
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
 
         {/* Description */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-muted-foreground700 mb-2">
             Descripción
           </label>
           <textarea
@@ -144,13 +145,13 @@ export default function NewAddressPage() {
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             placeholder="Descripción detallada..."
             rows={3}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
 
         {/* Tags */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-muted-foreground700 mb-2">
             Tags
           </label>
           <input
@@ -158,9 +159,9 @@ export default function NewAddressPage() {
             value={formData.tags}
             onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
             placeholder="exchange, coinbase, cex (separados por comas)"
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Separar múltiples tags con comas
           </p>
         </div>
@@ -170,14 +171,14 @@ export default function NewAddressPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
+            className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-colors disabled:opacity-50 font-medium"
           >
             {loading ? '⏳ Creando...' : '✅ Crear Address'}
           </button>
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            className="px-6 py-3 bg-muted text-muted-foreground700 rounded-lg hover:bg-muted/80 transition-colors"
           >
             Cancelar
           </button>

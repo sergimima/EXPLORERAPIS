@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { checkVestingContractStatus } from '@/lib/blockchain';
 import { ethers } from 'ethers';
 import { Network } from '@/lib/types';
@@ -231,7 +232,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
       await loadBeneficiaryDetails(false);
     } catch (error) {
       console.error('Error al actualizar beneficiario:', error);
-      alert('Error al actualizar beneficiario');
+      toast.error('Error al actualizar beneficiario');
     } finally {
       setLoadingBeneficiaries(false);
     }
@@ -509,7 +510,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
           <h3 className="text-lg font-semibold mb-2">Información del Contrato</h3>
           {loadingBasic && (
             <div className="flex justify-center items-center my-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
               <span className="ml-3 text-muted-foreground">Cargando información básica del contrato...</span>
             </div>
           )}
@@ -813,7 +814,7 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                                 {beneficiary.address}
                                 {beneficiary.vestings && <span className="ml-2 text-xs text-primary">({beneficiary.vestings.length} vestings)</span>}
                                 {beneficiary.hasError && <span className="ml-2 text-xs text-destructive">(Error: {beneficiary.error || 'Desconocido'})</span>}
-                                {beneficiary.noVestings && <span className="ml-2 text-xs text-yellow-500">(Sin vestings)</span>}
+                                {beneficiary.noVestings && <span className="ml-2 text-xs text-warning">(Sin vestings)</span>}
                               </td>
                               <td className="py-2 px-4 text-right font-semibold">
                                 {beneficiary.totalAmount ? parseFloat(beneficiary.totalAmount).toLocaleString(undefined, { maximumFractionDigits: 4 }) : 
@@ -875,13 +876,13 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                                 <td className="py-1 px-4 border-b text-right">
                                   {vesting.amount ? parseFloat(vesting.amount).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
                                 </td>
-                                <td className="py-1 px-4 border-b text-right text-red-500">
+                                <td className="py-1 px-4 border-b text-right text-destructive">
                                   {vesting.released ? parseFloat(vesting.released).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
                                 </td>
                                 <td className="py-1 px-4 border-b text-right">
                                   {parseFloat(remaining).toLocaleString(undefined, { maximumFractionDigits: 4 })}
                                 </td>
-                                <td className="py-1 px-4 border-b text-right text-green-500">
+                                <td className="py-1 px-4 border-b text-right text-success">
                                   0
                                 </td>
                                 <td className="py-1 px-4 border-b text-center text-xs">
@@ -890,13 +891,13 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
                                       <div>Inicio: {new Date(vesting.start * 1000).toLocaleDateString()}</div>
                                       {endTime > 0 && <div>Fin: {new Date(endTime * 1000).toLocaleDateString()}</div>}
                                       {vesting.cliff > 0 && (
-                                        <div className="text-orange-500">
+                                        <div className="text-warning">
                                           Cliff: {new Date((vesting.start + vesting.cliff) * 1000).toLocaleDateString()}
                                         </div>
                                       )}
                                     </div>
                                   ) : (
-                                    <span className="text-gray-400">No disponible</span>
+                                    <span className="text-muted-foreground">No disponible</span>
                                   )}
                                 </td>
                               </tr>

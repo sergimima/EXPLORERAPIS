@@ -8,8 +8,8 @@ export default withAuth(
 
     // Check if user is trying to access admin routes
     if (path.startsWith('/admin')) {
-      // Only ADMIN and SUPER_ADMIN can access admin routes
-      if (token?.role !== 'ADMIN' && token?.role !== 'SUPER_ADMIN') {
+      // Only SUPER_ADMIN can access platform admin panel
+      if (token?.role !== 'SUPER_ADMIN') {
         return NextResponse.redirect(new URL('/dashboard', req.url));
       }
     }

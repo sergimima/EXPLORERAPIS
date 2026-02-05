@@ -45,10 +45,10 @@ export default function WhaleTimelineChart({ transfers, threshold = 10000, token
           <p className="text-sm text-muted-foreground">
             {date.toLocaleString()}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             De: {data.from}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             A: {data.to}
           </p>
         </div>

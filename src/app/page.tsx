@@ -326,7 +326,7 @@ export default function Home() {
           <p className="text-xl text-white/90 text-center">
             Join leading investors and teams who trust our platform for real-time blockchain analytics.
           </p>
-          <a href="/dashboard" className="px-12 py-5 bg-white hover:bg-gray-100 text-[#6366F1] text-lg font-bold rounded-xl transition-all shadow-xl shadow-black/25">
+          <a href="/dashboard" className="px-12 py-5 bg-card hover:bg-muted text-primary text-lg font-bold rounded-xl transition-all shadow-xl border border-border">
             Launch Dashboard →
           </a>
         </section>

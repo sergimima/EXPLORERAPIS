@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Avatar from '@/components/Avatar';
 
 export default function TokensSettings() {
   const { data: session } = useSession();
@@ -62,7 +63,7 @@ export default function TokensSettings() {
           </p>
           <button
             onClick={() => setShowAddModal(true)}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium inline-flex items-center gap-2"
+            className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:opacity-90 font-medium inline-flex items-center gap-2"
           >
             <span>➕</span>
             Agregar Token
@@ -82,13 +83,15 @@ export default function TokensSettings() {
 
           <div className="grid gap-4">
             {tokens.map((token) => (
-              <div key={token.id} className="bg-white border border-border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div key={token.id} className="bg-card border border-border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-4 mb-4">
-                      <div className="w-14 h-14 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center text-primary-foreground font-bold text-lg shadow-md">
-                        {token.symbol.substring(0, 2)}
-                      </div>
+                      <Avatar
+                        src={token.logoUrl}
+                        name={token.symbol}
+                        size="lg"
+                      />
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="text-xl font-bold text-card-foreground">{token.symbol}</h3>
@@ -98,7 +101,7 @@ export default function TokensSettings() {
                             </span>
                           )}
                           {token.isVerified && (
-                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-medium">
+                            <span className="bg-accent text-accent-foreground px-2 py-0.5 rounded text-xs font-medium">
                               ✓ Verificado
                             </span>
                           )}
@@ -134,13 +137,13 @@ export default function TokensSettings() {
                   <div className="flex flex-col gap-2 ml-6">
                     <button
                       onClick={() => router.push(`/settings/tokens/${token.id}`)}
-                      className="text-blue-600 hover:text-blue-700 px-4 py-2 border border-blue-600 rounded-lg hover:bg-blue-50 font-medium text-sm whitespace-nowrap"
+                      className="text-primary hover:opacity-80 px-4 py-2 border border-primary rounded-lg hover:bg-accent font-medium text-sm whitespace-nowrap"
                     >
                       ⚙️ Configurar
                     </button>
                     <button
                       onClick={() => handleDelete(token.id)}
-                      className="text-red-600 hover:text-red-700 px-4 py-2 border border-red-600 rounded-lg hover:bg-red-50 font-medium text-sm"
+                      className="text-destructive hover:opacity-80 px-4 py-2 border border-destructive rounded-lg hover:bg-destructive/10 font-medium text-sm"
                     >
                       🗑️ Eliminar
                     </button>
@@ -201,18 +204,18 @@ function AddTokenModal({ onClose, onSuccess }: any) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
+      <div className="bg-card rounded-lg max-w-md w-full p-6 shadow-xl border border-border">
         <h2 className="text-2xl font-bold mb-4 text-card-foreground">Agregar Token</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg">
+            <div className="bg-destructive/10 border border-destructive text-destructive p-3 rounded-lg">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Contract Address
             </label>
             <input
@@ -220,22 +223,22 @@ function AddTokenModal({ onClose, onSuccess }: any) {
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="0x..."
-              className="w-full px-4 py-2 border border-input dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Address del contrato ERC20 del token
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Network
             </label>
             <select
               value={network}
               onChange={(e) => setNetwork(e.target.value)}
-              className="w-full px-4 py-2 border border-input dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
             >
               <option value="base">Base Mainnet</option>
               <option value="base-testnet">Base Testnet (Goerli)</option>
@@ -243,8 +246,8 @@ function AddTokenModal({ onClose, onSuccess }: any) {
             </select>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
+          <div className="bg-accent border border-border rounded-lg p-4">
+            <p className="text-sm text-muted-foreground">
               💡 <strong>Verificación automática:</strong> Validaremos on-chain que el token existe y obtendremos automáticamente el nombre, símbolo y decimales.
             </p>
           </div>
@@ -253,14 +256,14 @@ function AddTokenModal({ onClose, onSuccess }: any) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-input dark:border-gray-600 rounded-lg hover:bg-gray-50 font-medium"
+              className="flex-1 px-4 py-2 border border-input rounded-lg hover:bg-muted font-medium bg-background text-foreground"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+              className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
             >
               {loading ? 'Verificando...' : 'Agregar Token'}
             </button>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function SupplySettingsPage() {
   const params = useParams();
@@ -35,9 +36,9 @@ export default function SupplySettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
       });
-      alert('Configuración de supply guardada correctamente!');
+      toast.success('Configuración de supply guardada correctamente');
     } catch (error: any) {
-      alert('Error al guardar: ' + error.message);
+      toast.error('Error al guardar: ' + (error.message || 'Error desconocido'));
     }
     setSaving(false);
   };
@@ -59,11 +60,11 @@ export default function SupplySettingsPage() {
       </div>
 
       {/* Supply Method Selection */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-card rounded-lg shadow p-6 border border-border">
         <h3 className="text-lg font-semibold mb-4">Método de Obtención</h3>
 
         <div className="space-y-3">
-          <label className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+          <label className="flex items-start gap-3 p-4 border border-border rounded-lg cursor-pointer hover:bg-muted transition-colors">
             <input
               type="radio"
               checked={supplyMethod === 'API'}
@@ -78,7 +79,7 @@ export default function SupplySettingsPage() {
             </div>
           </label>
 
-          <label className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+          <label className="flex items-start gap-3 p-4 border border-border rounded-lg cursor-pointer hover:bg-muted transition-colors">
             <input
               type="radio"
               checked={supplyMethod === 'ONCHAIN'}
@@ -97,7 +98,7 @@ export default function SupplySettingsPage() {
 
       {/* API Configuration */}
       {supplyMethod === 'API' && (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-card rounded-lg shadow p-6 border border-border">
           <h3 className="text-lg font-semibold mb-4">Configuración de API</h3>
 
           <div className="space-y-4">
@@ -112,7 +113,7 @@ export default function SupplySettingsPage() {
                 placeholder="https://api.example.com/v1/total-supply"
                 className="w-full px-3 py-2 border border-input rounded font-mono text-sm focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Endpoint que devuelve {`{ "totalSupply": "1000000" }`}
               </p>
             </div>
@@ -128,7 +129,7 @@ export default function SupplySettingsPage() {
                 placeholder="https://api.example.com/v1/circulating-supply"
                 className="w-full px-3 py-2 border border-input rounded font-mono text-sm focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Endpoint que devuelve {`{ "circulatingSupply": "800000" }`}
               </p>
             </div>
@@ -144,18 +145,18 @@ export default function SupplySettingsPage() {
 
       {/* On-Chain Info */}
       {supplyMethod === 'ONCHAIN' && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+        <div className="bg-success/10 border border-success rounded-lg p-6">
           <div className="flex gap-3">
             <div className="text-2xl">✅</div>
             <div className="flex-1">
               <p className="font-medium text-success mb-2">
                 Cálculo On-Chain Activado
               </p>
-              <p className="text-sm text-green-800 mb-2">
+              <p className="text-sm text-success mb-2">
                 El supply se calculará directamente desde el contrato ERC20 usando el método{' '}
                 <code className="bg-success/20 px-1.5 py-0.5 rounded font-mono text-xs">totalSupply()</code>
               </p>
-              <p className="text-xs text-green-700">
+              <p className="text-xs text-success">
                 <strong>Nota:</strong> El circulating supply será igual al total supply.
                 Para calcular locked supply con precisión, necesitarás configurar contratos de vesting en la sección "Contratos".
               </p>

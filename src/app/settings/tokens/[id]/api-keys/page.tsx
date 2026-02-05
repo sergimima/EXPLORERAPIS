@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function ApiKeysSettingsPage() {
   const params = useParams();
@@ -35,15 +36,15 @@ export default function ApiKeysSettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
       });
-      alert('API Keys guardadas correctamente!');
+      toast.success('API Keys guardadas correctamente');
     } catch (error: any) {
-      alert('Error al guardar: ' + error.message);
+      toast.error('Error al guardar: ' + (error.message || 'Error desconocido'));
     }
     setSaving(false);
   };
 
   if (loading) {
-    return <div className="text-muted-foreground">Cargando...</div>;
+    return <div className="text-muted-foreground py-8">Cargando...</div>;
   }
 
   return (
@@ -53,7 +54,7 @@ export default function ApiKeysSettingsPage() {
         <h2 className="text-xl font-semibold text-card-foreground mb-2">
           API Keys Personalizadas
         </h2>
-        <p className="text-sm text-accent-foreground">
+        <p className="text-sm text-muted-foreground">
           Por defecto se usan las API keys del platform. Configura tus propias keys si tienes límites más altos o quieres mayor control.
         </p>
       </div>
@@ -63,7 +64,7 @@ export default function ApiKeysSettingsPage() {
         <div className="space-y-6">
           {/* BaseScan */}
           <div>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-sm font-medium mb-1 text-foreground">
               BaseScan API Key
             </label>
             <input
@@ -71,7 +72,7 @@ export default function ApiKeysSettingsPage() {
               value={settings.customBasescanApiKey || ''}
               onChange={(e) => setSettings({ ...settings, customBasescanApiKey: e.target.value })}
               placeholder="Si está vacío, usa la key del platform"
-              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
             />
             <a
               href="https://basescan.org/apis"
@@ -85,7 +86,7 @@ export default function ApiKeysSettingsPage() {
 
           {/* Etherscan */}
           <div>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-sm font-medium mb-1 text-foreground">
               Etherscan API Key
             </label>
             <input
@@ -93,7 +94,7 @@ export default function ApiKeysSettingsPage() {
               value={settings.customEtherscanApiKey || ''}
               onChange={(e) => setSettings({ ...settings, customEtherscanApiKey: e.target.value })}
               placeholder="Si está vacío, usa la key del platform"
-              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
             />
             <p className="text-xs text-muted-foreground mt-1">
               Usado para obtener transfers históricos en Base network
@@ -102,7 +103,7 @@ export default function ApiKeysSettingsPage() {
 
           {/* Moralis */}
           <div>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-sm font-medium mb-1 text-foreground">
               Moralis API Key
             </label>
             <input
@@ -110,7 +111,7 @@ export default function ApiKeysSettingsPage() {
               value={settings.customMoralisApiKey || ''}
               onChange={(e) => setSettings({ ...settings, customMoralisApiKey: e.target.value })}
               placeholder="Si está vacío, usa la key del platform"
-              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
             />
             <a
               href="https://moralis.io"
@@ -124,7 +125,7 @@ export default function ApiKeysSettingsPage() {
 
           {/* QuikNode */}
           <div>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-sm font-medium mb-1 text-foreground">
               QuikNode URL (RPC)
             </label>
             <input
@@ -132,7 +133,7 @@ export default function ApiKeysSettingsPage() {
               value={settings.customQuiknodeUrl || ''}
               onChange={(e) => setSettings({ ...settings, customQuiknodeUrl: e.target.value })}
               placeholder="https://..."
-              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground font-mono text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
             />
             <a
               href="https://www.quicknode.com"
@@ -147,9 +148,9 @@ export default function ApiKeysSettingsPage() {
       </div>
 
       {/* Info Box */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <p className="text-sm text-warning-foreground">
-          <strong>💡 Tip:</strong> Las API keys se almacenan de forma segura y solo se usan para este token.
+      <div className="bg-warning/10 border border-warning rounded-lg p-4">
+        <p className="text-sm text-foreground">
+          <strong className="text-warning">💡 Tip:</strong> Las API keys se almacenan de forma segura y solo se usan para este token.
           Si dejas los campos vacíos, se usarán las keys globales del platform (con rate limits compartidos).
         </p>
       </div>

@@ -60,8 +60,8 @@ const VestingContractList: React.FC<VestingContractListProps> = ({
     return (
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Contratos de Vesting</h2>
-        <div className="flex items-center justify-center p-8 bg-gray-50 rounded-lg">
-          <div className="text-gray-500">Cargando contratos...</div>
+        <div className="flex items-center justify-center p-8 bg-muted rounded-lg">
+          <div className="text-muted-foreground">Cargando contratos...</div>
         </div>
       </div>
     );
@@ -71,8 +71,8 @@ const VestingContractList: React.FC<VestingContractListProps> = ({
     return (
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Contratos de Vesting</h2>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700">Error: {error}</p>
+        <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
+          <p className="text-destructive">Error: {error}</p>
         </div>
       </div>
     );
@@ -82,10 +82,10 @@ const VestingContractList: React.FC<VestingContractListProps> = ({
     return (
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Contratos de Vesting</h2>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800">
+        <div className="bg-warning/10 border border-warning rounded-lg p-4">
+          <p className="text-warning">
             No hay contratos de vesting configurados para este token.{' '}
-            <a href={`/settings/tokens/${tokenId}`} className="underline font-semibold">
+            <a href={`/settings/tokens/${tokenId}`} className="underline font-semibold text-primary hover:opacity-80">
               Agregar contratos →
             </a>
           </p>
@@ -103,22 +103,22 @@ const VestingContractList: React.FC<VestingContractListProps> = ({
         {contracts.map((contract) => (
           <div
             key={contract.id}
-            className={`p-4 rounded-lg shadow-md cursor-pointer transition-all duration-200 ${
+            className={`p-4 rounded-lg shadow-md cursor-pointer transition-all duration-200 border ${
               selectedContract === contract.address
-                ? 'bg-blue-100 border-2 border-blue-500'
-                : 'bg-white hover:bg-gray-50'
+                ? 'bg-accent border-2 border-primary'
+                : 'bg-card hover:bg-muted border-border'
             }`}
             onClick={() => handleSelectContract(contract.address)}
           >
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-medium text-lg">{contract.name}</h3>
               {contract.category && (
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded">
                   {contract.category}
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-500 break-all">{contract.address}</p>
+            <p className="text-xs text-muted-foreground break-all">{contract.address}</p>
           </div>
         ))}
       </div>

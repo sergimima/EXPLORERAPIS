@@ -27,13 +27,13 @@ function ErrorContent() {
   const errorMessage = error ? errorMessages[error] || errorMessages.Default : errorMessages.Default;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
-        <div className="bg-white shadow-md rounded-lg px-8 pt-6 pb-8">
+        <div className="bg-card shadow-md rounded-lg px-8 pt-6 pb-8 border border-border">
           <div className="text-center mb-6">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-destructive/10 mb-4">
               <svg
-                className="h-6 w-6 text-red-600"
+                className="h-6 w-6 text-destructive"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -46,26 +46,26 @@ function ErrorContent() {
                 />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Error de Autenticación</h2>
-            <p className="text-gray-600">{errorMessage}</p>
+            <h2 className="text-2xl font-bold text-card-foreground mb-2">Error de Autenticación</h2>
+            <p className="text-muted-foreground">{errorMessage}</p>
           </div>
 
           <div className="flex flex-col gap-3">
             <Link
               href="/auth/signin"
-              className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-center"
+              className="w-full bg-primary hover:opacity-90 text-primary-foreground font-bold py-2 px-4 rounded text-center"
             >
               Volver a Iniciar Sesión
             </Link>
             <Link
               href="/auth/signup"
-              className="w-full bg-white hover:bg-gray-50 text-gray-700 font-semibold py-2 px-4 border border-gray-300 dark:border-gray-600 rounded text-center"
+              className="w-full bg-background hover:bg-muted text-foreground font-semibold py-2 px-4 border border-input rounded text-center"
             >
               Crear Nueva Cuenta
             </Link>
             <Link
               href="/"
-              className="w-full text-center text-blue-500 hover:text-blue-700 font-semibold py-2"
+              className="w-full text-center text-primary hover:opacity-80 font-semibold py-2"
             >
               Volver al Inicio
             </Link>
@@ -79,9 +79,9 @@ function ErrorContent() {
 export default function AuthErrorPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-100">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-destructive mx-auto"></div>
         </div>
       </div>
     }>

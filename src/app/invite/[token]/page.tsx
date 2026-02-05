@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface InvitationDetails {
   id: string;
@@ -111,7 +112,7 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ tok
       }
 
       // Éxito
-      alert('¡Bienvenido a ' + data.organization.name + '!');
+      toast.success('¡Bienvenido a ' + data.organization.name + '!');
 
       // Si se creó cuenta, hacer login automático
       if (status !== 'authenticated' && password) {
@@ -136,7 +137,7 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ tok
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p>Cargando invitación...</p>
         </div>
       </div>
@@ -144,18 +145,18 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ tok
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="bg-card rounded-lg shadow-lg p-8 max-w-md w-full border border-border">
         <div className="text-center mb-6">
           <div className="text-4xl mb-2">📨</div>
           <h1 className="text-2xl font-bold mb-2">Invitación a Organización</h1>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Has sido invitado a unirte a una organización en TokenLens
           </p>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
@@ -163,8 +164,8 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ tok
         {status === 'authenticated' ? (
           // Usuario ya autenticado
           <div>
-            <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-6">
-              <p className="text-sm text-gray-700">
+            <div className="bg-accent border border-border rounded p-4 mb-6">
+              <p className="text-sm text-card-foreground">
                 <strong>Sesión iniciada como:</strong> {session?.user?.email}
               </p>
             </div>
@@ -172,16 +173,16 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ tok
             <button
               onClick={handleAccept}
               disabled={accepting}
-              className="w-full bg-blue-600 text-white px-4 py-3 rounded hover:bg-blue-700 disabled:opacity-50"
+              className="w-full bg-primary text-primary-foreground px-4 py-3 rounded hover:opacity-90 disabled:opacity-50"
             >
               {accepting ? 'Aceptando...' : 'Aceptar Invitación'}
             </button>
 
-            <p className="text-sm text-gray-500 text-center mt-4">
+            <p className="text-sm text-muted-foreground text-center mt-4">
               ¿No eres tú?{' '}
               <button
                 onClick={() => router.push('/auth/signout')}
-                className="text-blue-600 hover:underline"
+                className="text-primary hover:underline"
               >
                 Cerrar sesión
               </button>
@@ -190,7 +191,7 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ tok
         ) : (
           // Usuario no autenticado - Formulario de registro
           <div>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Para aceptar la invitación, crea tu cuenta o inicia sesión si ya tienes una.
             </p>
 
@@ -240,17 +241,17 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ tok
               <button
                 type="submit"
                 disabled={accepting}
-                className="w-full bg-blue-600 text-white px-4 py-3 rounded hover:bg-blue-700 disabled:opacity-50 mb-3"
+                className="w-full bg-primary text-primary-foreground px-4 py-3 rounded hover:opacity-90 disabled:opacity-50 mb-3"
               >
                 {accepting ? 'Creando cuenta...' : 'Crear Cuenta y Aceptar'}
               </button>
 
-              <p className="text-sm text-gray-500 text-center">
+              <p className="text-sm text-muted-foreground text-center">
                 ¿Ya tienes cuenta?{' '}
                 <button
                   type="button"
                   onClick={() => router.push(`/auth/signin?callbackUrl=/invite/${token}`)}
-                  className="text-blue-600 hover:underline"
+                  className="text-primary hover:underline"
                 >
                   Inicia sesión aquí
                 </button>

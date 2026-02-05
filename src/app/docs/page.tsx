@@ -8,7 +8,7 @@ export default function ApiDocs() {
     <div className="container mx-auto px-4 py-12">
       <h1 className="text-3xl font-bold mb-8">Documentación de la API</h1>
 
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+      <div className="bg-card p-6 rounded-lg shadow-md mb-8 border border-border">
         <h2 className="text-xl font-semibold mb-4">Introducción</h2>
         <p className="mb-4">
           Esta API te permite consultar datos de diferentes blockchains, centrándose en la información
@@ -16,7 +16,7 @@ export default function ApiDocs() {
         </p>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+      <div className="bg-card p-6 rounded-lg shadow-md mb-8 border border-border">
         <h2 className="text-xl font-semibold mb-4">Endpoints</h2>
 
         <div className="mb-6 border-b pb-6">
@@ -26,15 +26,15 @@ export default function ApiDocs() {
           <div className="bg-muted p-4 rounded-md mb-4">
             <h4 className="font-medium mb-2">Parámetros</h4>
             <ul className="list-disc pl-6">
-              <li className="mb-1"><code className="bg-gray-200 px-1 rounded">wallet</code> - Dirección de la wallet a consultar (requerido)</li>
-              <li className="mb-1"><code className="bg-gray-200 px-1 rounded">network</code> - Red blockchain a utilizar ('base' o 'base-testnet') (opcional, por defecto: 'base')</li>
-              <li className="mb-1"><code className="bg-gray-200 px-1 rounded">token</code> - Filtro para tokens específicos (dirección o símbolo) (opcional)</li>
+              <li className="mb-1"><code className="bg-muted px-1 rounded">wallet</code> - Dirección de la wallet a consultar (requerido)</li>
+              <li className="mb-1"><code className="bg-muted px-1 rounded">network</code> - Red blockchain a utilizar ('base' o 'base-testnet') (opcional, por defecto: 'base')</li>
+              <li className="mb-1"><code className="bg-muted px-1 rounded">token</code> - Filtro para tokens específicos (dirección o símbolo) (opcional)</li>
             </ul>
           </div>
           
           <div className="bg-muted p-4 rounded-md">
             <h4 className="font-medium mb-2">Ejemplo de respuesta</h4>
-            <pre className="bg-gray-800 text-green-400 p-4 rounded-md overflow-x-auto">
+            <pre className="bg-muted text-success p-4 rounded-md overflow-x-auto">
 {`[
   {
     "tokenAddress": "0x4200000000000000000000000000000000000006",
@@ -68,14 +68,14 @@ export default function ApiDocs() {
           <div className="bg-muted p-4 rounded-md mb-4">
             <h4 className="font-medium mb-2">Parámetros</h4>
             <ul className="list-disc pl-6">
-              <li className="mb-1"><code className="bg-gray-200 px-1 rounded">wallet</code> - Dirección de la wallet a consultar (requerido)</li>
-              <li className="mb-1"><code className="bg-gray-200 px-1 rounded">network</code> - Red blockchain a utilizar ('base' o 'base-testnet') (opcional, por defecto: 'base')</li>
+              <li className="mb-1"><code className="bg-muted px-1 rounded">wallet</code> - Dirección de la wallet a consultar (requerido)</li>
+              <li className="mb-1"><code className="bg-muted px-1 rounded">network</code> - Red blockchain a utilizar ('base' o 'base-testnet') (opcional, por defecto: 'base')</li>
             </ul>
           </div>
           
           <div className="bg-muted p-4 rounded-md">
             <h4 className="font-medium mb-2">Ejemplo de respuesta</h4>
-            <pre className="bg-gray-800 text-green-400 p-4 rounded-md overflow-x-auto">
+            <pre className="bg-muted text-success p-4 rounded-md overflow-x-auto">
 {`[
   {
     "tokenAddress": "0x4200000000000000000000000000000000000006",
@@ -99,7 +99,7 @@ export default function ApiDocs() {
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="bg-card p-6 rounded-lg shadow-md border border-border">
         <h2 className="text-xl font-semibold mb-4">Implementación</h2>
         <p className="mb-4">
           Para implementar estas APIs en tu proyecto, puedes crear rutas API en Next.js que utilicen

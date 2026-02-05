@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 interface KnownAddress {
   id: string;
@@ -56,11 +57,11 @@ export default function AdminAddressesPage() {
         setShowDeleteModal(false);
         setDeleteTarget(null);
       } else {
-        alert('Error al eliminar address');
+        toast.error('Error al eliminar address');
       }
     } catch (error) {
       console.error('Error deleting address:', error);
-      alert('Error al eliminar address');
+      toast.error('Error al eliminar address');
     }
   };
 
@@ -79,7 +80,7 @@ export default function AdminAddressesPage() {
       setSelectedIds(new Set());
     } catch (error) {
       console.error('Error bulk deleting:', error);
-      alert('Error al eliminar addresses');
+      toast.error('Error al eliminar addresses');
     }
   };
 
@@ -171,7 +172,7 @@ export default function AdminAddressesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-600">Cargando addresses...</div>
+        <div className="text-muted-foreground">Cargando addresses...</div>
       </div>
     );
   }
@@ -181,21 +182,21 @@ export default function AdminAddressesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">📝 Gestión de Addresses</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-card-foreground">📝 Gestión de Addresses</h1>
+          <p className="text-muted-foreground mt-1">
             {addresses.length} addresses etiquetadas
           </p>
         </div>
         <Link
           href="/admin/addresses/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-colors"
         >
           + Nueva Address
         </Link>
       </div>
 
       {/* Filtros y búsqueda */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+      <div className="bg-card rounded-lg shadow-md p-4 mb-6 border border-border">
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex-1 min-w-[300px]">
             <input
@@ -206,19 +207,19 @@ export default function AdminAddressesPage() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
           <div className="flex gap-2 items-center">
-            <label className="text-sm text-gray-600">Tipo:</label>
+            <label className="text-sm text-muted-foreground">Tipo:</label>
             <select
               value={typeFilter}
               onChange={(e) => {
                 setTypeFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary"
             >
               <option value="all">Todos</option>
               {types.map((type) => (
@@ -232,13 +233,13 @@ export default function AdminAddressesPage() {
           <div className="flex gap-2">
             <button
               onClick={handleExportCSV}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+              className="px-4 py-2 bg-success text-white rounded-lg hover:opacity-90 transition-colors text-sm"
             >
               📥 CSV
             </button>
             <button
               onClick={handleExportJSON}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-colors text-sm"
             >
               📥 JSON
             </button>
@@ -246,7 +247,7 @@ export default function AdminAddressesPage() {
         </div>
 
         {filteredAddresses.length !== addresses.length && (
-          <div className="mt-2 text-sm text-gray-600">
+          <div className="mt-2 text-sm text-muted-foreground">
             Mostrando {filteredAddresses.length} de {addresses.length} addresses
           </div>
         )}
@@ -254,20 +255,20 @@ export default function AdminAddressesPage() {
 
       {/* Acciones masivas */}
       {selectedIds.size > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
-          <div className="text-blue-900 font-medium">
+        <div className="bg-accent border border-border rounded-lg p-4 mb-6 flex items-center justify-between">
+          <div className="text-card-foreground font-medium">
             {selectedIds.size} addresses seleccionadas
           </div>
           <div className="flex gap-2">
             <button
               onClick={handleBulkDelete}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+              className="px-4 py-2 bg-destructive text-white rounded-lg hover:opacity-90 transition-colors text-sm"
             >
               🗑️ Eliminar seleccionadas
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+              className="px-4 py-2 bg-muted text-muted-foreground700 rounded-lg hover:bg-muted300 transition-colors text-sm"
             >
               Cancelar
             </button>
@@ -276,10 +277,10 @@ export default function AdminAddressesPage() {
       )}
 
       {/* Tabla */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-background border-b border-gray-200">
+            <thead className="bg-background border-b border-border">
               <tr>
                 <th className="px-4 py-3 text-left">
                   <input
@@ -292,29 +293,29 @@ export default function AdminAddressesPage() {
                     className="rounded"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-muted-foreground700">
                   Address
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-muted-foreground700">
                   Nombre
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-muted-foreground700">
                   Tipo
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-muted-foreground700">
                   Categoría
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-muted-foreground700">
                   Tags
                 </th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+                <th className="px-4 py-3 text-right text-sm font-semibold text-muted-foreground700">
                   Acciones
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-border">
               {paginatedAddresses.map((addr) => (
-                <tr key={addr.id} className="hover:bg-gray-50">
+                <tr key={addr.id} className="hover:bg-muted">
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
@@ -328,20 +329,20 @@ export default function AdminAddressesPage() {
                       href={`https://basescan.org/address/${addr.address}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline font-mono text-sm"
+                      className="text-primary hover:underline font-mono text-sm"
                     >
                       {addr.address.slice(0, 10)}...{addr.address.slice(-8)}
                     </a>
                   </td>
-                  <td className="px-4 py-3 font-medium text-gray-900">
+                  <td className="px-4 py-3 font-medium text-card-foreground">
                     {addr.name}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                    <span className="px-2 py-1 bg-accent text-accent-foreground rounded text-xs">
                       {addr.type}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
                     {addr.category || '-'}
                   </td>
                   <td className="px-4 py-3">
@@ -350,26 +351,26 @@ export default function AdminAddressesPage() {
                         {addr.tags.slice(0, 2).map((tag) => (
                           <span
                             key={tag}
-                            className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+                            className="px-2 py-1 bg-muted text-muted-foreground700 rounded text-xs"
                           >
                             {tag}
                           </span>
                         ))}
                         {addr.tags.length > 2 && (
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-muted-foreground">
                             +{addr.tags.length - 2}
                           </span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-xs">Sin tags</span>
+                      <span className="text-muted-foreground400 text-xs">Sin tags</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex gap-2 justify-end">
                       <Link
                         href={`/admin/addresses/${addr.id}`}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
+                        className="text-primary hover:opacity-80 text-sm"
                       >
                         ✏️
                       </Link>
@@ -378,7 +379,7 @@ export default function AdminAddressesPage() {
                           setDeleteTarget(addr.id);
                           setShowDeleteModal(true);
                         }}
-                        className="text-red-600 hover:text-red-800 text-sm"
+                        className="text-destructive hover:opacity-80 text-sm"
                       >
                         🗑️
                       </button>
@@ -392,15 +393,15 @@ export default function AdminAddressesPage() {
 
         {/* Paginación */}
         {totalPages > 1 && (
-          <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-600">
+          <div className="px-4 py-3 bg-muted border-t border-border flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
               Página {currentPage} de {totalPages}
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1 bg-white border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-3 py-1 bg-background border border-input rounded hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 ← Anterior
               </button>
@@ -421,8 +422,8 @@ export default function AdminAddressesPage() {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`px-3 py-1 rounded text-sm ${
                       currentPage === pageNum
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white border border-gray-300 dark:border-gray-600 hover:bg-gray-50'
+                        ? 'bg-primary text-white'
+                        : 'bg-background border border-input hover:bg-muted'
                     }`}
                   >
                     {pageNum}
@@ -432,7 +433,7 @@ export default function AdminAddressesPage() {
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1 bg-white border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-3 py-1 bg-background border border-input rounded hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 Siguiente →
               </button>
@@ -444,11 +445,11 @@ export default function AdminAddressesPage() {
       {/* Modal de confirmación de eliminar */}
       {showDeleteModal && deleteTarget && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">
+          <div className="bg-card rounded-lg p-6 max-w-md w-full mx-4 border border-border">
+            <h3 className="text-lg font-bold text-card-foreground mb-2">
               ¿Eliminar address?
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-muted-foreground mb-6">
               Esta acción no se puede deshacer.
             </p>
             <div className="flex gap-3 justify-end">
@@ -457,13 +458,13 @@ export default function AdminAddressesPage() {
                   setShowDeleteModal(false);
                   setDeleteTarget(null);
                 }}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                className="px-4 py-2 bg-muted text-muted-foreground700 rounded-lg hover:bg-muted300"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => handleDelete(deleteTarget)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                className="px-4 py-2 bg-destructive text-white rounded-lg hover:opacity-90"
               >
                 Eliminar
               </button>

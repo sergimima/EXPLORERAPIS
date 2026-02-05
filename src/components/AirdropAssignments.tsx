@@ -163,13 +163,13 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
   if (isLoading) {
     return (
       <div className="bg-card p-6 rounded-lg shadow-md border border-border">
-        <p className="text-center text-gray-500">Cargando...</p>
+        <p className="text-center text-muted-foreground">Cargando...</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
+    <div className="bg-card p-6 rounded-lg shadow-md border border-border">
       <h2 className="text-xl font-semibold mb-4">Tokens y Puntos Asignados en Vottun</h2>
       
       <div className="mb-6">
@@ -183,7 +183,7 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
             </button>
             <button
               onClick={() => setActiveTab('points')}
-              className={`px-4 py-2 rounded ${activeTab === 'points' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+              className={`px-4 py-2 rounded ${activeTab === 'points' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
             >
               Puntos por Referido
             </button>
@@ -200,12 +200,12 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
                 value={userEmail}
                 onChange={(e) => setUserEmail(e.target.value)}
                 placeholder="usuario@ejemplo.com"
-                className="flex-grow px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="flex-grow px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary bg-background text-foreground"
               />
               <button
                 onClick={fetchUserByEmail}
                 disabled={loading || !userEmail}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50"
+                className="bg-primary hover:opacity-90 text-primary-foreground font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50"
               >
                 {loading ? 'Buscando...' : 'Buscar'}
               </button>
@@ -216,7 +216,7 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
           </div>
 
           <div className="mt-4">
-            <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="userId" className="block text-sm font-medium text-foreground mb-1">
               ID de Usuario en Vottun
             </label>
             <div className="flex space-x-2">
@@ -226,12 +226,12 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
                 placeholder="Ej: 000871ee-abe0-4550-81cb-d52a4d541553"
-                className="flex-grow px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="flex-grow px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary bg-background text-foreground"
               />
               <button
                 onClick={fetchUserById}
                 disabled={loading || !userId}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50"
+                className="bg-primary hover:opacity-90 text-primary-foreground font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50"
               >
                 {loading ? 'Buscando...' : 'Buscar'}
               </button>
@@ -251,44 +251,44 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
 
       {activeTab === 'tokens' ? (
         userTokens.length === 0 && !loading ? (
-          <p className="text-center text-gray-500">
+          <p className="text-center text-muted-foreground">
             No se encontraron tokens asignados. Por favor, introduce un ID de usuario o correo electrónico válido y consulta.
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proyecto</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Token</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Cantidad</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Proyecto</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Estado</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-card divide-y divide-border">
                 {userTokens.map((token, index) => (
                   <tr key={index}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{token.tokenSymbol}</div>
-                          <div className="text-sm text-gray-500">{token.tokenName}</div>
+                          <div className="text-sm font-medium text-card-foreground">{token.tokenSymbol}</div>
+                          <div className="text-sm text-muted-foreground">{token.tokenName}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{token.amount}</div>
+                      <div className="text-sm text-card-foreground">{token.amount}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{token.projectName || 'No especificado'}</div>
+                      <div className="text-sm text-card-foreground">{token.projectName || 'No especificado'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         token.status === 'pending' 
-                          ? 'bg-yellow-100 text-yellow-800' 
+                          ? 'bg-warning/10 text-warning' 
                           : token.status === 'completed' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
+                            ? 'bg-success/10 text-success' 
+                            : 'bg-destructive/10 text-destructive'
                       }`}>
                         {token.status === 'pending' 
                           ? 'Pendiente' 
@@ -305,47 +305,47 @@ const AirdropAssignments: React.FC<AirdropAssignmentsProps> = ({ walletAddress, 
         )
       ) : (
         userPoints.length === 0 && !loading ? (
-          <p className="text-center text-gray-500">
+          <p className="text-center text-muted-foreground">
             No se encontraron puntos asignados. Por favor, introduce un ID de usuario o correo electrónico válido y consulta.
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Referido</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuarios</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuarios Activos</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% Usuarios</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total XP</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% XP</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Referido</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Usuarios</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Usuarios Activos</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">% Usuarios</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Total XP</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">% XP</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-card divide-y divide-border">
                 {userPoints.map((point, index) => (
                   <tr key={index}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{point.name || 'Sin nombre'}</div>
-                          <div className="text-sm text-gray-500">ID: {point.referrer}</div>
+                          <div className="text-sm font-medium text-card-foreground">{point.name || 'Sin nombre'}</div>
+                          <div className="text-sm text-muted-foreground">ID: {point.referrer}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{point.totalUsers}</div>
+                      <div className="text-sm text-card-foreground">{point.totalUsers}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{point.activeUsers}</div>
+                      <div className="text-sm text-card-foreground">{point.activeUsers}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{(point.usersPercentage * 100).toFixed(2)}%</div>
+                      <div className="text-sm text-card-foreground">{(point.usersPercentage * 100).toFixed(2)}%</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{point.totalXp.toLocaleString()}</div>
+                      <div className="text-sm text-card-foreground">{point.totalXp.toLocaleString()}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{(point.xpPercentage * 100).toFixed(2)}%</div>
+                      <div className="text-sm text-card-foreground">{(point.xpPercentage * 100).toFixed(2)}%</div>
                     </td>
                   </tr>
                 ))}

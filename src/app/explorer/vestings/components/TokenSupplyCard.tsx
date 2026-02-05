@@ -24,19 +24,19 @@ const SupplyCard: React.FC<SupplyCardProps> = ({ title, value, description, icon
   };
 
   return (
-    <div className="bg-white bg-white rounded-lg shadow-md p-6 flex flex-col h-full">
+    <div className="bg-card rounded-lg shadow-md p-6 flex flex-col h-full border border-border">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-medium text-gray-900">
+        <h3 className="text-lg font-medium text-card-foreground">
           {title}
         </h3>
-        {icon && <div className="text-blue-500">{icon}</div>}
+        {icon && <div className="text-primary">{icon}</div>}
       </div>
       <div className="flex-1">
-        <p className="text-2xl font-bold text-gray-900">
+        <p className="text-2xl font-bold text-card-foreground">
           {displayValue()}
         </p>
         {description && (
-          <p className="mt-2 text-sm text-gray-500 text-gray-500">
+          <p className="mt-2 text-sm text-muted-foreground">
             {description}
           </p>
         )}
@@ -145,11 +145,11 @@ const TokenSupplyCard: React.FC = () => {
   if (tokenLoading || !activeToken) {
     return (
       <div className="mb-8">
-        <div className="bg-muted dark:bg-gray-800 rounded-lg p-8 text-center">
+        <div className="bg-muted rounded-lg p-8 text-center">
           {tokenLoading ? (
-            <p className="text-gray-600">Cargando token...</p>
+            <p className="text-muted-foreground">Cargando token...</p>
           ) : (
-            <p className="text-gray-600">No hay token seleccionado</p>
+            <p className="text-muted-foreground">No hay token seleccionado</p>
           )}
         </div>
       </div>
@@ -159,7 +159,7 @@ const TokenSupplyCard: React.FC = () => {
   if (loading) {
     return (
       <div className="mb-8">
-        <div className="bg-white bg-white rounded-lg shadow-md p-6 mb-4">
+        <div className="bg-card rounded-lg shadow-md p-6 mb-4 border border-border">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-medium text-card-foreground">
               Cargando información del suministro
@@ -170,20 +170,20 @@ const TokenSupplyCard: React.FC = () => {
             <div className="relative pt-1">
               <div className="flex mb-2 items-center justify-between">
                 <div>
-                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-primary bg-accent">
                     {loadingStage}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs font-semibold inline-block text-blue-600">
+                  <span className="text-xs font-semibold inline-block text-primary">
                     {loadingProgress}%
                   </span>
                 </div>
               </div>
-              <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
+              <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-muted">
                 <div
                   style={{ width: `${loadingProgress}%` }}
-                  className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-300"
+                  className="shadow-none flex flex-col text-center whitespace-nowrap text-primary-foreground justify-center bg-primary transition-all duration-300"
                 ></div>
               </div>
             </div>
@@ -191,10 +191,10 @@ const TokenSupplyCard: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-muted bg-gray-100 rounded-lg p-4 animate-pulse">
-                <div className="h-4 bg-gray-200 bg-gray-200 rounded w-1/2 mb-4"></div>
-                <div className="h-8 bg-gray-200 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-gray-200 bg-gray-200 rounded w-5/6"></div>
+              <div key={i} className="bg-muted rounded-lg p-4 animate-pulse">
+                <div className="h-4 bg-muted-foreground/20 rounded w-1/2 mb-4"></div>
+                <div className="h-8 bg-muted-foreground/20 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-muted-foreground/20 rounded w-5/6"></div>
               </div>
             ))}
           </div>
@@ -205,8 +205,8 @@ const TokenSupplyCard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-red-50 bg-red-50 border border-red-200 border-red-200 rounded-lg p-4 mb-6">
-        <p className="text-red-600 dark:text-red-400">{error}</p>
+      <div className="bg-destructive/10 border border-destructive rounded-lg p-4 mb-6">
+        <p className="text-destructive">{error}</p>
       </div>
     );
   }

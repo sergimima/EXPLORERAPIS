@@ -98,7 +98,7 @@ model Organization {
   id          String   @id @default(cuid())
   name        String
   slug        String   @unique  // URL-friendly
-  logo        String?
+  logoUrl     String?  // Cloudinary URL del logo
   website     String?
 
   // Owner
@@ -185,6 +185,7 @@ model Token {
   name           String
   decimals       Int      @default(18)
   network        String   @default("base")
+  logoUrl        String?  // Cloudinary URL del logo
 
   // Status
   isActive       Boolean  @default(true)
@@ -318,6 +319,41 @@ model Contract {
 // SUBSCRIPTIONS & BILLING
 // ==================================================
 
+model Plan {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  price       Decimal  @default(0)
+  currency    String   @default("USD")
+
+  // Stripe (para futuro)
+  stripePriceId String?
+
+  // Límites configurables (-1 = ilimitado)
+  tokensLimit     Int  @default(1)
+  apiCallsLimit   Int  @default(10000)
+  transfersLimit  Int  @default(10000)
+  membersLimit    Int  @default(1)
+
+  // Features adicionales
+  features    Json?    // Array de strings: ["webhooks", "priority-support"]
+
+  // Metadata
+  isActive    Boolean  @default(true)
+  isPublic    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  subscriptions Subscription[]
+
+  @@index([slug])
+  @@index([isActive])
+  @@map("plans")
+}
+
 model Subscription {
   id                String   @id @default(cuid())
   organizationId    String   @unique
@@ -329,7 +365,8 @@ model Subscription {
   stripeCurrentPeriodEnd DateTime?
 
   // Plan
-  plan              SubscriptionPlan @default(FREE)
+  planId            String?  // FK a Plan (nullable para legacy)
+  plan              SubscriptionPlan @default(FREE) // Deprecado, mantener por compatibilidad
   status            SubscriptionStatus @default(ACTIVE)
 
   // Usage tracking
@@ -337,6 +374,8 @@ model Subscription {
   apiCallsLimit     Int      @default(1000)
   tokensCount       Int      @default(0)
   tokensLimit       Int      @default(1)
+  transfersLimit    Int      @default(10000)
+  membersLimit      Int      @default(1)
 
   // Billing
   billingCycleStart DateTime @default(now())
@@ -348,8 +387,10 @@ model Subscription {
   canceledAt        DateTime?
 
   organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  planRelation      Plan?        @relation(fields: [planId], references: [id])
 
   @@index([organizationId])
+  @@index([planId])
   @@index([stripeCustomerId])
   @@index([stripeSubscriptionId])
   @@map("subscriptions")
@@ -383,6 +424,42 @@ model UsageStats {
   @@unique([organizationId, date])
   @@index([organizationId])
   @@map("usage_stats")
+}
+
+model SystemSettings {
+  id    String   @id @default("system") // Singleton: siempre el mismo ID
+
+  // API Keys globales (default para todas las orgs)
+  defaultBasescanApiKey  String?
+  defaultEtherscanApiKey String?
+  defaultMoralisApiKey   String?
+  defaultQuiknodeUrl     String?
+
+  // Email (Resend)
+  resendApiKey    String?
+  resendFromEmail String?
+  resendFromName  String?
+
+  // Stripe (para futuro)
+  stripePublicKey    String?
+  stripeSecretKey    String?
+  stripeWebhookSecret String?
+
+  // Cloudinary (logos de orgs y tokens)
+  cloudinaryCloudName  String?
+  cloudinaryApiKey     String?
+  cloudinaryApiSecret  String?
+
+  // General
+  appName      String  @default("TokenLens")
+  appUrl       String  @default("http://localhost:4200")
+  supportEmail String?
+
+  // Metadata
+  updatedAt DateTime @updatedAt
+  updatedBy String?  // userId del SUPER_ADMIN que actualizó
+
+  @@map("system_settings")
 }
 
 // ==================================================

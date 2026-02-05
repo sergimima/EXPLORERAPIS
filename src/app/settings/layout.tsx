@@ -34,6 +34,12 @@ export default function SettingsLayout({
       description: 'Gestión de tokens'
     },
     {
+      href: '/settings/addresses',
+      label: 'Addresses',
+      icon: '📝',
+      description: 'Direcciones etiquetadas'
+    },
+    {
       href: '/settings/billing',
       label: 'Billing',
       icon: '💳',

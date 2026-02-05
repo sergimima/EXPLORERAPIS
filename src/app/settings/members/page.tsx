@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { toast } from 'sonner';
 
 interface Invitation {
   id: string;
@@ -57,18 +58,18 @@ export default function MembersPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error || 'Error al enviar invitación');
+        toast.error(data.error || 'Error al enviar invitación');
         return;
       }
 
-      alert('✅ Invitación enviada correctamente');
+      toast.success('Invitación enviada correctamente');
       setShowInviteModal(false);
       setInviteEmail('');
       setInviteRole('MEMBER');
       fetchInvitations();
     } catch (error) {
       console.error('Error inviting member:', error);
-      alert('Error al enviar invitación');
+      toast.error('Error al enviar invitación');
     } finally {
       setInviting(false);
     }
@@ -84,15 +85,15 @@ export default function MembersPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        alert(data.error || 'Error al cancelar invitación');
+        toast.error(data.error || 'Error al cancelar invitación');
         return;
       }
 
-      alert('✅ Invitación cancelada');
+      toast.success('Invitación cancelada');
       fetchInvitations();
     } catch (error) {
       console.error('Error canceling invitation:', error);
-      alert('Error al cancelar invitación');
+      toast.error('Error al cancelar invitación');
     }
   };
 
@@ -123,7 +124,7 @@ export default function MembersPage() {
             <h2 className="text-lg font-semibold text-card-foreground">
               Miembros Activos
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               {organization?.members?.length || 0} miembros en total
             </p>
           </div>
@@ -140,31 +141,31 @@ export default function MembersPage() {
           {organization?.members?.map((member: any) => (
             <div
               key={member.id}
-              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted transition-colors"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-lg shadow-sm">
+                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold text-lg shadow-sm">
                   {member.user.name?.[0]?.toUpperCase() || member.user.email[0].toUpperCase()}
                 </div>
                 <div>
                   <div className="font-medium text-card-foreground">
                     {member.user.name || member.user.email}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-muted-foreground">
                     {member.user.email}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`
                       text-xs px-2 py-0.5 rounded-full font-medium
-                      ${member.role === 'OWNER' ? 'bg-purple-100 text-purple-700' :
-                        member.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' :
-                        member.role === 'MEMBER' ? 'bg-green-100 text-green-700' :
-                        'bg-gray-100 text-gray-700'}
+                      ${member.role === 'OWNER' ? 'bg-primary/20 text-primary' :
+                        member.role === 'ADMIN' ? 'bg-accent text-accent-foreground' :
+                        member.role === 'MEMBER' ? 'bg-success/20 text-success' :
+                        'bg-muted text-muted-foreground'}
                     `}>
                       {member.role}
                     </span>
                     {member.joinedAt && (
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-muted-foreground">
                         Unido el {new Date(member.joinedAt).toLocaleDateString()}
                       </span>
                     )}
@@ -172,7 +173,7 @@ export default function MembersPage() {
                 </div>
               </div>
               {member.role !== 'OWNER' && (
-                <button className="text-red-600 hover:text-red-700 text-sm font-medium px-3 py-1 hover:bg-red-50 rounded">
+                <button className="text-destructive hover:opacity-80 text-sm font-medium px-3 py-1 hover:bg-destructive/10 rounded">
                   Remover
                 </button>
               )}
@@ -183,12 +184,12 @@ export default function MembersPage() {
 
       {/* Invitaciones Pendientes */}
       {invitations.length > 0 && (
-        <div className="bg-card rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-card rounded-lg shadow-sm border border-border p-6">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-card-foreground">
               Invitaciones Pendientes
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               {invitations.length} invitación{invitations.length !== 1 ? 'es' : ''} esperando respuesta
             </p>
           </div>
@@ -197,7 +198,7 @@ export default function MembersPage() {
             {invitations.map((invitation) => (
               <div
                 key={invitation.id}
-                className="flex items-center justify-between p-4 border border-yellow-200 rounded-lg bg-yellow-50"
+                className="flex items-center justify-between p-4 border border-warning rounded-lg bg-warning/10"
               >
                 <div>
                   <div className="font-medium text-card-foreground">
@@ -208,14 +209,14 @@ export default function MembersPage() {
                     {' • '}
                     Invitado por {invitation.inviter.name || invitation.inviter.email}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-muted-foreground mt-1">
                     Expira: {new Date(invitation.expiresAt).toLocaleDateString()} a las{' '}
                     {new Date(invitation.expiresAt).toLocaleTimeString()}
                   </div>
                 </div>
                 <button
                   onClick={() => handleCancelInvitation(invitation.id)}
-                  className="text-red-600 hover:text-red-700 text-sm font-medium px-3 py-1 hover:bg-red-50 rounded"
+                  className="text-destructive hover:opacity-80 text-sm font-medium px-3 py-1 hover:bg-destructive/10 rounded"
                 >
                   Cancelar
                 </button>
@@ -235,33 +236,33 @@ export default function MembersPage() {
 
             <form onSubmit={handleInvite}>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Email del Invitado
                 </label>
                 <input
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
                   placeholder="usuario@ejemplo.com"
                   required
                 />
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Rol en la Organización
                 </label>
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
                 >
                   <option value="VIEWER">👁️ Viewer - Solo lectura</option>
                   <option value="MEMBER">👤 Member - Acceso normal</option>
                   <option value="ADMIN">⚡ Admin - Acceso completo</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-muted-foreground mt-2">
                   Los <strong>Admins</strong> pueden invitar y gestionar otros miembros
                 </p>
               </div>
@@ -274,7 +275,7 @@ export default function MembersPage() {
                     setInviteEmail('');
                     setInviteRole('MEMBER');
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 font-medium"
+                  className="flex-1 px-4 py-2 border border-input rounded-lg hover:bg-muted font-medium bg-background text-foreground"
                   disabled={inviting}
                 >
                   Cancelar

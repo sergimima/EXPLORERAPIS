@@ -15,7 +15,7 @@ export default function TokenSettingsRedirect() {
 
   return (
     <div className="flex items-center justify-center p-12">
-      <div className="text-gray-500">Redirigiendo...</div>
+      <div className="text-muted-foreground">Redirigiendo...</div>
     </div>
   );
 }

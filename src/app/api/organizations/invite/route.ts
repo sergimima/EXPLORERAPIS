@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { randomBytes } from 'crypto';
 import { sendInvitationEmail } from '@/lib/email';
+import { checkMembersLimit } from '@/lib/limits';
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -82,6 +83,12 @@ export async function POST(request: NextRequest) {
         { error: 'Ya existe una invitación pendiente para este email' },
         { status: 400 }
       );
+    }
+
+    // Verificar límite de miembros del plan
+    const limitCheck = await checkMembersLimit(user.organizationId);
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ error: limitCheck.message }, { status: 403 });
     }
 
     // Generar token único

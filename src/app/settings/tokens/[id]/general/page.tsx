@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { toast } from 'sonner';
+import LogoUpload from '@/components/LogoUpload';
 
 export default function GeneralSettingsPage() {
   const params = useParams();
@@ -37,9 +39,9 @@ export default function GeneralSettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
       });
-      alert('Configuración guardada correctamente!');
+      toast.success('Configuración guardada correctamente');
     } catch (error: any) {
-      alert('Error al guardar: ' + error.message);
+      toast.error('Error al guardar: ' + (error.message || 'Error desconocido'));
     }
     setSaving(false);
   };
@@ -50,10 +52,29 @@ export default function GeneralSettingsPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
+      {/* Logo del Token */}
+      <div className="bg-card rounded-lg shadow p-6 border border-border">
+        <h2 className="text-xl font-semibold mb-4">Logo del Token</h2>
+        <LogoUpload
+          type="token"
+          currentLogoUrl={token?.logoUrl}
+          name={token?.symbol || token?.name || 'Token'}
+          tokenId={tokenId}
+          onUploadSuccess={(logoUrl) => {
+            setToken({ ...token, logoUrl });
+            toast.success('Logo actualizado correctamente');
+          }}
+          onDeleteSuccess={() => {
+            setToken({ ...token, logoUrl: null });
+            toast.success('Logo eliminado correctamente');
+          }}
+        />
+      </div>
+
       {/* Analytics Settings */}
       <div className="bg-card rounded-lg shadow p-6 border border-border">
         <h2 className="text-xl font-semibold mb-4">Analytics</h2>
-        <p className="text-sm text-gray-600 mb-6">
+        <p className="text-sm text-muted-foreground mb-6">
           Configuración de métricas y comportamiento del analytics dashboard
         </p>
 
@@ -84,7 +105,7 @@ export default function GeneralSettingsPage() {
               type="number"
               value={settings.cacheDurationMinutes || 5}
               onChange={(e) => setSettings({ ...settings, cacheDurationMinutes: parseInt(e.target.value) })}
-              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full px-3 py-2 border border-input rounded focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
             />
             <p className="text-xs text-muted-foreground mt-1">
               Tiempo que se mantienen los datos en caché antes de actualizar
@@ -99,7 +120,7 @@ export default function GeneralSettingsPage() {
               type="number"
               value={settings.maxTransfersToFetch || 10000}
               onChange={(e) => setSettings({ ...settings, maxTransfersToFetch: parseInt(e.target.value) })}
-              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full px-3 py-2 border border-input rounded focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
             />
             <p className="text-xs text-muted-foreground mt-1">
               Límite de transfers a obtener por petición a la API
@@ -113,7 +134,7 @@ export default function GeneralSettingsPage() {
         <h2 className="text-xl font-semibold mb-4">
           Exchanges Conocidos
         </h2>
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Agrega addresses de exchanges para trackear flujos CEX
         </p>
 
@@ -131,7 +152,7 @@ export default function GeneralSettingsPage() {
             className="w-full px-3 py-2 border border-input rounded font-mono text-sm bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
             rows={5}
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Usa addresses en formato 0x... para identificar exchanges en el analytics
           </p>
         </div>

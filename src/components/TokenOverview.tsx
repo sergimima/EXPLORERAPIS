@@ -104,7 +104,7 @@ export default function TokenOverview({ network }: TokenOverviewProps) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="bg-white p-6 rounded-lg shadow-md animate-pulse">
+          <div key={i} className="bg-card p-6 rounded-lg shadow-md animate-pulse border border-border">
             <div className="h-4 bg-muted rounded w-1/2 mb-4"></div>
             <div className="h-8 bg-muted rounded w-3/4"></div>
           </div>
@@ -116,7 +116,7 @@ export default function TokenOverview({ network }: TokenOverviewProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
+      <div className="bg-primary rounded-lg p-6 text-primary-foreground">
         <h2 className="text-2xl font-bold mb-2">{activeToken.symbol}</h2>
         <p className="text-white/90">{activeToken.name}</p>
         <p className="text-xs text-white/70 font-mono mt-2">{activeToken.address}</p>
@@ -127,7 +127,7 @@ export default function TokenOverview({ network }: TokenOverviewProps) {
         {/* Supply Card */}
         <div className="bg-card p-6 rounded-lg shadow-md border border-border border-l-4 border-l-primary">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-600">Token Supply</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">Token Supply</h3>
             <span className="text-2xl">💰</span>
           </div>
           <div className="space-y-2">
@@ -146,7 +146,7 @@ export default function TokenOverview({ network }: TokenOverviewProps) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Bloqueado</p>
-                <p className="text-sm font-semibold text-orange-600">
+                <p className="text-sm font-semibold text-warning">
                   {(Number(data?.supply.locked) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </p>
               </div>
@@ -164,8 +164,8 @@ export default function TokenOverview({ network }: TokenOverviewProps) {
             <p className="text-3xl font-bold text-card-foreground mb-2">
               {data?.holders.total.toLocaleString()}
             </p>
-            <div className="text-sm text-gray-600">
-              Top 10: <span className="font-semibold text-orange-600">{data?.holders.top10Percentage.toFixed(1)}%</span>
+            <div className="text-sm text-muted-foreground">
+              Top 10: <span className="font-semibold text-warning">{data?.holders.top10Percentage.toFixed(1)}%</span>
             </div>
           </div>
         </div>
@@ -198,7 +198,7 @@ export default function TokenOverview({ network }: TokenOverviewProps) {
                     <span className="font-mono text-xs text-muted-foreground">
                       {transfer.from.slice(0, 6)}...{transfer.from.slice(-4)}
                     </span>
-                    <span className="text-gray-400">→</span>
+                    <span className="text-muted-foreground">→</span>
                     <span className="font-mono text-xs text-muted-foreground">
                       {transfer.to.slice(0, 6)}...{transfer.to.slice(-4)}
                     </span>
@@ -230,7 +230,7 @@ export default function TokenOverview({ network }: TokenOverviewProps) {
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center p-4 bg-warning/10 rounded-lg">
             <p className="text-sm text-muted-foreground mb-1">Total Bloqueado</p>
-            <p className="text-xl font-bold text-orange-600">
+            <p className="text-xl font-bold text-warning">
               {(Number(data?.vestingStats.totalLocked) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </p>
           </div>

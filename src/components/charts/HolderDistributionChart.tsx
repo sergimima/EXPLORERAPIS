@@ -35,11 +35,11 @@ export default function HolderDistributionChart({ holders }: HolderDistributionC
       const data = payload[0].payload;
       return (
         <div className="bg-card p-3 rounded-lg shadow-lg border border-border">
-          <p className="font-semibold text-gray-900">{data.name}</p>
+          <p className="font-semibold text-card-foreground">{data.name}</p>
           <p className="text-sm text-muted-foreground">
             {data.value}% del supply
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             ({data.count} holders)
           </p>
         </div>
@@ -71,7 +71,7 @@ export default function HolderDistributionChart({ holders }: HolderDistributionC
           <Legend />
         </PieChart>
       </ResponsiveContainer>
-      <div className="mt-4 text-sm text-gray-600">
+      <div className="mt-4 text-sm text-muted-foreground">
         <p>
           <span className="font-semibold">Concentración Top 10:</span> {top10.toFixed(1)}%
         </p>

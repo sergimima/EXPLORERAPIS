@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { prisma } from '@/lib/db';
 import { getTenantContext, getApiKeys } from '@/lib/tenant-context';
+import { incrementApiCalls } from '@/lib/limits';
 
 export const dynamic = 'force-dynamic';
 
@@ -823,6 +824,11 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Incrementar contador de API calls (async, no bloquea la respuesta)
+    incrementApiCalls(tenantContext.organizationId).catch(err =>
+      console.error('Error incrementing API calls:', err)
+    );
 
     // 2. Obtener API keys y configuración del tenant
     const apiKeys = getApiKeys(tenantContext);

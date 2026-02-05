@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function AbiSettingsPage() {
   const params = useParams();
@@ -44,10 +45,10 @@ export default function AbiSettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ abi, source: 'UPLOADED' })
       });
-      alert('ABI guardado correctamente!');
+      toast.success('ABI guardado correctamente');
       fetchAbi();
     } catch (error: any) {
-      alert('Error al guardar ABI: ' + error.message);
+      toast.error('Error al guardar ABI: ' + (error.message || 'Error desconocido'));
     }
     setSaving(false);
   };
@@ -61,13 +62,13 @@ export default function AbiSettingsPage() {
       const data = await res.json();
 
       if (res.ok) {
-        alert(`ABI detectado! ${data.customAbi.methodCount} métodos, ${data.customAbi.eventCount} eventos`);
+        toast.success(`ABI detectado: ${data.customAbi.methodCount} métodos, ${data.customAbi.eventCount} eventos`);
         fetchAbi();
       } else {
-        alert('Error: ' + data.error);
+        toast.error(data.error || 'Error al detectar ABI');
       }
     } catch (error: any) {
-      alert('Error al detectar ABI: ' + error.message);
+      toast.error('Error al detectar ABI: ' + (error.message || 'Error desconocido'));
     }
     setDetecting(false);
   };
@@ -80,13 +81,13 @@ export default function AbiSettingsPage() {
       await fetch(`/api/tokens/${tokenId}/abi`, {
         method: 'DELETE'
       });
-      alert('ABI custom eliminado. Ahora se usa el ABI estándar.');
+      toast.success('ABI custom eliminado. Ahora se usa el ABI estándar.');
       setAbiSource('standard');
       setCustomAbi(null);
       setAbiJson('');
       fetchAbi();
     } catch (error: any) {
-      alert('Error al eliminar ABI: ' + error.message);
+      toast.error('Error al eliminar ABI: ' + (error.message || 'Error desconocido'));
     }
     setSaving(false);
   };
@@ -142,7 +143,7 @@ export default function AbiSettingsPage() {
               <button
                 onClick={handleDetect}
                 disabled={detecting}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
               >
                 {detecting ? 'Detectando...' : '🔍 Auto-detectar desde BaseScan'}
               </button>
@@ -164,8 +165,8 @@ export default function AbiSettingsPage() {
               <div className="flex items-start gap-3">
                 <div className="text-2xl">✅</div>
                 <div className="flex-1">
-                  <p className="font-medium text-green-900">ABI Custom Configurado</p>
-                  <div className="text-sm text-green-700 mt-1 space-y-1">
+                  <p className="font-medium text-success">ABI Custom Configurado</p>
+                  <div className="text-sm text-success mt-1 space-y-1">
                     <p>• Origen: <strong>{customAbi.source}</strong></p>
                     <p>• Métodos: <strong>{customAbi.methodCount || 0}</strong></p>
                     <p>• Eventos: <strong>{customAbi.eventCount || 0}</strong></p>
@@ -188,7 +189,7 @@ export default function AbiSettingsPage() {
                 value={abiJson}
                 onChange={(e) => setAbiJson(e.target.value)}
                 placeholder='[{"type": "function", "name": "transfer", ...}]'
-                className="w-full px-3 py-2 border rounded font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border rounded font-mono text-xs focus:ring-2 focus:ring-primary focus:border-transparent"
                 rows={12}
               />
               <p className="text-xs text-muted-foreground mt-1">

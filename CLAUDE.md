@@ -67,10 +67,22 @@ This is a blockchain explorer application for the Base blockchain network, built
 **Core Utilities:**
 - `types.ts` - TypeScript type definitions for Network, TokenTransfer, VestingInfo, etc.
 - `utils.ts` - Common utility functions
+- `limits.ts` - SaaS limit validation helpers (Sprint 4.5)
+  - `checkTokensLimit()` - Verify if org can create more tokens
+  - `checkMembersLimit()` - Verify if org can add more members
+  - `incrementApiCalls()` - Track API usage (soft limit)
+  - `canPerformAction()` - Generic limit validation
+  - All functions return: `{ allowed: boolean, current: number, limit: number, message?: string }`
 
 **Authentication & Database:**
 - `auth.ts` - NextAuth.js configuration with CredentialsProvider and GoogleProvider
+- `auth-helpers.ts` - Helper functions (Sprint 4.2)
+  - `requireSuperAdmin()` - Throws 403 if not SUPER_ADMIN
+  - Used in all `/api/admin/*` routes
 - `db.ts` - Prisma client singleton with PostgreSQL adapter and connection pooling
+- `email.ts` - Resend email service wrapper (Sprint 2.5)
+  - `sendInvitationEmail()` - HTML template for team invitations
+  - Fallback graceful if no API key configured
 
 ### Database Architecture (PostgreSQL + Prisma)
 
@@ -100,58 +112,85 @@ The project uses PostgreSQL with Prisma ORM for data persistence and caching.
    - Join date and role
    - Many-to-many relationship
 
+**SaaS & Billing Models (Sprint 4.1):**
+
+5. **Plan** - Configurable subscription plans
+   - Fields: name, slug, price, currency, stripePriceId
+   - Limits: tokensLimit, apiCallsLimit, transfersLimit, membersLimit (-1 = unlimited)
+   - Features: JSON array, isActive, isPublic, sortOrder
+   - Managed via `/admin/plans` (SUPER_ADMIN only)
+
+6. **Subscription** - Organization subscriptions
+   - Links Organization to Plan
+   - Fields: planId, status, currentPeriodStart, currentPeriodEnd
+   - Stripe integration: stripeCustomerId, stripeSubscriptionId
+   - Override limits: tokensLimit, apiCallsLimit, transfersLimit, membersLimit
+
+7. **SystemSettings** - Global SaaS configuration (singleton)
+   - API Keys: defaultBasescanApiKey, defaultEtherscanApiKey, defaultMoralisApiKey, defaultQuiknodeUrl
+   - Email: resendApiKey, resendFromEmail
+   - Stripe: stripePublicKey, stripeSecretKey
+   - General: appName, appUrl, supportEmail
+   - Managed via `/admin/settings` (SUPER_ADMIN only)
+
+8. **Invitation** - Team member invitations (Sprint 2.5)
+   - Fields: organizationId, email, role, token (unique)
+   - Expiration: expiresAt (7 days default)
+   - Status tracking: acceptedAt
+   - Email sent via Resend integration
+
 **Data Models (Multi-Tenant Isolated):**
 
-5. **Contract** - Generic contract model (vesting, staking, liquidity, etc.)
+9. **Contract** - Generic contract model (vesting, staking, liquidity, etc.)
    - Supports any type of smart contract with categorization
    - Categories (enum): VESTING, STAKING, LIQUIDITY, DAO, TREASURY, MARKETING, TEAM, OTHER
    - Each contract can have a custom ABI (via CustomAbi relation)
    - Fields: name, address, network, category, isActive, description
-   - Managed via `/settings/tokens/[id]` page
+   - Managed via `/settings/tokens/[id]/contracts` page
    - **Multi-tenant**: Filtered by tokenId
 
-6. **CustomAbi** - ABIs for multiple contract addresses
-   - Supports multiple ABIs per token (one per contractAddress + network combo)
-   - Unique constraint: [tokenId, contractAddress, network]
-   - Source types: STANDARD, UPLOADED, BASESCAN
-   - Auto-detection from BaseScan API supported
-   - Includes methodCount and eventCount for each ABI
-   - **Multi-tenant**: Filtered by tokenId
+10. **CustomAbi** - ABIs for multiple contract addresses
+    - Supports multiple ABIs per token (one per contractAddress + network combo)
+    - Unique constraint: [tokenId, contractAddress, network]
+    - Source types: STANDARD, UPLOADED, BASESCAN
+    - Auto-detection from BaseScan API supported
+    - Includes methodCount and eventCount for each ABI
+    - **Multi-tenant**: Filtered by tokenId
 
-7. **KnownAddress** - Labeled blockchain addresses
-   - Stores names and metadata for contracts, exchanges, wallets
-   - Types: CONTRACT, WALLET, EXCHANGE, VESTING, TOKEN, UNKNOWN
-   - Used to display friendly names throughout the UI
-   - Managed via `/admin/addresses` panel
-   - **Multi-tenant**: Filtered by tokenId
+11. **KnownAddress** - Labeled blockchain addresses
+    - Stores names and metadata for contracts, exchanges, wallets
+    - Types: CONTRACT, WALLET, EXCHANGE, VESTING, TOKEN, UNKNOWN
+    - Used to display friendly names throughout the UI
+    - Managed via `/admin/addresses` panel
+    - **Multi-tenant**: Filtered by tokenId
 
-8. **TransferCache** - Incremental transfer history cache
-   - Stores token transfers with deduplication by hash
-   - Implements incremental sync (only fetches new transfers since last timestamp)
-   - Reduces API calls by ~90% after initial load
-   - Indexed by tokenAddress, timestamp, and hash
-   - **Multi-tenant**: Filtered by tokenId
+12. **TransferCache** - Incremental transfer history cache
+    - Stores token transfers with deduplication by hash
+    - Implements incremental sync (only fetches new transfers since last timestamp)
+    - Reduces API calls by ~90% after initial load
+    - Indexed by tokenAddress, timestamp, and hash
+    - **Multi-tenant**: Filtered by tokenId
 
-9. **HolderSnapshot** - Periodic holder snapshots
-   - Stores top holder data every 5 minutes
-   - Includes balance, percentage, contract/exchange flags
-   - Enables historical holder analysis
-   - Indexed by tokenAddress, network, and snapshotAt
-   - **Multi-tenant**: Filtered by tokenId
+13. **HolderSnapshot** - Periodic holder snapshots
+    - Stores top holder data every 5 minutes
+    - Includes balance, percentage, contract/exchange flags
+    - Enables historical holder analysis
+    - Indexed by tokenAddress, network, and snapshotAt
+    - **Multi-tenant**: Filtered by tokenId
 
-10. **TokenSupplyCache** - Token supply information cache
+14. **TokenSupplyCache** - Token supply information cache
     - Caches total, circulating, and locked supply
     - 5-minute TTL to balance freshness and API usage
     - Migrated to DB model (previously in-memory)
     - **Multi-tenant**: Filtered by tokenId
 
-11. **VestingCache** - Vesting contract cache
+15. **VestingCache** - Vesting contract cache
     - **Multi-tenant**: Filtered by tokenId
 
-12. **VestingTransferCache** - Vesting transfer cache
+16. **VestingTransferCache** - Vesting transfer cache
     - **Multi-tenant**: Filtered by tokenId
 
-13. **VestingBeneficiaryCache** - Vesting beneficiary cache
+17. **VestingBeneficiaryCache** - Vesting beneficiary cache
     - **Multi-tenant**: Filtered by tokenId
 
 **Performance Benefits:**
@@ -232,6 +271,34 @@ Each network has RPC URLs, explorer API URLs, and some have alternative RPC endp
   - Creates user with MEMBER role by default
   - Hashes password with bcrypt (10 rounds)
   - Auto-login after signup
+
+**Admin Panel APIs (Sprint 4.2) - SUPER_ADMIN only:**
+- `GET/POST /api/admin/plans` - List and create plans
+- `GET/PUT/DELETE /api/admin/plans/[id]` - Manage individual plan
+- `POST /api/admin/plans/reorder` - Update sortOrder for drag & drop
+- `GET /api/admin/organizations` - List all organizations with stats
+  - Includes: total tokens, members, plan info, custom API indicators
+- `GET/PATCH /api/admin/organizations/[id]` - Organization details and assign plan
+  - Returns: full org info, members, tokens, usage stats, plan limits
+- `GET /api/admin/users` - List all users with filters
+  - Stats: total, by role, org counts
+  - Filters: role, search query
+- `GET/PUT /api/admin/settings` - Global SystemSettings (singleton)
+  - Tabs: API Keys, Email config, Stripe keys, General settings
+- `GET /api/admin/stats` - Dashboard statistics
+  - MRR, new orgs, cancellations, plan distribution
+  - Data for Recharts graphs (12 months historical)
+- `POST /api/admin/stripe/webhook` - Webhook stub (future Stripe integration)
+
+**Organization Management APIs (Sprint 2.5):**
+- `POST /api/organizations/invite` - Create team invitation
+  - Sends email via Resend with unique token
+  - Returns: invitation object
+- `GET /api/organizations/invitations` - List pending invitations
+- `DELETE /api/organizations/invitations/[id]` - Cancel invitation
+- `POST /api/invitations/[token]/accept` - Accept invitation
+  - Auto-creates user if email not registered
+  - Adds to organization if user exists
 
 ### Key Features
 
@@ -341,36 +408,75 @@ The codebase is hardcoded to work with Vottun Token (VTN):
 - `/auth/error` - Authentication error page
   - Displays NextAuth error messages
 
-**Admin Panel (`/admin/*`):**
-- `/admin/dashboard` - Admin statistics dashboard
-  - Total addresses count by type (CEX, Contracts, Wallets, etc.)
-  - Recent additions timeline
-  - Usage statistics
-- `/admin/addresses` - Address management table
-  - Paginated list of all known addresses
-  - Search and filter by type, name, address
-  - Inline editing with modals
-  - Bulk operations support
-  - Delete functionality
-- `/admin/addresses/new` - Add new address form
-  - Input: address, name, type, category, description, tags, color
-  - Validation and upsert logic
-- `/admin/import` - Import/Export addresses
-  - Import from CSV or JSON
-  - Export all addresses to CSV or JSON
-  - Bulk operations for mass updates
-  - Template download for CSV format
+**Admin Panel (`/admin/*`) - SUPER_ADMIN only (Sprint 4.3):**
+- `/admin/dashboard` - Complete SaaS metrics dashboard
+  - 4 stats cards: Total orgs, Active subscriptions, MRR, Total users
+  - 3 Recharts graphs: New orgs (12 months), Cancellations, MRR evolution
+  - Plan distribution chart (pie chart)
+  - Recent organizations table
+  - **Alerts section**: Organizations near limits (≥80% usage)
+    - Color coded: Yellow (80-89%), Red (90%+)
+    - Shows: Tokens 🪙, API Calls 📡, Members 👥
+    - Direct links to org detail
+- `/admin/organizations` - Organizations management
+  - Table with: Name, Owner, Plan, Members, Tokens, Created
+  - **Custom APIs indicator**: 🔑 icon if org has custom API keys
+  - Filters: Name search (debounced), Plan filter, Status
+  - Click row → Detail page
+- `/admin/organizations/[id]` - Organization detail page
+  - Info card: Name, slug, owner, plan, created date
+  - **Change plan**: Dropdown to assign different plan
+  - **Progress bars**: Usage vs limits (Tokens, API Calls, Members)
+  - **Custom API Keys indicator**: Badge showing which services are custom
+  - Members table: Email, role, joined date
+  - Tokens table: Symbol, address, network, contracts count
+  - Stats cards: Total transfers, unique addresses, last activity
+- `/admin/plans` - Plans management
+  - Grid view with drag & drop reordering (@dnd-kit)
+  - Each card: Name, price, limits, features, active/public status
+  - Inline editing: Click to edit any plan
+  - Create new plan button
+  - Delete with validation (checks if used)
+- `/admin/settings` - Global configuration (4 tabs)
+  - **API Keys tab**: Default keys (BaseScan, Etherscan, Moralis, QuikNode)
+  - **Email tab**: Resend API key and from email
+  - **Stripe tab**: Public and secret keys
+  - **General tab**: App name, URL, support email
+- `/admin/users` - Global users list
+  - Stats cards: Total, SUPER_ADMIN, ADMIN, MEMBER count
+  - Table: Email, name, role (color coded), org counts, verified status
+  - Tooltips: Hover to see org names
+  - Filters: Role, search by email/name
+- `/admin/health` - System health check (future)
 
 **Admin Layout:**
-- Sidebar navigation with links to all admin sections
-- Protected routes with middleware (requires ADMIN or SUPER_ADMIN role)
-- Consistent styling with main app
+- Sidebar navigation with icons for all sections
+- Protected routes with middleware (requires SUPER_ADMIN role)
+- Consistent dark mode support
+- User info in sidebar footer
 
-**Platform Pages (`/platform/*`) - Pending Sprint 1.2:**
-- `/platform/settings/organization` - Organization management
-- `/platform/settings/tokens` - Token configuration
-- `/platform/settings/profile` - User profile
-- Protected routes with middleware (requires authentication)
+**Settings Pages (`/settings/*`) - Authenticated users (Sprint 2.5):**
+- Layout with persistent sidebar (icons + descriptions)
+- `/settings` - Redirects to `/settings/general`
+- `/settings/general` - Organization information
+  - Org name, slug, ID
+  - Owner information
+- `/settings/members` - Team management
+  - Active members table (email, role, joined date)
+  - **Invite Member** button → Modal form
+  - Pending invitations list with cancel option
+  - Invitation flow integrated with Resend emails
+- `/settings/tokens` - Token management
+  - List of organization tokens
+  - **Add Token** button → Modal form (address + network verification)
+  - Click token → Detail pages
+- `/settings/tokens/[id]` - Individual token settings (multiple tabs)
+  - **General**: Basic info, whale threshold, cache settings
+  - **API Keys**: Custom API keys (BaseScan, Etherscan, Moralis, QuikNode)
+  - **Contracts**: Manage contracts linked to token
+  - **ABI**: Manage custom ABIs
+  - **Supply**: Configure supply method (API vs ONCHAIN)
+- Protected routes with middleware (requires organization membership)
 
 ## Important Implementation Details
 
@@ -738,13 +844,23 @@ src/
     ├── seed-user.ts      # Test user creation
     └── migrate-vottun-data.ts  # Vottun data migration script
 
-**Database Models (Multi-Tenant):**
+**Database Models (17 total):**
+
+**Multi-Tenant Core:**
 - `User` - User accounts with auth
 - `Organization` - Multi-tenant organizations
 - `Token` - Token configuration per org
 - `OrganizationMember` - User-org relationships
+
+**SaaS & Billing:**
+- `Plan` - Subscription plans with configurable limits
+- `Subscription` - Org subscriptions linking to plans
+- `SystemSettings` - Global SaaS configuration (singleton)
+- `Invitation` - Team member invitations with email tokens
+
+**Data Models (Multi-Tenant Isolated):**
+- `Contract` - Generic contract model (vesting, staking, liquidity, DAO, treasury, etc.) with category enum (tokenId FK)
 - `CustomAbi` - ABIs for tokens and contracts (tokenId + contractAddress + network)
-- `Contract` - Generic contract model supporting all types (vesting, staking, liquidity, DAO, treasury, etc.) with category enum (tokenId FK)
 - `KnownAddress` - Address labels (tokenId FK)
 - `TransferCache` - Transfer history (tokenId FK)
 - `HolderSnapshot` - Holder snapshots (tokenId FK)
@@ -778,6 +894,12 @@ npx tsx prisma/migrate-vesting-contracts.ts
 # Migrate ABIs to database (11 ABIs)
 npx tsx prisma/migrate-abis.ts
 
+# Setup admin panel (create plans, system settings)
+npx tsx prisma/migrate-admin-setup.ts
+
+# Create SUPER_ADMIN user (superadmin@tokenlens.com / super123)
+npx tsx prisma/seed-superadmin.ts
+
 # Open Prisma Studio (database GUI)
 npx prisma studio
 
@@ -789,7 +911,14 @@ npx prisma db push
 - Adding new address labels: Use `/admin/addresses/new` or POST to `/api/addresses`
 - Bulk import: Use `/admin/import` with CSV/JSON file
 - Creating users: Use `/auth/signup` or run `npx tsx prisma/seed-user.ts`
-- Login: Navigate to `/auth/signin` (test credentials: admin@vottun.com / admin123)
+- Login: Navigate to `/auth/signin`
+  - Regular user: admin@vottun.com / admin123
+  - SUPER_ADMIN: superadmin@tokenlens.com / super123
+- Access admin panel: Login as SUPER_ADMIN → "Admin" link in navbar
+- Managing plans: `/admin/plans` (create, edit, reorder, delete)
+- Assigning plans to orgs: `/admin/organizations/[id]` → Change Plan dropdown
+- Viewing SaaS metrics: `/admin/dashboard` (MRR, alerts, graphs)
+- Configuring global settings: `/admin/settings` (API keys, Stripe, email)
 - Viewing cache status: Check PostgreSQL directly or add admin cache page (pending)
 - Forcing data refresh: Use "Actualizar" button in analytics UI
 
@@ -837,13 +966,17 @@ npx prisma db push
 
 ---
 
-**Last Updated:** 2025-02-04
-**Version:** 3.9 (Sprint 2.5 + Settings UI Refactor)
+**Last Updated:** 2025-02-05
+**Version:** 4.0 (Sprint 4.8 - Admin Panel Complete)
 
 ### Sprint Status:
+
+**Fase 1: Auth + Multi-Tenant**
 - ✅ **Sprint 1.1:** NextAuth Setup (COMPLETADO)
 - ✅ **Sprint 1.2:** Tenant Context & API Isolation (COMPLETADO)
 - ✅ **Sprint 1.3:** Organization Settings (COMPLETADO)
+
+**Fase 2: Tokens + Config**
 - ✅ **Sprint 2.1:** Token Management + Custom API Keys (COMPLETADO)
 - ✅ **Sprint 2.2:** Custom ABIs + Contracts (COMPLETADO - modelo genérico con enum)
 - ✅ **Sprint 2.3:** Token Supply Custom Configuration (COMPLETADO)
@@ -852,205 +985,72 @@ npx prisma db push
 - ✅ **Sprint 2.5:** Invitación de Miembros (COMPLETADO)
 - ✅ **UI Refactor:** Settings con Sidebar (COMPLETADO)
 
-### Trabajo Completado Hoy (2025-02-04):
-
-**✅ Sprint 2.2: Custom ABIs + Vesting Contracts**
-
-**1. Schema Multi-Contrato y Multi-Red:**
-- ✅ `CustomAbi` con `contractAddress` y `network`
-- ✅ Unique constraint: `[tokenId, contractAddress, network]`
-- ✅ Relación `Token.customAbis` (one-to-many)
-
-**2. Migración de ABIs:**
-- ✅ [prisma/migrate-abis.ts](prisma/migrate-abis.ts) - Script completo
-- ✅ 11 ABIs migrados (VTN token + 8 vesting + 2 unknown)
-- ✅ Ejecutado: `npx tsx prisma/migrate-abis.ts`
-
-**3. APIs CRUD:**
-- ✅ [/api/tokens/[id]/abi](src/app/api/tokens/[id]/abi/route.ts) - Token ABI (GET/POST/DELETE)
-- ✅ [/api/tokens/[id]/abis](src/app/api/tokens/[id]/abis/route.ts) - Lista ABIs (GET/POST)
-- ✅ [/api/tokens/[id]/abis/[abiId]](src/app/api/tokens/[id]/abis/[abiId]/route.ts) - Individual (GET/PUT/DELETE)
-
-**4. Cache con Base de Datos:**
-- ✅ `getContractABIWithCache()` en [blockchain.ts](src/lib/blockchain.ts)
-- ✅ Orden: BD → Cache legacy → BaseScan → Auto-save BD
-- ✅ Integrado en `getVestingInfoFromBlockchain()` y `checkVestingContractStatus()`
-
-**Comandos útiles:**
-```bash
-npx prisma generate               # Regenerar client
-npx prisma db push                # Aplicar schema
-npx tsx prisma/migrate-abis.ts    # Migrar ABIs
-```
+**Fase 4: Admin Panel SaaS** 🎉
+- ✅ **Sprint 4.1:** Base de Datos (Plan, SystemSettings, Subscription)
+- ✅ **Sprint 4.2:** APIs de Admin (/api/admin/*)
+- ✅ **Sprint 4.3:** UI Panel Admin completo (/admin/*)
+- ✅ **Sprint 4.4:** Navbar + Protección (SUPER_ADMIN)
+- ✅ **Sprint 4.5:** Validación de Límites (limits.ts)
+- ✅ **Sprint 4.6:** Fixes y Mejoras (Login redirect, async params)
+- ✅ **Sprint 4.7:** Mejoras UX (Alertas, custom APIs indicator)
+- ✅ **Sprint 4.8:** Gestión de Usuarios (/admin/users)
 
 ---
 
-**✅ Sprint 2.3: Token Supply Custom Configuration**
+## 🎉 Admin Panel SaaS - Resumen Completo (Fase 4)
 
-**1. Schema actualizado:**
-- ✅ 3 campos en `TokenSettings`: `supplyMethod`, `supplyApiTotalUrl`, `supplyApiCirculatingUrl`
-- ✅ Métodos soportados: "API" (default) y "ONCHAIN"
+**Panel completo para SUPER_ADMIN** con gestión de planes, organizaciones, usuarios y configuración global.
 
-**2. API actualizada:**
-- ✅ [/api/token-supply](src/app/api/token-supply/route.ts) - Configuración custom por token
-- ✅ Fallback a Vottun API (legacy) si no hay URLs configuradas
-- ✅ Cálculo on-chain con ethers.js (`getSupplyOnChain`)
-- ✅ Cache en BD (ya estaba implementado)
+### Características Principales:
 
-**3. UI de Settings:**
-- ✅ [settings/tokens/[id]](src/app/settings/tokens/[id]/page.tsx) - Sección Supply Configuration
-- ✅ Radio buttons: API vs ONCHAIN
-- ✅ Inputs para URLs custom (condicional)
+**Dashboard (`/admin/dashboard`):**
+- 4 métricas clave: Total orgs, Subscriptions, MRR, Users
+- 3 gráficos históricos (12 meses): Nuevas orgs, Cancelaciones, MRR evolution
+- Plan distribution chart
+- **Alertas proactivas**: Orgs cerca de límites (≥80% usage)
+- Recent organizations table
 
-**Archivos modificados:**
-- [prisma/schema.prisma:218-220](prisma/schema.prisma#L218-L220)
-- [src/app/api/token-supply/route.ts](src/app/api/token-supply/route.ts)
-- [src/app/settings/tokens/[id]/page.tsx](src/app/settings/tokens/[id]/page.tsx)
-- [src/app/api/tokens/[id]/abi/detect/route.ts](src/app/api/tokens/[id]/abi/detect/route.ts)
+**Gestión de Organizaciones:**
+- Lista completa con filtros y búsqueda
+- Indicador "🔑 Custom APIs" en tabla
+- Detalle individual con:
+  - Cambio de plan (dropdown)
+  - Progress bars de uso vs límites
+  - Lista de miembros y tokens
+  - Indicador custom API keys con detalles
 
----
+**Gestión de Planes:**
+- CRUD completo con drag & drop reordering
+- Límites configurables (-1 = ilimitado)
+- Features como JSON array
+- Validación antes de eliminar
 
-**✅ Refactor: VestingContract → Contract (Generic Model)**
+**Configuración Global (`/admin/settings`):**
+- 4 tabs: API Keys, Email, Stripe, General
+- SystemSettings en BD (no hardcoded en .env)
 
-**1. Modelo Refactorizado:**
-- ✅ `VestingContract` → `Contract` (nombre más genérico)
-- ✅ Enum `ContractCategory` creado: VESTING, STAKING, LIQUIDITY, DAO, TREASURY, MARKETING, TEAM, OTHER
-- ✅ Campo `category` ahora es tipo `ContractCategory` con default `OTHER`
-- ✅ Tabla en BD: `vesting_contracts` → `contracts`
+**Gestión de Usuarios:**
+- Lista global con stats por rol
+- Filtros y búsqueda
+- Tooltips con organizaciones
 
-**2. Migración ejecutada:**
-- ✅ 8 contratos migrados exitosamente con categorías mapeadas
-- ✅ Frontend actualizado con dropdown de categorías
+**Validación de Límites:**
+- `src/lib/limits.ts` - Helpers para validar límites
+- Integrado en: `/api/tokens`, `/api/organizations/invite`, `/api/token-analytics`
+- Mensajes claros para upgrades
+- Hard limits (bloqueo) vs Soft limits (warning)
 
-**Resultado:** El sistema ahora soporta cualquier tipo de contrato (no solo vesting), todos bien organizados por categoría.
+**Seguridad:**
+- Helper `requireSuperAdmin()` en todas las APIs admin
+- Middleware protege `/admin/*`
+- Link "Admin" solo visible para SUPER_ADMIN
 
----
-
-**✅ Sprint 2.4: APIs Multi-Tenant Completas (COMPLETADO - 2025-02-04)**
-
-**1. APIs Actualizadas con Tenant Context:**
-- ✅ `/api/tokens/transfers` - Validación de autenticación y acceso al token
-- ✅ `/api/search` - Filtrado por tokenId en KnownAddress, Token, y TransferCache
-- ✅ `/api/test-vtn` - Marcado como deprecated con warnings
-
-**2. Mejoras de Seguridad:**
-- Validación de tenant context en todas las APIs públicas
-- Verificación de permisos por organización
-- Filtrado de datos por tokenId para aislamiento multi-tenant
-
-**3. Deprecación:**
-- `/api/test-vtn` mantiene funcionalidad pero devuelve warning de deprecación
-- Recomendación: usar `/api/tokens/[id]` y `/api/token-analytics`
-
-**Archivos modificados:**
-- [src/app/api/tokens/transfers/route.ts](src/app/api/tokens/transfers/route.ts)
-- [src/app/api/search/route.ts](src/app/api/search/route.ts)
-- [src/app/api/test-vtn/route.ts](src/app/api/test-vtn/route.ts)
+**Acceso:**
+- Login: superadmin@tokenlens.com / super123
+- URL: http://localhost:4200/admin/dashboard
 
 ---
 
-**✅ Sprint 2.5: Invitación de Miembros (COMPLETADO - 2025-02-04)**
-
-**1. Modelo Prisma:**
-- ✅ Modelo `Invitation` con relaciones a Organization y User
-- ✅ Campos: id, organizationId, email, role, token, invitedBy, expiresAt, acceptedAt, createdAt
-- ✅ Índices en token, organizationId, email
-- ✅ Migración aplicada exitosamente
-
-**2. APIs Creadas:**
-- ✅ [POST /api/organizations/invite](src/app/api/organizations/invite/route.ts) - Crear invitaciones con token único
-- ✅ [GET /api/organizations/invitations](src/app/api/organizations/invitations/route.ts) - Listar invitaciones pendientes
-- ✅ [DELETE /api/organizations/invitations/[id]](src/app/api/organizations/invitations/[id]/route.ts) - Cancelar invitaciones
-- ✅ [POST /api/invitations/[token]/accept](src/app/api/invitations/[token]/accept/route.ts) - Aceptar invitaciones
-
-**3. Servicio de Email:**
-- ✅ [src/lib/email.ts](src/lib/email.ts) - Helper para enviar emails con Resend
-- ✅ Template HTML profesional para invitaciones
-- ✅ Integración en API de invitaciones
-- ✅ Fallback graceful si no hay API key configurada
-
-**4. UI Actualizada:**
-- ✅ [src/app/settings/organization/page.tsx](src/app/settings/organization/page.tsx) - Modal de invitación completo
-- ✅ Lista de invitaciones pendientes con opción de cancelar
-- ✅ Formulario con email y selector de rol (VIEWER, MEMBER, ADMIN)
-- ✅ [src/app/invite/[token]/page.tsx](src/app/invite/[token]/page.tsx) - Página de aceptación
-- ✅ Flujo completo: crear cuenta automáticamente o agregar a organización existente
-
-**Configuración necesaria:**
-```bash
-# .env.local
-RESEND_API_KEY=re_xxxxx          # API key de Resend (opcional)
-RESEND_FROM_EMAIL=noreply@...    # Email remitente (opcional)
-```
-
-**Comandos ejecutados:**
-```bash
-npx prisma db push               # Aplicar schema con Invitation
-npx prisma generate              # Generar cliente
-npm install resend               # Instalar Resend
-```
-
----
-
-**✅ UI Refactor: Settings con Sidebar (COMPLETADO - 2025-02-04)**
-
-**Problema:** Páginas de settings dispersas sin navegación clara. `/settings/organization` duplicaba funcionalidad.
-
-**Solución:** Reorganización completa con sidebar persistente y estructura clara.
-
-**1. Layout con Sidebar:**
-- ✅ [src/app/settings/layout.tsx](src/app/settings/layout.tsx) - Layout principal con sidebar
-- ✅ Navegación visual con iconos y descripciones
-- ✅ Items activos destacados
-- ✅ Diseño consistente con `/admin` panel
-
-**2. Estructura Final:**
-```
-/settings/
-├── layout.tsx          # Sidebar persistente
-├── page.tsx            # Redirect a /general
-│
-├── /general/           # 🏢 General Settings
-│   └── page.tsx        - Información de organización
-│                       - Nombre, slug, org ID
-│                       - Propietario
-│
-├── /members/           # 👥 Team Members
-│   └── page.tsx        - Lista de miembros activos
-│                       - Sistema de invitaciones
-│                       - Modal "Invitar Miembro"
-│                       - Invitaciones pendientes
-│
-└── /tokens/            # 🪙 Token Management
-    └── page.tsx        - Lista de tokens
-                        - Modal "Agregar Token"
-                        - Configuración de tokens
-```
-
-**3. Archivos Creados/Actualizados:**
-- ✅ [src/app/settings/layout.tsx](src/app/settings/layout.tsx) - Nuevo layout con sidebar
-- ✅ [src/app/settings/page.tsx](src/app/settings/page.tsx) - Redirect a /general
-- ✅ [src/app/settings/general/page.tsx](src/app/settings/general/page.tsx) - Info de organización
-- ✅ [src/app/settings/members/page.tsx](src/app/settings/members/page.tsx) - Miembros + invitaciones
-- ✅ [src/app/settings/tokens/page.tsx](src/app/settings/tokens/page.tsx) - Gestión de tokens (mejorado)
-- ✅ [src/components/Navbar.tsx](src/components/Navbar.tsx) - Dropdown actualizado
-- ✅ [src/app/invite/[token]/page.tsx](src/app/invite/[token]/page.tsx) - Redirect actualizado
-
-**4. Archivos Eliminados:**
-- ❌ `src/app/settings/organization/` - Eliminado (duplicado)
-
-**5. Navbar Actualizado:**
-- Settings dropdown ahora muestra:
-  - 🏢 General
-  - 👥 Members
-  - 🪙 Tokens
-- User menu link apunta a `/settings`
-
-**Acceso al Sistema de Invitaciones:**
-1. Header → Settings → 👥 Members
-2. Sidebar (cuando estés en /settings)
-3. URL directa: `/settings/members`
-
----
-
-**Next Sprint:** Fase 4 - Integración con Stripe (6-8 horas)
+**Next Steps:**
+- ⏸️ Fase 3: Onboarding Wizard (POSTPONED)
+- 🔜 Fase 5: Integración REAL con Stripe API

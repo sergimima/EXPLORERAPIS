@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import EditAddressModal from '@/components/EditAddressModal';
 import AdvancedFilters, { AdvancedFiltersState, defaultFilters } from '@/components/AdvancedFilters';
@@ -275,11 +276,11 @@ export default function AnalyticsContent() {
           return newMap;
         });
       } else {
-        alert('Error al eliminar la dirección');
+        toast.error('Error al eliminar la dirección');
       }
     } catch (error) {
       console.error('Error deleting address:', error);
-      alert('Error al eliminar la dirección');
+      toast.error('Error al eliminar la dirección');
     }
   };
 
@@ -443,7 +444,7 @@ export default function AnalyticsContent() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Cargando tokens...</p>
           </div>
         </div>
@@ -454,7 +455,7 @@ export default function AnalyticsContent() {
   if (!activeToken) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+        <div className="bg-warning/10 border border-warning rounded-lg p-8 text-center">
           <div className="text-6xl mb-4">🪙</div>
           <h2 className="text-2xl font-semibold text-card-foreground mb-2">
             No hay token seleccionado
@@ -478,7 +479,7 @@ export default function AnalyticsContent() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Cargando análisis de {activeToken.symbol}...</p>
           </div>
         </div>
@@ -490,8 +491,8 @@ export default function AnalyticsContent() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-destructive/10 border border-destructive rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
-          <p className="text-red-600">{error}</p>
+          <h2 className="text-xl font-semibold text-destructive mb-2">Error</h2>
+          <p className="text-destructive">{error}</p>
         </div>
       </div>
     );
@@ -506,7 +507,7 @@ export default function AnalyticsContent() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-2">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg font-bold">
+          <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-lg font-bold">
             {activeToken.symbol.substring(0, 2)}
           </div>
           <div>
@@ -562,7 +563,7 @@ export default function AnalyticsContent() {
       </div>
 
       {/* Controls */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div className="bg-card rounded-lg shadow-md p-6 mb-6">
         <div className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
@@ -572,7 +573,7 @@ export default function AnalyticsContent() {
               value={days}
               onChange={(e) => setDays(parseInt(e.target.value))}
               disabled={isRefreshing}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-muted disabled:cursor-not-allowed"
+              className="px-4 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-muted disabled:cursor-not-allowed bg-background text-foreground"
             >
               <option value="1">Último día</option>
               <option value="7">Última semana</option>
@@ -590,7 +591,7 @@ export default function AnalyticsContent() {
               value={threshold}
               onChange={(e) => setThreshold(e.target.value)}
               disabled={isRefreshing}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-muted disabled:cursor-not-allowed"
+              className="px-4 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-muted disabled:cursor-not-allowed bg-background text-foreground"
               min="1000"
               step="1000"
             />
@@ -622,7 +623,7 @@ export default function AnalyticsContent() {
 
       {/* Price & Liquidity Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md p-6 text-white">
+        <div className="bg-primary rounded-lg shadow-md p-6 text-primary-foreground">
           <h3 className="text-sm font-medium text-muted-foreground mb-2">Precio {activeToken.symbol}</h3>
           <p className="text-3xl font-bold">${data.priceData.price.toFixed(6)}</p>
           {data.liquidityData?.priceChange24h !== undefined && (
@@ -632,7 +633,7 @@ export default function AnalyticsContent() {
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-card rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-muted-foreground mb-2">Liquidez Total</h3>
           {data.liquidityData ? (
             <>
@@ -650,9 +651,9 @@ export default function AnalyticsContent() {
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-card rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-muted-foreground mb-2">Net Flow a CEX</h3>
-          <p className={`text-3xl font-bold ${parseFloat(data.statistics.netFlowToExchanges) > 0 ? 'text-red-600' : 'text-success'}`}>
+          <p className={`text-3xl font-bold ${parseFloat(data.statistics.netFlowToExchanges) > 0 ? 'text-destructive' : 'text-success'}`}>
             {parseFloat(data.statistics.netFlowToExchanges) > 0 ? '↗' : '↙'} {formatNumber(Math.abs(parseFloat(data.statistics.netFlowToExchanges)))} {activeToken.symbol}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -660,16 +661,16 @@ export default function AnalyticsContent() {
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-card rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-muted-foreground mb-2">Top 10 Concentración</h3>
-          <p className="text-3xl font-bold text-purple-600">{data.statistics.topHoldersConcentration}%</p>
+          <p className="text-3xl font-bold text-primary">{data.statistics.topHoldersConcentration}%</p>
           <p className="text-xs text-muted-foreground mt-1">del total supply</p>
         </div>
       </div>
 
       {/* Alerts Section */}
       {data.alerts && data.alerts.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-card rounded-lg shadow-md p-6 mb-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center">
             <span className="mr-2">🚨</span> Alertas Recientes
           </h3>
@@ -679,21 +680,21 @@ export default function AnalyticsContent() {
                 key={index}
                 className={`p-4 rounded-lg border-l-4 ${
                   alert.severity === 'high' ? 'bg-destructive/10 border-destructive' :
-                  alert.severity === 'medium' ? 'bg-yellow-50 border-yellow-500' :
+                  alert.severity === 'medium' ? 'bg-warning/10 border-warning' :
                   'bg-accent border-primary'
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <p className={`font-medium ${
-                    alert.severity === 'high' ? 'text-red-800' :
-                    alert.severity === 'medium' ? 'text-yellow-800' :
+                    alert.severity === 'high' ? 'text-destructive' :
+                    alert.severity === 'medium' ? 'text-warning' :
                     'text-primary'
                   }`}>
                     {alert.message}
                   </p>
                   <span className={`text-xs px-2 py-1 rounded ${
                     alert.severity === 'high' ? 'bg-destructive/20 text-destructive' :
-                    alert.severity === 'medium' ? 'bg-yellow-200 text-yellow-800' :
+                    alert.severity === 'medium' ? 'bg-warning/20 text-warning' :
                     'bg-accent text-primary'
                   }`}>
                     {alert.severity === 'high' ? 'ALTA' : alert.severity === 'medium' ? 'MEDIA' : 'BAJA'}
@@ -707,22 +708,22 @@ export default function AnalyticsContent() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-card rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-muted-foreground mb-2">Total Transferencias</h3>
           <p className="text-3xl font-bold text-primary">{formatNumber(data.statistics.totalTransfers)}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-card rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-muted-foreground mb-2">Volumen Total</h3>
           <p className="text-3xl font-bold text-success">{formatNumber(data.statistics.totalVolume)} {activeToken.symbol}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-card rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-muted-foreground mb-2">Direcciones Únicas</h3>
-          <p className="text-3xl font-bold text-purple-600">{formatNumber(data.statistics.uniqueAddresses)}</p>
+          <p className="text-3xl font-bold text-primary">{formatNumber(data.statistics.uniqueAddresses)}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-card rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-muted-foreground mb-2">Transferencias Grandes</h3>
           <p className="text-3xl font-bold text-warning">{formatNumber(data.statistics.largeTransferCount)}</p>
         </div>
@@ -736,7 +737,7 @@ export default function AnalyticsContent() {
               onClick={() => setActiveTab('overview')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'overview'
-                  ? 'border-blue-500 text-primary'
+                  ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
@@ -746,7 +747,7 @@ export default function AnalyticsContent() {
               onClick={() => setActiveTab('charts')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'charts'
-                  ? 'border-blue-500 text-primary'
+                  ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
@@ -756,7 +757,7 @@ export default function AnalyticsContent() {
               onClick={() => setActiveTab('whales')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'whales'
-                  ? 'border-blue-500 text-primary'
+                  ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
@@ -766,7 +767,7 @@ export default function AnalyticsContent() {
               onClick={() => setActiveTab('holders')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'holders'
-                  ? 'border-blue-500 text-primary'
+                  ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
@@ -776,7 +777,7 @@ export default function AnalyticsContent() {
               onClick={() => setActiveTab('activity')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'activity'
-                  ? 'border-blue-500 text-primary'
+                  ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
@@ -786,7 +787,7 @@ export default function AnalyticsContent() {
               onClick={() => setActiveTab('known')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'known'
-                  ? 'border-blue-500 text-primary'
+                  ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
@@ -829,7 +830,7 @@ export default function AnalyticsContent() {
               <div>
                 <h3 className="text-lg font-semibold mb-4">Distribución de Holders</h3>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="min-w-full divide-y divide-border">
                     <thead className="bg-muted">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Rank</th>
@@ -840,7 +841,7 @@ export default function AnalyticsContent() {
                         <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">%</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-card divide-y divide-border">
                       {data.topHolders.slice(0, 5).map((holder, index) => {
                         const savedName = addressNames.get(holder.address.toLowerCase());
                         return (
@@ -860,7 +861,7 @@ export default function AnalyticsContent() {
                                   <span className="px-2 py-1 bg-accent text-primary text-xs rounded">CEX</span>
                                 )}
                                 {holder.isContract && (
-                                  <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">Contrato</span>
+                                  <span className="px-2 py-1 bg-accent text-accent-foreground text-xs rounded">Contrato</span>
                                 )}
                                 {!holder.isExchange && !holder.isContract && (
                                   <span className="px-2 py-1 bg-muted text-card-foreground text-xs rounded">Wallet</span>
@@ -890,7 +891,7 @@ export default function AnalyticsContent() {
                 Transferencias Grandes (≥ {formatNumber(threshold)} {activeToken.symbol})
               </h3>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full divide-y divide-border">
                   <thead className="bg-muted">
                     <tr>
                       <th
@@ -934,7 +935,7 @@ export default function AnalyticsContent() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-card divide-y divide-border">
                     {sortedLargeTransfers.map((transfer) => {
                       const fromName = addressNames.get(transfer.from.toLowerCase());
                       const toName = addressNames.get(transfer.to.toLowerCase());
@@ -984,7 +985,7 @@ export default function AnalyticsContent() {
             <div>
               <h3 className="text-lg font-semibold mb-4">Top 20 Holders</h3>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full divide-y divide-border">
                   <thead className="bg-muted">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -1007,7 +1008,7 @@ export default function AnalyticsContent() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-card divide-y divide-border">
                     {data.topHolders.map((holder, index) => {
                       const savedName = addressNames.get(holder.address.toLowerCase());
                       return (
@@ -1026,7 +1027,7 @@ export default function AnalyticsContent() {
                                 </span>
                               )}
                               {holder.isContract && (
-                                <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">
+                                <span className="px-2 py-1 bg-accent text-accent-foreground text-xs rounded">
                                   Contrato
                                 </span>
                               )}
@@ -1060,7 +1061,7 @@ export default function AnalyticsContent() {
             <div>
               <h3 className="text-lg font-semibold mb-4">Actividad Reciente (Últimas 50)</h3>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full divide-y divide-border">
                   <thead className="bg-muted">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -1080,7 +1081,7 @@ export default function AnalyticsContent() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-card divide-y divide-border">
                     {filteredData.transfers.slice(0, 50).map((transfer) => (
                       <tr key={transfer.hash} className="hover:bg-muted">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
@@ -1128,7 +1129,7 @@ export default function AnalyticsContent() {
                 </button>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full divide-y divide-border">
                   <thead className="bg-muted">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Dirección</th>
@@ -1139,7 +1140,7 @@ export default function AnalyticsContent() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-card divide-y divide-border">
                     {knownAddresses.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-6 py-4 text-center text-muted-foreground">
@@ -1164,7 +1165,7 @@ export default function AnalyticsContent() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <span className={`px-2 py-1 rounded text-xs ${
-                              ka.type === 'CONTRACT' ? 'bg-purple-100 text-purple-800' :
+                              ka.type === 'CONTRACT' ? 'bg-accent text-accent-foreground' :
                               ka.type === 'WALLET' ? 'bg-accent text-primary' :
                               ka.type === 'EXCHANGE' ? 'bg-destructive/10 text-destructive' :
                               ka.type === 'VESTING' ? 'bg-success/10 text-success' :
@@ -1197,7 +1198,7 @@ export default function AnalyticsContent() {
                               </button>
                               <button
                                 onClick={() => handleDeleteKnownAddress(ka.address)}
-                                className="text-red-600 hover:text-red-800 font-medium"
+                                className="text-destructive hover:opacity-80 font-medium"
                               >
                                 🗑️ Eliminar
                               </button>

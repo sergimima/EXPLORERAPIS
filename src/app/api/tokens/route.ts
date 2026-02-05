@@ -1,13 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { getTenantContext } from '@/lib/tenant-context';
 import { prisma } from '@/lib/db';
 import { ethers } from 'ethers';
+import { checkTokenLimit } from '@/lib/limits';
 
 export async function POST(request: NextRequest) {
   const tenantContext = await getTenantContext();
 
   if (!tenantContext) {
+    const session = await getServerSession(authOptions);
+    if (session?.user?.role === 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'SUPER_ADMIN no tiene organización. Usa el panel Admin para gestionar orgs.' }, { status: 403 });
+    }
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+  }
+
+  // Verificar límite de tokens del plan
+  const limitCheck = await checkTokenLimit(tenantContext.organizationId);
+  if (!limitCheck.allowed) {
+    return NextResponse.json({ error: limitCheck.message }, { status: 403 });
   }
 
   const { address, network } = await request.json();
@@ -74,9 +87,14 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions);
   const tenantContext = await getTenantContext();
 
+  // SUPER_ADMIN sin org: devolver [] para que la UI no muestre error
   if (!tenantContext) {
+    if (session?.user?.role === 'SUPER_ADMIN') {
+      return NextResponse.json([]);
+    }
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
@@ -99,6 +117,10 @@ export async function DELETE(request: NextRequest) {
   const tenantContext = await getTenantContext();
 
   if (!tenantContext) {
+    const session = await getServerSession(authOptions);
+    if (session?.user?.role === 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'SUPER_ADMIN no tiene organización' }, { status: 403 });
+    }
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 

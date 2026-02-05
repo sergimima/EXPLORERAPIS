@@ -142,7 +142,7 @@ export default function GlobalSearch() {
       >
         <span className="text-muted-foreground">🔍</span>
         <span className="text-muted-foreground text-sm">Buscar...</span>
-        <kbd className="ml-auto px-2 py-1 text-xs bg-gray-100 border border-gray-300 dark:border-gray-600 rounded">
+        <kbd className="ml-auto px-2 py-1 text-xs bg-muted border border-input rounded">
           {typeof navigator !== 'undefined' && navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+K
         </kbd>
       </button>
@@ -179,11 +179,11 @@ export default function GlobalSearch() {
         {/* Results */}
         <div className="max-h-96 overflow-y-auto">
           {query.trim().length < 3 ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-muted-foreground">
               Escribe al menos 3 caracteres para buscar
             </div>
           ) : results.length === 0 && !isSearching ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-muted-foreground">
               No se encontraron resultados para &quot;{query}&quot;
             </div>
           ) : (
@@ -212,7 +212,7 @@ export default function GlobalSearch() {
                       {result.type === 'token' && 'Token'}
                     </div>
                   </div>
-                  <span className="text-gray-400 text-sm">↵</span>
+                  <span className="text-muted-foreground text-sm">↵</span>
                 </button>
               ))}
             </div>

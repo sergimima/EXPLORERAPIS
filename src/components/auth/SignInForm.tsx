@@ -1,17 +1,31 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
-import { useState } from 'react';
+import { signIn, useSession } from 'next-auth/react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function SignInForm() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
+
+  // Redirect after login based on role
+  useEffect(() => {
+    if (loginSuccess && session) {
+      if (session.user?.role === 'SUPER_ADMIN') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
+      router.refresh();
+    }
+  }, [loginSuccess, session, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,8 +42,8 @@ export default function SignInForm() {
       if (result?.error) {
         setError('Credenciales inválidas. Por favor, intenta de nuevo.');
       } else {
-        router.push('/dashboard');
-        router.refresh();
+        // Mark login as successful and let useEffect handle redirect
+        setLoginSuccess(true);
       }
     } catch (err) {
       setError('Ocurrió un error. Por favor, intenta de nuevo.');
@@ -113,7 +127,7 @@ export default function SignInForm() {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={isLoading}
-            className="bg-white hover:bg-gray-50 text-foreground font-semibold py-2 px-4 border border-input rounded shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="bg-background hover:bg-muted text-foreground font-semibold py-2 px-4 border border-input rounded shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path

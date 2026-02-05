@@ -108,7 +108,7 @@ const TokenTransfersList: React.FC<TokenTransfersListProps> = ({
             <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Tx Hash</th>
           </tr>
         </thead>
-        <tbody className="bg-card divide-y divide-gray-200">
+        <tbody className="bg-card divide-y divide-border">
           {transfers.map((transfer, index) => (
             <tr key={index}>
               <td className="px-6 py-4 whitespace-nowrap">

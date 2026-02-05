@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface Contract {
   id: string;
@@ -79,7 +80,7 @@ export default function ContractsSettingsPage() {
 
   const handleAddContract = async () => {
     if (!newContract.name || !newContract.address) {
-      alert('Nombre y Address son requeridos');
+      toast.error('Nombre y Address son requeridos');
       return;
     }
 
@@ -91,16 +92,16 @@ export default function ContractsSettingsPage() {
       });
 
       if (res.ok) {
-        alert('Contrato agregado correctamente!');
+        toast.success('Contrato agregado correctamente');
         setShowAddForm(false);
         setNewContract({ name: '', address: '', network: 'base', category: 'OTHER', description: '' });
         fetchData();
       } else {
         const data = await res.json();
-        alert('Error: ' + data.error);
+        toast.error(data.error || 'Error al agregar contrato');
       }
     } catch (error: any) {
-      alert('Error: ' + error.message);
+      toast.error(error.message || 'Error al agregar contrato');
     }
   };
 
@@ -113,7 +114,7 @@ export default function ContractsSettingsPage() {
       });
       fetchData();
     } catch (error: any) {
-      alert('Error: ' + error.message);
+      toast.error(error.message || 'Error');
     }
   };
 
@@ -126,7 +127,7 @@ export default function ContractsSettingsPage() {
       });
       fetchData();
     } catch (error: any) {
-      alert('Error: ' + error.message);
+      toast.error(error.message || 'Error al eliminar');
     }
   };
 
@@ -145,13 +146,13 @@ export default function ContractsSettingsPage() {
       const data = await res.json();
 
       if (res.ok) {
-        alert(`ABI detectado! ${data.customAbi.methodCount} métodos, ${data.customAbi.eventCount} eventos`);
+        toast.success(`ABI detectado: ${data.customAbi.methodCount} métodos, ${data.customAbi.eventCount} eventos`);
         fetchData();
       } else {
-        alert('Error: ' + data.error);
+        toast.error(data.error || 'Error al detectar ABI');
       }
     } catch (error: any) {
-      alert('Error: ' + error.message);
+      toast.error(error.message || 'Error al detectar ABI');
     }
   };
 
@@ -164,7 +165,7 @@ export default function ContractsSettingsPage() {
       });
       fetchData();
     } catch (error: any) {
-      alert('Error: ' + error.message);
+      toast.error(error.message || 'Error al eliminar ABI');
     }
   };
 
@@ -206,7 +207,7 @@ export default function ContractsSettingsPage() {
                   value={newContract.name}
                   onChange={(e) => setNewContract({ ...newContract, name: e.target.value })}
                   placeholder="Ej: Investors Vesting"
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
 
@@ -219,7 +220,7 @@ export default function ContractsSettingsPage() {
                   value={newContract.address}
                   onChange={(e) => setNewContract({ ...newContract, address: e.target.value })}
                   placeholder="0x..."
-                  className="w-full px-3 py-2 border rounded font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border rounded font-mono text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
 
@@ -230,7 +231,7 @@ export default function ContractsSettingsPage() {
                 <select
                   value={newContract.network}
                   onChange={(e) => setNewContract({ ...newContract, network: e.target.value })}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
                   <option value="base">Base Mainnet</option>
                   <option value="base-testnet">Base Testnet</option>
@@ -245,7 +246,7 @@ export default function ContractsSettingsPage() {
                 <select
                   value={newContract.category}
                   onChange={(e) => setNewContract({ ...newContract, category: e.target.value })}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
                   <option value="VESTING">Vesting</option>
                   <option value="STAKING">Staking</option>
@@ -267,7 +268,7 @@ export default function ContractsSettingsPage() {
                 value={newContract.description}
                 onChange={(e) => setNewContract({ ...newContract, description: e.target.value })}
                 placeholder="Información adicional sobre este contrato..."
-                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-primary focus:border-transparent"
                 rows={3}
               />
             </div>
@@ -286,7 +287,7 @@ export default function ContractsSettingsPage() {
       {contracts.length === 0 ? (
         <div className="bg-card rounded-lg shadow p-12 text-center border border-border">
           <div className="text-6xl mb-4">📦</div>
-          <p className="text-gray-600 mb-4">
+          <p className="text-muted-foreground mb-4">
             No hay contratos configurados todavía
           </p>
           <button
@@ -328,7 +329,7 @@ export default function ContractsSettingsPage() {
                       </span>
                     </div>
 
-                    <p className="text-xs text-gray-500 font-mono mb-2">
+                    <p className="text-xs text-muted-foreground font-mono mb-2">
                       {contract.address}
                     </p>
 
@@ -364,7 +365,7 @@ export default function ContractsSettingsPage() {
                               setSelectedAbi(contractAbi);
                               setShowAbiModal(true);
                             }}
-                            className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 text-xs font-medium"
+                            className="px-3 py-1.5 bg-accent text-accent-foreground rounded hover:bg-accent/80 text-xs font-medium"
                             title="Ver ABI"
                           >
                             Ver ABI
@@ -372,7 +373,7 @@ export default function ContractsSettingsPage() {
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(JSON.stringify(contractAbi.abi, null, 2));
-                              alert('ABI copiado!');
+                              toast.success('ABI copiado');
                             }}
                             className="px-3 py-1.5 bg-accent text-accent-foreground rounded hover:opacity-80 text-xs font-medium"
                             title="Copiar ABI"
@@ -390,7 +391,7 @@ export default function ContractsSettingsPage() {
                       ) : (
                         <button
                           onClick={() => handleDetectAbi(contract.address, contract.network)}
-                          className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs font-medium"
+                          className="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:opacity-90 text-xs font-medium"
                         >
                           Auto-detectar ABI
                         </button>
@@ -403,7 +404,7 @@ export default function ContractsSettingsPage() {
                         onClick={() => handleToggleActive(contract.id, contract.isActive)}
                         className={`px-3 py-1.5 rounded text-xs font-medium ${
                           contract.isActive
-                            ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                            ? 'bg-warning/10 text-warning hover:bg-warning/20'
                             : 'bg-success/10 text-success hover:opacity-80'
                         }`}
                       >
@@ -427,7 +428,7 @@ export default function ContractsSettingsPage() {
       {/* ABI Modal */}
       {showAbiModal && selectedAbi && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-card rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-border">
             <div className="p-6 border-b flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-semibold">ABI - {selectedAbi.contractAddress}</h3>
@@ -454,7 +455,7 @@ export default function ContractsSettingsPage() {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(JSON.stringify(selectedAbi.abi, null, 2));
-                  alert('ABI copiado al portapapeles!');
+                  toast.success('ABI copiado al portapapeles');
                 }}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 font-medium"
               >

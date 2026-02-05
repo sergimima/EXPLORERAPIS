@@ -17,6 +17,34 @@ const prisma = new PrismaClient({
 
 async function main() {
   console.log('Starting Vottun data migration...');
+  console.log('⚠️  Asegúrate de haber hecho BACKUP de la BD antes de continuar.\n');
+
+  // 0. Resolver ownerId: usar primer SUPER_ADMIN o env OWNER_ID
+  const ownerIdFromEnv = process.env.OWNER_ID;
+  let ownerId: string;
+
+  if (ownerIdFromEnv) {
+    ownerId = ownerIdFromEnv;
+    console.log(`Using OWNER_ID from env: ${ownerId}`);
+  } else {
+    const superAdmin = await prisma.user.findFirst({
+      where: { role: 'SUPER_ADMIN' },
+      select: { id: true },
+    });
+    const anyAdmin = superAdmin ?? (await prisma.user.findFirst({
+      where: { role: 'ADMIN' },
+      select: { id: true },
+    }));
+    const anyUser = anyAdmin ?? (await prisma.user.findFirst({ select: { id: true } }));
+
+    if (!anyUser) {
+      throw new Error(
+        'No hay usuarios en la BD. Crea primero un usuario (ej: SUPER_ADMIN) o pasa OWNER_ID=userId en el entorno.'
+      );
+    }
+    ownerId = anyUser.id;
+    console.log(`Using owner: ${ownerId}`);
+  }
 
   // 1. Create Vottun organization
   console.log('Creating Vottun organization...');
@@ -26,7 +54,7 @@ async function main() {
     create: {
       name: 'Vottun',
       slug: 'vottun',
-      ownerId: 'system', // Temporary owner ID, will be updated when first user is created
+      ownerId,
       website: 'https://vottun.com',
     },
   });
@@ -104,7 +132,24 @@ async function main() {
   });
   console.log(`✓ Updated ${vestingBeneficiaryCacheResult.count} VestingBeneficiaryCache rows`);
 
-  // 9. Create default subscription for Vottun
+  // 9. Update existing TokenSupplyCache rows (tokenAddress match VTN)
+  const vtnAddress = '0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC';
+  const vtnAddressLower = vtnAddress.toLowerCase();
+  console.log('Updating TokenSupplyCache rows for VTN...');
+  const tokenSupplyResult = await prisma.tokenSupplyCache.updateMany({
+    where: {
+      tokenId: null as any,
+      OR: [
+        { tokenAddress: vtnAddress },
+        { tokenAddress: vtnAddressLower },
+      ],
+      network: 'base',
+    },
+    data: { tokenId: token.id },
+  });
+  console.log(`✓ Updated ${tokenSupplyResult.count} TokenSupplyCache rows`);
+
+  // 10. Create default subscription for Vottun
   console.log('Creating default subscription...');
   await prisma.subscription.upsert({
     where: { organizationId: org.id },

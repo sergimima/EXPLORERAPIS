@@ -4,22 +4,49 @@ import { useSession, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import TokenSelector from './TokenSelector';
 import GlobalSearch from './GlobalSearch';
 import ThemeToggle from './ThemeToggle';
+import Avatar from './Avatar';
 
 export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [organization, setOrganization] = useState<any>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // No mostrar navbar en landing, auth pages, y docs
-  const hideNavbar = pathname === '/' || pathname.startsWith('/auth') || pathname === '/docs';
+  // Fetch organization data
+  useEffect(() => {
+    if (session?.user?.email) {
+      fetch('/api/organizations')
+        .then(res => res.json())
+        .then(data => setOrganization(data))
+        .catch(err => console.error('Error fetching organization:', err));
+    }
+  }, [session]);
+
+  // Cerrar menús al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (settingsRef.current && !settingsRef.current.contains(target)) setShowSettingsMenu(false);
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) setShowUserMenu(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // No mostrar navbar en landing, auth pages, docs, ni en admin (tiene su propio layout)
+  const hideNavbar = pathname === '/' || pathname.startsWith('/auth') || pathname === '/docs' || pathname.startsWith('/admin');
 
   if (!session || hideNavbar) return null;
 
   const isAdmin = session.user?.role === 'ADMIN' || session.user?.role === 'SUPER_ADMIN';
+  const isSuperAdmin = session.user?.role === 'SUPER_ADMIN';
 
   return (
     <nav className="bg-card shadow-md border-b border-border">
@@ -27,15 +54,21 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           {/* Logo / Brand */}
           <div className="flex items-center">
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <Image
-                src="/images/logo_blue.png"
-                alt="TokenLens"
-                width={32}
-                height={32}
-                className="h-8 w-auto"
+            <Link href="/dashboard" className="flex items-center gap-3">
+              {/* Organization Logo */}
+              <Avatar
+                src={organization?.logoUrl}
+                name={organization?.name || 'TokenLens'}
+                size="md"
               />
-              <span className="text-xl font-bold text-card-foreground">TokenLens</span>
+              <div className="flex flex-col">
+                <span className="text-lg font-bold text-card-foreground">
+                  {organization?.name || 'TokenLens'}
+                </span>
+                {organization?.name && (
+                  <span className="text-xs text-muted-foreground">TokenLens</span>
+                )}
+              </div>
             </Link>
           </div>
 
@@ -60,41 +93,8 @@ export default function Navbar() {
               Dashboard
             </Link>
 
-            {/* Settings Dropdown */}
-            <div className="relative group">
-              <button
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname.startsWith('/settings')
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-secondary-foreground hover:bg-muted'
-                }`}
-              >
-                Settings ▾
-              </button>
-              <div className="absolute left-0 mt-2 w-48 bg-card rounded-md shadow-lg py-1 z-10 hidden group-hover:block border border-border">
-                <Link
-                  href="/settings/general"
-                  className="block px-4 py-2 text-sm text-secondary-foreground hover:bg-muted"
-                >
-                  🏢 General
-                </Link>
-                <Link
-                  href="/settings/members"
-                  className="block px-4 py-2 text-sm text-secondary-foreground hover:bg-muted"
-                >
-                  👥 Members
-                </Link>
-                <Link
-                  href="/settings/tokens"
-                  className="block px-4 py-2 text-sm text-secondary-foreground hover:bg-muted"
-                >
-                  🪙 Tokens
-                </Link>
-              </div>
-            </div>
-
-            {/* Admin Link (only for admins) */}
-            {isAdmin && (
+            {/* Admin Link (only for SUPER_ADMIN) */}
+            {isSuperAdmin && (
               <Link
                 href="/admin/dashboard"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -103,16 +103,62 @@ export default function Navbar() {
                     : 'text-secondary-foreground hover:bg-muted'
                 }`}
               >
-                Admin
+                🔧 Admin
               </Link>
             )}
+
+            {/* Settings Dropdown */}
+            <div className="relative" ref={settingsRef}>
+              <button
+                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname.startsWith('/settings')
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-secondary-foreground hover:bg-muted'
+                }`}
+              >
+                Settings ▾
+              </button>
+              {showSettingsMenu && (
+                <div className="absolute left-0 mt-2 w-48 bg-card rounded-md shadow-lg py-1 z-10 border border-border">
+                  <Link
+                    href="/settings/general"
+                    className="block px-4 py-2 text-sm text-secondary-foreground hover:bg-muted"
+                    onClick={() => setShowSettingsMenu(false)}
+                  >
+                    🏢 General
+                  </Link>
+                  <Link
+                    href="/settings/members"
+                    className="block px-4 py-2 text-sm text-secondary-foreground hover:bg-muted"
+                    onClick={() => setShowSettingsMenu(false)}
+                  >
+                    👥 Members
+                  </Link>
+                  <Link
+                    href="/settings/tokens"
+                    className="block px-4 py-2 text-sm text-secondary-foreground hover:bg-muted"
+                    onClick={() => setShowSettingsMenu(false)}
+                  >
+                    🪙 Tokens
+                  </Link>
+                  <Link
+                    href="/settings/addresses"
+                    className="block px-4 py-2 text-sm text-secondary-foreground hover:bg-muted"
+                    onClick={() => setShowSettingsMenu(false)}
+                  >
+                    📝 Addresses
+                  </Link>
+                </div>
+              )}
+            </div>
 
             {/* Theme Toggle */}
             <ThemeToggle />
           </div>
 
           {/* User Menu */}
-          <div className="relative">
+          <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-secondary-foreground hover:bg-muted"

@@ -141,7 +141,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
           <p className="text-secondary mb-2">
             Introduce una dirección de wallet arriba para ver los balances
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Puedes pegar una dirección Ethereum (0x...) o ENS name
           </p>
         </div>
@@ -169,7 +169,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
             <table className="min-w-full bg-card">
               <thead>
                 <tr>
-                  <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="py-2 px-4 border-b border-border bg-muted text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Token
                   </th>
                   <th className="py-2 px-4 border-b border-border bg-muted text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -180,7 +180,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
               <tbody>
                 {tokenBalances.map((token, index) => (
                   <tr key={index} className={index % 2 === 0 ? 'bg-card' : 'bg-muted/50'}>
-                    <td className="py-2 px-4 border-b border-gray-200">
+                    <td className="py-2 px-4 border-b border-border">
                       <div className="flex items-center">
                         <div className="ml-4">
                           <div className="text-sm font-medium text-card-foreground">
@@ -199,7 +199,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
                         </div>
                       </div>
                     </td>
-                    <td className="py-2 px-4 border-b border-gray-200 text-right text-sm font-medium">
+                    <td className="py-2 px-4 border-b border-border text-right text-sm font-medium">
                       {parseFloat(ethers.formatUnits(token.balance, token.decimals)).toLocaleString(undefined, {
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 4
@@ -215,7 +215,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
               <p className="text-secondary-foreground font-medium mb-2">
                 No se encontraron tokens para esta wallet
               </p>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Esta wallet no tiene balances de tokens ERC20 en {network === 'base' ? 'Base Mainnet' : network}
               </p>
               <p className="text-xs text-muted-foreground">

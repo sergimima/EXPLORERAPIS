@@ -27,7 +27,7 @@ export default function ThemeToggle() {
         </svg>
       ) : (
         <svg
-          className="w-5 h-5 text-yellow-400"
+          className="w-5 h-5 text-warning"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

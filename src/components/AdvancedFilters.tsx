@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 export interface AdvancedFiltersState {
   addressTypes: {
@@ -70,7 +71,7 @@ export default function AdvancedFilters({
   const addExcludedAddress = () => {
     if (!newExcludedAddress.trim()) return;
     if (!/^0x[a-fA-F0-9]{40}$/.test(newExcludedAddress.trim())) {
-      alert('Formato de address inválido');
+      toast.error('Formato de address inválido');
       return;
     }
 
@@ -98,29 +99,29 @@ export default function AdvancedFilters({
     filters.excludedAddresses.length > 0;
 
   return (
-    <div className="bg-white rounded-lg shadow-md mb-6">
+    <div className="bg-card rounded-lg shadow-md mb-6 border border-border">
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted transition-colors"
       >
         <div className="flex items-center gap-3">
-          <span className="text-lg font-semibold text-gray-800">🔧 Filtros Avanzados</span>
+          <span className="text-lg font-semibold text-card-foreground">🔧 Filtros Avanzados</span>
           {hasActiveFilters && (
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+            <span className="px-2 py-1 bg-accent text-accent-foreground rounded text-xs font-medium">
               Activos
             </span>
           )}
         </div>
-        <span className="text-gray-400">{isExpanded ? '▲' : '▼'}</span>
+        <span className="text-muted-foreground">{isExpanded ? '▲' : '▼'}</span>
       </button>
 
       {/* Content */}
       {isExpanded && (
-        <div className="px-6 pb-6 space-y-6 border-t border-gray-200 pt-6">
+        <div className="px-6 pb-6 space-y-6 border-t border-border pt-6">
           {/* Tipo de Address */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-foreground mb-3">
               Tipo de Address
             </label>
             <div className="flex flex-wrap gap-3">
@@ -131,7 +132,7 @@ export default function AdvancedFilters({
                   onChange={() => toggleAddressType('exchanges')}
                   className="rounded"
                 />
-                <span className="text-sm text-gray-700">🏦 Exchanges (CEX)</span>
+                <span className="text-sm text-foreground">🏦 Exchanges (CEX)</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -140,7 +141,7 @@ export default function AdvancedFilters({
                   onChange={() => toggleAddressType('contracts')}
                   className="rounded"
                 />
-                <span className="text-sm text-gray-700">📝 Contratos</span>
+                <span className="text-sm text-foreground">📝 Contratos</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -149,14 +150,14 @@ export default function AdvancedFilters({
                   onChange={() => toggleAddressType('wallets')}
                   className="rounded"
                 />
-                <span className="text-sm text-gray-700">👤 Wallets</span>
+                <span className="text-sm text-foreground">👤 Wallets</span>
               </label>
             </div>
           </div>
 
           {/* Rango de Montos */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-foreground mb-3">
               Rango de Montos (VTN)
             </label>
             <div className="grid grid-cols-2 gap-4">
@@ -170,7 +171,7 @@ export default function AdvancedFilters({
                       amountRange: { ...filters.amountRange, min: e.target.value },
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                 />
               </div>
               <div>
@@ -183,7 +184,7 @@ export default function AdvancedFilters({
                       amountRange: { ...filters.amountRange, max: e.target.value },
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                 />
               </div>
             </div>
@@ -191,7 +192,7 @@ export default function AdvancedFilters({
 
           {/* Rango de Fechas */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-foreground mb-3">
               Rango de Fechas
             </label>
             <div className="grid grid-cols-2 gap-4">
@@ -204,7 +205,7 @@ export default function AdvancedFilters({
                       dateRange: { ...filters.dateRange, from: e.target.value },
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                 />
               </div>
               <div>
@@ -216,7 +217,7 @@ export default function AdvancedFilters({
                       dateRange: { ...filters.dateRange, to: e.target.value },
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                 />
               </div>
             </div>
@@ -231,7 +232,7 @@ export default function AdvancedFilters({
                 onChange={(e) => updateFilters({ onlyLabeled: e.target.checked })}
                 className="rounded"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-foreground">
                 🏷️ Mostrar solo addresses etiquetadas
               </span>
             </label>
@@ -239,7 +240,7 @@ export default function AdvancedFilters({
 
           {/* Excluir Addresses */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-foreground mb-3">
               Excluir Addresses
             </label>
             <div className="flex gap-2 mb-3">
@@ -249,11 +250,11 @@ export default function AdvancedFilters({
                 value={newExcludedAddress}
                 onChange={(e) => setNewExcludedAddress(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addExcludedAddress()}
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono"
+                className="flex-1 px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm font-mono"
               />
               <button
                 onClick={addExcludedAddress}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+                className="px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors text-sm"
               >
                 + Agregar
               </button>
@@ -264,14 +265,14 @@ export default function AdvancedFilters({
                 {filters.excludedAddresses.map((addr) => (
                   <div
                     key={addr}
-                    className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200"
+                    className="flex items-center justify-between p-2 bg-muted rounded border border-border"
                   >
-                    <span className="text-xs font-mono text-gray-700">
+                    <span className="text-xs font-mono text-foreground">
                       {addr.slice(0, 10)}...{addr.slice(-8)}
                     </span>
                     <button
                       onClick={() => removeExcludedAddress(addr)}
-                      className="text-red-600 hover:text-red-800 text-sm"
+                      className="text-destructive hover:opacity-80 text-sm"
                     >
                       ✕
                     </button>
@@ -282,16 +283,16 @@ export default function AdvancedFilters({
           </div>
 
           {/* Botones */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
+          <div className="flex gap-3 pt-4 border-t border-border">
             <button
               onClick={onApply}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-colors font-medium"
             >
               Aplicar Filtros
             </button>
             <button
               onClick={onReset}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              className="px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors"
             >
               Resetear
             </button>
@@ -299,7 +300,7 @@ export default function AdvancedFilters({
 
           {/* Info de filtros activos */}
           {hasActiveFilters && (
-            <div className="text-xs text-gray-500 space-y-1">
+            <div className="text-xs text-muted-foreground space-y-1">
               <div className="font-medium">Filtros activos:</div>
               {(!filters.addressTypes.exchanges ||
                 !filters.addressTypes.contracts ||

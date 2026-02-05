@@ -1,12 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: false,
   output: 'standalone',
-  experimental: {
-    missingSuspenseWithCSRBailout: false,
-    serverComponentsExternalPackages: ['@prisma/client', '@prisma/adapter-pg', 'pg', 'pg-connection-string', 'pg-pool'],
-  },
+  serverExternalPackages: ['@prisma/client', '@prisma/adapter-pg', 'pg', 'pg-connection-string', 'pg-pool'],
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {

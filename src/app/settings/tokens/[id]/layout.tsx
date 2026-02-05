@@ -91,7 +91,7 @@ export default function TokenSettingsLayout({
               {token?.symbol || 'Token'}
             </Link>
             <span>/</span>
-            <span className="text-secondary-foreground font-medium">{currentLabel}</span>
+            <span className="text-foreground font-medium">{currentLabel}</span>
           </nav>
 
           <div className="flex items-start justify-between gap-4">
@@ -105,7 +105,7 @@ export default function TokenSettingsLayout({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-              <div className="w-12 h-12 flex-shrink-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+              <div className="w-12 h-12 flex-shrink-0 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-lg">
                 {token?.symbol?.substring(0, 2) || '??'}
               </div>
               <div className="min-w-0">
@@ -115,7 +115,7 @@ export default function TokenSettingsLayout({
                     {networkLabel}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600 truncate">{token?.name || 'Loading...'}</p>
+                <p className="text-sm text-muted-foreground truncate">{token?.name || 'Loading...'}</p>
               </div>
             </div>
             <Link
@@ -143,7 +143,7 @@ export default function TokenSettingsLayout({
         <aside
           ref={sidebarRef}
           className={`
-            w-60 flex-shrink-0 bg-white border-r min-h-[calc(100vh-140px)] p-4
+            w-60 flex-shrink-0 bg-card border-r border-border min-h-[calc(100vh-140px)] p-4
             fixed md:relative inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-in-out
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
           `}

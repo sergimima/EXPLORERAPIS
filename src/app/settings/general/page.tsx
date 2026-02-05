@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { toast } from 'sonner';
+import LogoUpload from '@/components/LogoUpload';
 
 export default function GeneralSettingsPage() {
   const { data: session } = useSession();
@@ -37,6 +39,26 @@ export default function GeneralSettingsPage() {
         <p className="text-muted-foreground mt-2">
           Configuración básica de tu organización
         </p>
+      </div>
+
+      {/* Logo de la Organización */}
+      <div className="bg-card rounded-lg shadow-sm border border-border p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-4 text-card-foreground">
+          Logo de la Organización
+        </h2>
+        <LogoUpload
+          type="organization"
+          currentLogoUrl={organization?.logoUrl}
+          name={organization?.name || 'Organization'}
+          onUploadSuccess={(logoUrl) => {
+            setOrganization({ ...organization, logoUrl });
+            toast.success('Logo actualizado correctamente');
+          }}
+          onDeleteSuccess={() => {
+            setOrganization({ ...organization, logoUrl: null });
+            toast.success('Logo eliminado correctamente');
+          }}
+        />
       </div>
 
       {/* Información General */}
@@ -95,7 +117,7 @@ export default function GeneralSettingsPage() {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(organization?.id || '');
-                  alert('ID copiado al portapapeles');
+                  toast.success('ID copiado al portapapeles');
                 }}
                 className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground border border-input rounded-lg hover:bg-muted"
               >
@@ -110,7 +132,7 @@ export default function GeneralSettingsPage() {
 
         <div className="mt-6 pt-6 border-t border-border">
           <button
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled
           >
             Guardar Cambios
@@ -123,8 +145,8 @@ export default function GeneralSettingsPage() {
 
       {/* Información del Owner */}
       {organization?.ownerId && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold mb-4 text-gray-900">
+        <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+          <h2 className="text-lg font-semibold mb-4 text-card-foreground">
             Propietario de la Organización
           </h2>
 
@@ -133,7 +155,7 @@ export default function GeneralSettingsPage() {
               {session?.user?.name?.[0]?.toUpperCase() || 'O'}
             </div>
             <div>
-              <div className="font-medium text-gray-900">
+              <div className="font-medium text-card-foreground">
                 {session?.user?.name || 'Owner'}
               </div>
               <div className="text-sm text-muted-foreground">

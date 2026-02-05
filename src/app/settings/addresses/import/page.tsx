@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface ImportRow {
   address: string;
@@ -67,7 +68,7 @@ export default function AdminImportPage() {
   const parseCSV = (text: string) => {
     const lines = text.split('\n').filter((line) => line.trim());
     if (lines.length < 2) {
-      alert('CSV vacío o sin datos');
+      toast.error('CSV vacío o sin datos');
       return;
     }
 
@@ -150,16 +151,16 @@ export default function AdminImportPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">📥 Importar Addresses</h1>
-        <p className="text-gray-600 mt-1">
+        <h1 className="text-3xl font-bold text-card-foreground">📥 Importar Addresses</h1>
+        <p className="text-muted-foreground mt-1">
           Importa addresses desde un archivo CSV
         </p>
       </div>
 
       {/* Instrucciones */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <h3 className="font-semibold text-blue-900 mb-2">📋 Instrucciones</h3>
-        <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+      <div className="bg-accent border border-border rounded-lg p-4 mb-6">
+        <h3 className="font-semibold text-card-foreground mb-2">📋 Instrucciones</h3>
+        <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
           <li>Descarga la plantilla CSV haciendo clic en el botón abajo</li>
           <li>Completa el CSV con tus addresses</li>
           <li>Sube el archivo aquí</li>
@@ -168,25 +169,25 @@ export default function AdminImportPage() {
 
         <button
           onClick={downloadTemplate}
-          className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+          className="mt-3 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-colors text-sm"
         >
           📄 Descargar Plantilla CSV
         </button>
       </div>
 
       {/* Formato del CSV */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h3 className="font-semibold text-gray-900 mb-3">Formato del CSV</h3>
-        <div className="bg-background p-4 rounded border border-gray-200 font-mono text-xs overflow-x-auto">
-          <div className="text-gray-600 mb-1">
+      <div className="bg-card rounded-lg shadow-md p-6 mb-6 border border-border">
+        <h3 className="font-semibold text-card-foreground mb-3">Formato del CSV</h3>
+        <div className="bg-background p-4 rounded border border-border font-mono text-xs overflow-x-auto">
+          <div className="text-muted-foreground mb-1">
             address,name,type,category,description,tags
           </div>
-          <div className="text-gray-800">
+          <div className="text-card-foreground">
             0x3cd7...,Coinbase,Exchange,CEX,Coinbase hot wallet,exchange;coinbase;cex
           </div>
         </div>
 
-        <div className="mt-4 space-y-2 text-sm text-gray-600">
+        <div className="mt-4 space-y-2 text-sm text-muted-foreground">
           <p>
             <strong>address:</strong> Dirección Ethereum (0x..., requerido)
           </p>
@@ -209,22 +210,22 @@ export default function AdminImportPage() {
       </div>
 
       {/* Upload */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h3 className="font-semibold text-gray-900 mb-3">Seleccionar Archivo</h3>
+      <div className="bg-card rounded-lg shadow-md p-6 mb-6 border border-border">
+        <h3 className="font-semibold text-card-foreground mb-3">Seleccionar Archivo</h3>
         <div className="flex items-center gap-4">
           <input
             type="file"
             accept=".csv"
             onChange={handleFileChange}
-            className="block w-full text-sm text-gray-500
+            className="block w-full text-sm text-muted-foreground
               file:mr-4 file:py-2 file:px-4
               file:rounded-lg file:border-0
               file:text-sm file:font-semibold
-              file:bg-blue-50 file:text-blue-700
-              hover:file:bg-blue-100"
+              file:bg-accent file:text-accent-foreground
+              hover:file:bg-accent/80"
           />
           {file && (
-            <div className="text-sm text-gray-600 whitespace-nowrap">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
               {file.name}
             </div>
           )}
@@ -233,15 +234,15 @@ export default function AdminImportPage() {
 
       {/* Preview */}
       {preview.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-card rounded-lg shadow-md p-6 mb-6 border border-border">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">
+            <h3 className="font-semibold text-card-foreground">
               Vista Previa ({preview.length} addresses)
             </h3>
             <button
               onClick={handleImport}
               disabled={importing}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-success text-white rounded-lg hover:opacity-90 transition-colors disabled:opacity-50"
             >
               {importing ? '⏳ Importando...' : '✅ Confirmar Importación'}
             </button>
@@ -251,39 +252,39 @@ export default function AdminImportPage() {
             <table className="w-full text-sm">
               <thead className="bg-background border-b">
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">
                     Address
                   </th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">
                     Name
                   </th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">
                     Type
                   </th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">
                     Category
                   </th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">
                     Tags
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-border">
                 {preview.slice(0, 10).map((row, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
+                  <tr key={idx} className="hover:bg-muted">
                     <td className="px-3 py-2 font-mono text-xs">
                       {row.address.slice(0, 10)}...
                     </td>
                     <td className="px-3 py-2">{row.name}</td>
                     <td className="px-3 py-2">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                      <span className="px-2 py-1 bg-accent text-accent-foreground rounded text-xs">
                         {row.type}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-gray-600">
+                    <td className="px-3 py-2 text-muted-foreground">
                       {row.category || '-'}
                     </td>
-                    <td className="px-3 py-2 text-xs text-gray-600">
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
                       {row.tags || '-'}
                     </td>
                   </tr>
@@ -291,7 +292,7 @@ export default function AdminImportPage() {
               </tbody>
             </table>
             {preview.length > 10 && (
-              <div className="text-center text-sm text-gray-500 py-2">
+              <div className="text-center text-sm text-muted-foreground py-2">
                 ... y {preview.length - 10} más
               </div>
             )}
@@ -304,20 +305,20 @@ export default function AdminImportPage() {
         <div
           className={`rounded-lg p-6 mb-6 ${
             result.errors.length === 0
-              ? 'bg-green-50 border border-green-200'
-              : 'bg-yellow-50 border border-yellow-200'
+              ? 'bg-success/10 border border-success'
+              : 'bg-warning/10 border border-warning'
           }`}
         >
           <h3
             className={`font-semibold mb-2 ${
-              result.errors.length === 0 ? 'text-green-900' : 'text-yellow-900'
+              result.errors.length === 0 ? 'text-success' : 'text-warning'
             }`}
           >
             {result.errors.length === 0 ? '✅ Importación Exitosa' : '⚠️ Importación Completa con Errores'}
           </h3>
           <p
             className={`${
-              result.errors.length === 0 ? 'text-green-800' : 'text-yellow-800'
+              result.errors.length === 0 ? 'text-success' : 'text-warning'
             }`}
           >
             {result.success} addresses importadas correctamente
@@ -325,12 +326,12 @@ export default function AdminImportPage() {
 
           {result.errors.length > 0 && (
             <div className="mt-4">
-              <p className="text-yellow-800 font-medium mb-2">
+              <p className="text-warning font-medium mb-2">
                 {result.errors.length} errores:
               </p>
-              <div className="bg-white rounded border border-yellow-300 p-3 max-h-60 overflow-y-auto">
+              <div className="bg-card rounded border border-warning p-3 max-h-60 overflow-y-auto">
                 {result.errors.map((error, idx) => (
-                  <div key={idx} className="text-sm text-red-600 py-1">
+                  <div key={idx} className="text-sm text-destructive py-1">
                     {error}
                   </div>
                 ))}
@@ -339,7 +340,7 @@ export default function AdminImportPage() {
           )}
 
           {result.success > 0 && (
-            <p className="text-green-700 text-sm mt-3">
+            <p className="text-success text-sm mt-3">
               Redirigiendo a la lista de addresses en 3 segundos...
             </p>
           )}

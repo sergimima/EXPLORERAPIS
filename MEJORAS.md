@@ -106,3 +106,7 @@
 **Pendientes:** 1 mejora de prioridad baja (Exportar CSV) + 4 features de producto (Alertas, API, PWA, AI)
 **Tiempo invertido:** ~8h
 **Impacto:** 🚀 Transformación completa de UX - Dashboard profesional y moderno con dark mode completo
+
+
+
+Sergi: Foto del token personalizado, y logos de las redes
