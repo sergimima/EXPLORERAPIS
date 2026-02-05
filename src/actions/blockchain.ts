@@ -105,8 +105,15 @@ export async function checkVestingContractStatus(
 ) {
     try {
         console.log('[Server Action] checkVestingContractStatus:', contractAddress, network);
-        // Esta función no acepta customApiKeys, usa variables de entorno internamente
-        return await checkVestingContractStatusOriginal(contractAddress, network, loadBeneficiaries);
+
+        // Obtener tokenId desde el contexto del tenant
+        const { getTenantContext } = await import('@/lib/tenant-context');
+        const tenantContext = await getTenantContext();
+        const tokenId = tenantContext?.activeToken?.id;
+        console.log('[Server Action] tokenId from context:', tokenId);
+
+        // Pasar tokenId a la función original
+        return await checkVestingContractStatusOriginal(contractAddress, network, loadBeneficiaries, undefined, tokenId);
     } catch (error) {
         console.error('[Server Action] checkVestingContractStatus error:', error);
         throw error;

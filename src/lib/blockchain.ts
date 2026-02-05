@@ -187,33 +187,47 @@ const NETWORKS: Record<string, {
 //=============================================================================
 
 /**
- * Guarda transferencias en la base de datos usando la API
+ * Guarda transferencias en la base de datos directamente con Prisma
  */
 async function saveTransfersToCache(
   transfers: any[],
   contractAddress: string,
   tokenAddress: string,
-  network: string
+  network: string,
+  tokenId?: string,
+  tokenSymbol?: string,
+  tokenName?: string,
+  decimals?: number
 ) {
+  if (!tokenId) {
+    console.warn('⚠️ saveTransfersToCache: No tokenId provided, skipping save');
+    return 0;
+  }
+
   try {
-    const response = await fetch('/api/transfers-cache', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        transfers,
-        contractAddress,
-        tokenAddress,
-        network
-      })
+    const transfersToSave = transfers.map((tx: any) => ({
+      tokenId,
+      hash: tx.transaction_hash,
+      tokenAddress: tokenAddress.toLowerCase(),
+      tokenSymbol: tokenSymbol || 'UNKNOWN',
+      tokenName: tokenName || 'Unknown Token',
+      decimals: decimals || 18,
+      from: tx.from_address?.toLowerCase() || '',
+      to: tx.to_address?.toLowerCase() || '',
+      value: tx.value || '0',
+      blockNumber: parseInt(tx.block_number) || 0,
+      timestamp: Math.floor(new Date(tx.block_timestamp).getTime() / 1000),
+      network: network,
+      vestingContract: contractAddress.toLowerCase()
+    }));
+
+    await prisma.vestingTransferCache.createMany({
+      data: transfersToSave,
+      skipDuplicates: true
     });
 
-    if (!response.ok) {
-      throw new Error('Error al guardar transferencias');
-    }
-
-    const data = await response.json();
-    console.log(`✓ Guardadas ${data.saved} transferencias nuevas en caché`);
-    return data.saved;
+    console.log(`✓ Guardadas ${transfersToSave.length} transferencias nuevas en caché`);
+    return transfersToSave.length;
   } catch (error) {
     console.error('Error al guardar transferencias en caché:', error);
     return 0;
@@ -221,28 +235,31 @@ async function saveTransfersToCache(
 }
 
 /**
- * Obtiene la última transferencia guardada para un contrato
+ * Obtiene la última transferencia guardada para un contrato directamente con Prisma
  */
 async function getLastCachedTransferTimestamp(
   contractAddress: string,
   tokenAddress: string,
-  network: string
+  network: string,
+  tokenId?: string
 ): Promise<Date | null> {
+  if (!tokenId) {
+    console.warn('⚠️ getLastCachedTransferTimestamp: No tokenId provided');
+    return null;
+  }
+
   try {
-    const params = new URLSearchParams({
-      action: 'getLastTimestamp',
-      contractAddress,
-      tokenAddress,
-      network
+    const lastTransfer = await prisma.vestingTransferCache.findFirst({
+      where: {
+        tokenId,
+        vestingContract: contractAddress.toLowerCase(),
+        tokenAddress: tokenAddress.toLowerCase(),
+        network: network
+      },
+      orderBy: { timestamp: 'desc' }
     });
 
-    const response = await fetch(`/api/transfers-cache?${params}`);
-    if (!response.ok) {
-      throw new Error('Error al obtener último timestamp');
-    }
-
-    const data = await response.json();
-    return data.timestamp ? new Date(data.timestamp * 1000) : null;
+    return lastTransfer ? new Date(Number(lastTransfer.timestamp) * 1000) : null;
   } catch (error) {
     console.error('Error al obtener última transferencia de caché:', error);
     return null;
@@ -250,29 +267,42 @@ async function getLastCachedTransferTimestamp(
 }
 
 /**
- * Obtiene todas las transferencias desde la base de datos para un contrato
+ * Obtiene todas las transferencias desde la base de datos para un contrato directamente con Prisma
  */
 async function getCachedTransfers(
   contractAddress: string,
   tokenAddress: string,
-  network: string
+  network: string,
+  tokenId?: string
 ): Promise<any[]> {
+  if (!tokenId) {
+    console.warn('⚠️ getCachedTransfers: No tokenId provided');
+    return [];
+  }
+
   try {
-    const params = new URLSearchParams({
-      action: 'getTransfers',
-      contractAddress,
-      tokenAddress,
-      network
+    const transfers = await prisma.vestingTransferCache.findMany({
+      where: {
+        tokenId,
+        vestingContract: contractAddress.toLowerCase(),
+        tokenAddress: tokenAddress.toLowerCase(),
+        network: network
+      },
+      orderBy: { timestamp: 'desc' }
     });
 
-    const response = await fetch(`/api/transfers-cache?${params}`);
-    if (!response.ok) {
-      throw new Error('Error al obtener transferencias');
-    }
+    const formatted = transfers.map(t => ({
+      address: t.tokenAddress,
+      from_address: t.from,
+      to_address: t.to,
+      value: t.value,
+      block_number: t.blockNumber.toString(),
+      block_timestamp: new Date(Number(t.timestamp) * 1000).toISOString(),
+      transaction_hash: t.hash
+    }));
 
-    const data = await response.json();
-    console.log(`✓ Obtenidas ${data.transfers.length} transferencias desde caché`);
-    return data.transfers;
+    console.log(`✓ Obtenidas ${formatted.length} transferencias desde caché`);
+    return formatted;
   } catch (error) {
     console.error('Error al obtener transferencias de caché:', error);
     return [];
@@ -913,7 +943,8 @@ export async function checkVestingContractStatus(
   vestingContractAddress: string,
   network: string,
   loadBeneficiaries: boolean = true,
-  tokenAddress?: string
+  tokenAddress?: string,
+  tokenId?: string
 ): Promise<{
   isValid: boolean;
   contractAddress: string;
@@ -1243,14 +1274,16 @@ export async function checkVestingContractStatus(
             allTransfers = await getCachedTransfers(
               normalizedContractAddress,
               tokenAddressForTransfers,
-              network
+              network,
+              tokenId
             );
 
             // 2. Verificar si hay que sincronizar nuevas transferencias
             const lastTimestamp = await getLastCachedTransferTimestamp(
               normalizedContractAddress,
               tokenAddressForTransfers,
-              network
+              network,
+              tokenId
             );
 
             console.log(`Última transferencia en caché: ${lastTimestamp ? lastTimestamp.toISOString() : 'ninguna'}`);
@@ -1332,7 +1365,11 @@ export async function checkVestingContractStatus(
                   newTransfers,
                   normalizedContractAddress,
                   tokenAddressForTransfers,
-                  network
+                  network,
+                  tokenId,
+                  result.tokenSymbol,
+                  result.tokenName,
+                  result.tokenDecimals ? Number(result.tokenDecimals) : 18
                 );
 
                 // Agregar a allTransfers
@@ -1469,7 +1506,7 @@ export async function checkVestingContractStatus(
           // Obtener los beneficiarios y sus schedules (solo si se solicita)
           if (loadBeneficiaries) {
             try {
-              const beneficiaries = await getBeneficiariesFromTransferHistory(normalizedContractAddress, network, finalTokenAddress);
+              const beneficiaries = await getBeneficiariesFromTransferHistory(normalizedContractAddress, network, finalTokenAddress, tokenId);
               console.log("Beneficiarios encontrados:", beneficiaries);
 
               // Establecer el número total de beneficiarios inmediatamente
@@ -1901,7 +1938,8 @@ export async function checkVestingContractStatus(
 async function getBeneficiariesFromTransferHistory(
   contractAddress: string,
   network: string,
-  tokenAddress?: string
+  tokenAddress?: string,
+  tokenId?: string
 ): Promise<string[]> {
   try {
     // Si no se proporciona tokenAddress, no podemos obtener beneficiarios
@@ -1913,7 +1951,8 @@ async function getBeneficiariesFromTransferHistory(
     const transfers = await getCachedTransfers(
       contractAddress,
       tokenAddress,
-      network
+      network,
+      tokenId
     );
 
     // Extraer direcciones únicas de beneficiarios (destinatarios de transferencias de salida)
