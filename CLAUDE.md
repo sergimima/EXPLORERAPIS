@@ -1,1177 +1,519 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
+
+---
 
 ## Project Overview
 
-This is a blockchain explorer application for the Base blockchain network, built with Next.js 14, focused on token balances, transfers, and vesting contract information. The project integrates with BaseScan API and uses ethers.js v6 for blockchain interactions.
+**TokenLens** - Multi-tenant SaaS blockchain explorer for Base network focused on token analytics, transfers, and vesting contracts.
+
+**Tech Stack:** Next.js 15, TypeScript 5.2, PostgreSQL + Prisma 6.2, NextAuth.js, ethers.js 6, Tailwind CSS, Recharts
+
+**Key Features:**
+- Token balances & transfer history with incremental caching
+- Vesting contract detection & processing (multiple strategies)
+- Advanced analytics (whale tracking, holder distribution, exchange flows)
+- Multi-tenant with org-isolated data
+- Role-based access (SUPER_ADMIN, ADMIN, MEMBER, VIEWER)
+- Admin panel for SaaS management
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Node.js 20+
+- Docker Desktop (for PostgreSQL)
+- Git
+
+### First-Time Setup
+
+```bash
+# 1. Clone and install
+git clone <repo>
+cd explorerapis
+npm install
+
+# 2. Start PostgreSQL
+docker run --name explorer-postgres \
+  -e POSTGRES_PASSWORD=yourpassword \
+  -p 5432:5432 \
+  -d postgres:14
+
+# 3. Configure environment
+cp .env.example .env.local
+# Edit .env.local:
+#   DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/explorer_db"
+#   NEXTAUTH_SECRET="<generate with: openssl rand -base64 32>"
+#   NEXTAUTH_URL="http://localhost:4200"
+#   <Add API keys for BaseScan, Etherscan, Moralis, QuikNode, Routescan>
+
+# 4. Initialize database
+npx prisma db push
+npm run db:seed
+
+# 5. Create admin users
+npx tsx prisma/seed-user.ts         # admin@vottun.com / admin123
+npx tsx prisma/seed-superadmin.ts   # superadmin@tokenlens.com / super123
+
+# 6. Start dev server
+npm run dev
+# → http://localhost:4200
+```
+
+### Login Credentials
+
+**Regular User:** admin@vottun.com / admin123
+**SUPER_ADMIN:** superadmin@tokenlens.com / super123
+
+---
 
 ## Development Commands
 
-- `npm run dev` - Start development server on port 4200 (http://localhost:4200)
-- `npm run build` - Build the production application
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint
+### NPM Scripts
+
+```bash
+npm run dev          # Start dev server on port 4200
+npm run build        # Build for production (includes prisma generate)
+npm start            # Start production server
+npm run lint         # Run ESLint
+```
+
+### Database Commands
+
+```bash
+# Prisma commands
+npx prisma generate                      # Generate Prisma Client (after schema changes)
+npx prisma db push                       # Push schema to DB (dev)
+npx prisma migrate dev --name <name>     # Create migration
+npx prisma migrate deploy                # Apply migrations (prod)
+npx prisma db reset                      # Reset DB (destructive!)
+npx prisma studio                        # Open DB GUI
+
+# NPM shortcuts
+npm run db:seed                          # Seed initial data (13 addresses)
+npm run db:migrate-vottun                # Migrate existing Vottun data
+npm run db:studio                        # Open Prisma Studio
+npm run db:migrate                       # Create migration
+npm run db:reset                         # Reset database
+
+# Migration scripts
+npx tsx prisma/seed-user.ts              # Create regular user
+npx tsx prisma/seed-superadmin.ts        # Create SUPER_ADMIN
+npx tsx prisma/migrate-vottun-data.ts    # Migrate 8,959 Vottun records
+npx tsx prisma/migrate-vesting-contracts.ts
+npx tsx prisma/migrate-abis.ts
+npx tsx prisma/migrate-admin-setup.ts
+npx tsx prisma/backfill-transfer-tokens.ts  # Fix "UNKNOWN" tokens
+```
+
+---
 
 ## Key Dependencies
 
-**Core Framework:**
-- Next.js 14.0.0 - React framework for production
-- React 18.2.0 - UI library
-- TypeScript 5.2.2 - Type safety
+**Core:** Next.js 15.5, React 19.2, TypeScript 5.2
+**Database:** PostgreSQL + Prisma 6.2 + @prisma/adapter-pg
+**Auth:** NextAuth.js 4.24 (bcrypt hashing)
+**Blockchain:** ethers.js 6.13
+**Styling:** Tailwind CSS 3.4
+**Charts:** Recharts 3.4
+**Email:** Resend 6.9 (for invitations)
+**External APIs:** BaseScan, Routescan, Etherscan V2, Moralis, QuikNode, DEX Screener
 
-**Database & ORM:**
-- PostgreSQL - Production database (Docker: explorer-postgres)
-- Prisma 6.2.0 - Type-safe ORM with migrations
-- @prisma/client - Prisma client for database queries
-- @prisma/adapter-pg - PostgreSQL adapter for better performance
-- pg - PostgreSQL client for connection pooling
+---
 
-**Blockchain Integration:**
-- ethers.js 6.13.5 - Ethereum/Base blockchain interactions, contract calls, wallet operations
-- axios 1.8.4 - HTTP client for API calls
-- swr 2.2.4 - Data fetching and caching hooks
+## Known Issues & Gotchas
 
-**Data Visualization:**
-- recharts 2.15.1 - React charting library for analytics visualizations
+### 🔴 Critical Issues
 
-**Styling:**
-- Tailwind CSS 3.4.17 - Utility-first CSS framework
-- Autoprefixer 10.4.21 - PostCSS plugin for vendor prefixes
+1. **Missing `tokenId` parameter** (TODOs in code)
+   - `src/lib/blockchain.ts:757` - `getVestingInfo()` doesn't receive tokenId
+   - `src/lib/blockchain.ts:980` - Internal `getTokenSupplyInfo()` call
+   - **Impact:** Falls back to .env keys instead of TokenSettings
+   - **Fix:** Always pass `activeToken?.id` from components
 
-**External APIs Used:**
-- BaseScan API - Contract ABIs and blockchain data (with Routescan fallback)
-- Routescan API - Multi-chain blockchain explorer (fallback for BaseScan/Etherscan)
-- Etherscan V2 API - Transaction history for Base network
-- Moralis API - Real-time holder data and token ownership
-- DEX Screener API - Liquidity and trading data for Aerodrome and other DEXs (free, no key)
-- QuikNode - RPC provider and price data endpoints
-- Uniswap V4 StateView - On-chain liquidity data for Uniswap V4 pools via contract calls
+2. **DEPRECATED endpoint:** `/api/test-vtn`
+   - Marked DEPRECATED in code (lines 3, 13)
+   - Use multi-tenant APIs instead
 
-## Architecture Overview
+3. **Version mismatches** in docs
+   - Docs claim: Next.js 14.0.0, React 18.2.0
+   - Actual: Next.js 15.5.11, React 19.2.4
+   - (Works fine, just doc inconsistency)
 
-### Core Library Structure (`src/lib/`)
+### ⚠️ Important Warnings
 
-**blockchain.ts** - Central blockchain interaction module organized by feature tabs:
-- Token transfers retrieval using Etherscan V2 API
-- Token balance queries with fallback mechanisms for rate limits
-- Vesting contract information extraction with multiple contract type support
-- Token supply information from Vottun API endpoints
-- Network configuration for Base Mainnet, Base Testnet (Goerli), and Base Sepolia
+4. **Port 4200 conflicts**
+   - If port in use, change in `package.json`: `"dev": "next dev -p 4201"`
 
-**Vesting Contract Helpers:**
-- `vestingHelpers.ts` - Utility functions for processing beneficiary data and calculating releasable tokens
-- `vestingContractHelpers.ts` - Specialized processing using `getVestingListByHolder` method
-- `vestingContractStrategies.ts` - Strategy pattern implementation for different vesting contract types
-- `contractAbis.ts` - Preloaded ABIs to reduce BaseScan API calls
+5. **Prisma Client cache**
+   - After schema changes: `npx prisma generate` + restart dev server
+   - Or you'll get "Invalid invocation" errors
 
-**Core Utilities:**
-- `types.ts` - TypeScript type definitions for Network, TokenTransfer, VestingInfo, etc.
-- `utils.ts` - Common utility functions
-- `limits.ts` - SaaS limit validation helpers (Sprint 4.5)
-  - `checkTokensLimit()` - Verify if org can create more tokens
-  - `checkMembersLimit()` - Verify if org can add more members
-  - `incrementApiCalls()` - Track API usage (soft limit)
-  - `canPerformAction()` - Generic limit validation
-  - All functions return: `{ allowed: boolean, current: number, limit: number, message?: string }`
+6. **API Key Hierarchy** (CRITICAL for multi-tenant)
+   ```
+   1. TokenSettings (per token) → Highest priority
+   2. SystemSettings (global)   → Fallback
+   3. .env variables            → Last resort
+   ```
+   Always pass `tokenId` to Server Actions to use org-specific keys.
 
-**Authentication & Database:**
-- `auth.ts` - NextAuth.js configuration with CredentialsProvider and GoogleProvider
-- `auth-helpers.ts` - Helper functions (Sprint 4.2)
-  - `requireSuperAdmin()` - Throws 403 if not SUPER_ADMIN
-  - Used in all `/api/admin/*` routes
-- `db.ts` - Prisma client singleton with PostgreSQL adapter and connection pooling
-- `email.ts` - Resend email service wrapper (Sprint 2.5)
-  - `sendInvitationEmail()` - HTML template for team invitations
-  - Fallback graceful if no API key configured
+7. **Windows users**
+   - Use Docker Desktop with WSL2 backend
+   - Line endings: `git config --global core.autocrlf false`
 
-### Database Architecture (PostgreSQL + Prisma)
+8. **Old TransferCache data**
+   - May have `tokenSymbol: "UNKNOWN"`
+   - Run: `npx tsx prisma/backfill-transfer-tokens.ts`
 
-The project uses PostgreSQL with Prisma ORM for data persistence and caching.
+---
 
-**Database Models:**
+## Project Structure (Brief)
 
-**Multi-Tenant Models (Sprint 1.1):**
+```
+src/
+├── app/                    # Next.js App Router (pages + API routes)
+│   ├── admin/              # SUPER_ADMIN panel
+│   ├── api/                # API endpoints
+│   ├── auth/               # Auth pages
+│   ├── dashboard/          # Main dashboard
+│   ├── explorer/           # Public explorers (tokens, vestings, analytics)
+│   └── settings/           # Org settings
+├── components/             # React components
+├── actions/                # Server Actions (blockchain.ts)
+├── contexts/               # TokenContext, etc.
+├── lib/                    # Core utilities (blockchain, auth, db, vesting helpers)
+└── middleware.ts           # Route protection
 
-1. **User** - User accounts with authentication
-   - Email/password auth with bcrypt hashing
-   - OAuth support (Google)
-   - Roles: SUPER_ADMIN, ADMIN, MEMBER, VIEWER
-   - Belongs to Organization
+prisma/
+├── schema.prisma           # 17 models (4 multi-tenant + 5 SaaS + 8 data)
+├── migrations/             # Database migrations
+├── seed.ts                 # Initial seed
+└── [migration scripts]
 
-2. **Organization** - Multi-tenant isolation
-   - Each org has its own tokens and data
-   - Owner and members with role-based access
-   - Settings for API keys and configuration
-
-3. **Token** - Token configuration per organization
-   - Token address, symbol, decimals
-   - Network and chain ID
-   - Custom settings per organization
-
-4. **OrganizationMember** - User-Organization relationship
-   - Join date and role
-   - Many-to-many relationship
-
-**SaaS & Billing Models (Sprint 4.1):**
-
-5. **Plan** - Configurable subscription plans
-   - Fields: name, slug, price, currency, stripePriceId
-   - Limits: tokensLimit, apiCallsLimit, transfersLimit, membersLimit (-1 = unlimited)
-   - Features: JSON array, isActive, isPublic, sortOrder
-   - Managed via `/admin/plans` (SUPER_ADMIN only)
-
-6. **Subscription** - Organization subscriptions
-   - Links Organization to Plan
-   - Fields: planId, status, currentPeriodStart, currentPeriodEnd
-   - Stripe integration: stripeCustomerId, stripeSubscriptionId
-   - Override limits: tokensLimit, apiCallsLimit, transfersLimit, membersLimit
-
-7. **SystemSettings** - Global SaaS configuration (singleton)
-   - API Keys: defaultBasescanApiKey, defaultEtherscanApiKey, defaultMoralisApiKey, defaultQuiknodeUrl, defaultRoutescanApiKey
-   - Email: resendApiKey, resendFromEmail
-   - Stripe: stripePublicKey, stripeSecretKey
-   - General: appName, appUrl, supportEmail
-   - Managed via `/admin/settings` (SUPER_ADMIN only)
-
-8. **Invitation** - Team member invitations (Sprint 2.5)
-   - Fields: organizationId, email, role, token (unique)
-   - Expiration: expiresAt (7 days default)
-   - Status tracking: acceptedAt
-   - Email sent via Resend integration
-
-**Data Models (Multi-Tenant Isolated):**
-
-9. **Contract** - Generic contract model (vesting, staking, liquidity, etc.)
-   - Supports any type of smart contract with categorization
-   - Categories (enum): VESTING, STAKING, LIQUIDITY, DAO, TREASURY, MARKETING, TEAM, OTHER
-   - Each contract can have a custom ABI (via CustomAbi relation)
-   - Fields: name, address, network, category, isActive, description
-   - Managed via `/settings/tokens/[id]/contracts` page
-   - **Multi-tenant**: Filtered by tokenId
-
-10. **CustomAbi** - ABIs for multiple contract addresses
-    - Supports multiple ABIs per token (one per contractAddress + network combo)
-    - Unique constraint: [tokenId, contractAddress, network]
-    - Source types: STANDARD, UPLOADED, BASESCAN
-    - Auto-detection from BaseScan API supported
-    - Includes methodCount and eventCount for each ABI
-    - **Multi-tenant**: Filtered by tokenId
-
-11. **KnownAddress** - Labeled blockchain addresses
-    - Stores names and metadata for contracts, exchanges, wallets
-    - Types: CONTRACT, WALLET, EXCHANGE, VESTING, TOKEN, UNKNOWN
-    - Used to display friendly names throughout the UI
-    - Managed via `/admin/addresses` panel
-    - **Multi-tenant**: Filtered by tokenId
-
-12. **TransferCache** - Incremental transfer history cache
-    - Stores token transfers with deduplication by hash
-    - Implements incremental sync (only fetches new transfers since last timestamp)
-    - Reduces API calls by ~90% after initial load
-    - Indexed by tokenAddress, timestamp, and hash
-    - **Multi-tenant**: Filtered by tokenId
-
-13. **HolderSnapshot** - Periodic holder snapshots
-    - Stores top holder data every 5 minutes
-    - Includes balance, percentage, contract/exchange flags
-    - Enables historical holder analysis
-    - Indexed by tokenAddress, network, and snapshotAt
-    - **Multi-tenant**: Filtered by tokenId
-
-14. **TokenSupplyCache** - Token supply information cache
-    - Caches total, circulating, and locked supply
-    - 5-minute TTL to balance freshness and API usage
-    - Migrated to DB model (previously in-memory)
-    - **Multi-tenant**: Filtered by tokenId
-
-15. **VestingCache** - Vesting contract cache
-    - **Multi-tenant**: Filtered by tokenId
-
-16. **VestingTransferCache** - Vesting transfer cache
-    - **Multi-tenant**: Filtered by tokenId
-
-17. **VestingBeneficiaryCache** - Vesting beneficiary cache
-    - **Multi-tenant**: Filtered by tokenId
-
-**Performance Benefits:**
-- 🚀 Analytics page load: 10-15s → 2-4s (75-80% improvement)
-- 💰 API call reduction: ~90% (only fetches new data)
-- 📊 Complete historical data for analysis
-- ⚡ Instant load from cache after first fetch
-
-**Database Setup:**
-```bash
-# Using Docker (current setup)
-docker run --name explorer-postgres -e POSTGRES_PASSWORD=yourpassword -p 5432:5432 -d postgres
-
-# Prisma commands
-npx prisma generate          # Generate Prisma Client
-npx prisma db push          # Push schema to database
-npx prisma db seed          # Seed initial data (13 addresses)
-npx prisma studio           # Open database GUI
+docs/                       # 📚 Detailed documentation
+├── ARCHITECTURE.md         # Components, pages, file structure
+├── API_REFERENCE.md        # All API endpoints
+├── DATABASE.md             # Prisma schema, migrations
+├── TOKENS_AND_BALANCES.md  # Token system guide
+├── VESTING_CONTRACTS.md    # Vesting system guide
+└── TROUBLESHOOTING.md      # Common errors
 ```
 
-**Connection:**
-- Uses `@prisma/adapter-pg` with connection pooling
-- Singleton pattern to prevent connection leaks
-- Configured in `src/lib/db.ts`
+**Path Alias:** `@/*` → `./src/*`
 
-**Seed Data (13 addresses):**
-- 8 Vottun vesting contracts
-- 1 VTN token address
-- 4 known exchanges (Coinbase, Gate.io)
+---
 
-### Network Configuration
+## Multi-Tenant Architecture
 
-The application supports three networks defined in `blockchain.ts`:
-- `base` - Base Mainnet (Chain ID: 8453)
-- `base-testnet` - Base Goerli Testnet (Chain ID: 84531)
-- `base-sepolia` - Base Sepolia Testnet (Chain ID: 84532)
+### Data Isolation
 
-Each network has RPC URLs, explorer API URLs, and some have alternative RPC endpoints for failover.
+**Every data model has `tokenId` foreign key** for isolation:
+- TransferCache, HolderSnapshot, TokenSupplyCache
+- VestingCache, VestingTransferCache, VestingBeneficiaryCache
+- Contract, CustomAbi, KnownAddress
 
-### API Routes (`src/app/api/`)
-
-**Token & Balance APIs:**
-- `/api/tokens/balance` - Get token balances for a wallet
-- `/api/tokens/transfers` - Get token transfers with optional filtering
-- `/api/token-supply` - Get token supply information (total, circulating, locked)
-  - ⚠️ Currently uses in-memory cache (5 minutes TTL), migration to TokenSupplyCache pending
-- `/api/token-analytics` - Advanced token analytics with incremental caching
-  - Uses TransferCache for incremental transfer sync (only fetches new data)
-  - Uses HolderSnapshot for periodic holder snapshots (5-minute intervals)
-  - Includes whale movements, holder distribution, price data, liquidity, and alerts
-  - Supports manual refresh via `forceRefresh` query parameter
-
-**Address Management APIs:**
-- `GET /api/addresses` - List all known addresses with optional filters
-  - Query params: `type`, `search`, `limit`, `offset`
-  - Returns addresses with name, type, category, tags, color
-- `POST /api/addresses` - Create or update (upsert) an address label
-  - Body: `{ address, name, type, category?, description?, tags?, color? }`
-  - Used by admin panel and edit modals
-- `DELETE /api/addresses` - Delete an address label by address
-  - Query param: `address`
-
-**Vottun Integration APIs:**
-- `/api/vottun/searchUserByEmail` - Search Vottun users by email
-- `/api/vottun/userPoints` - Get user points from Vottun
-- `/api/vottun/userTokens` - Get user tokens from Vottun
-- `/api/vottun-search` - Vottun-specific search endpoint
-
-**Utility APIs:**
-- `/api/search` - General search endpoint (supports address lookup with labels)
-- `/api/test` - Simple health check endpoint
-- `/api/test-vtn` - VTN token API integration test with Etherscan V2
-
-**Authentication APIs (Sprint 1.1):**
-- `/api/auth/[...nextauth]` - NextAuth.js handlers (signin, signout, session, providers)
-- `POST /api/auth/signup` - User registration endpoint
-  - Body: `{ email, password, name, organizationId? }`
-  - Creates user with MEMBER role by default
-  - Hashes password with bcrypt (10 rounds)
-  - Auto-login after signup
-
-**Admin Panel APIs (Sprint 4.2) - SUPER_ADMIN only:**
-- `GET/POST /api/admin/plans` - List and create plans
-- `GET/PUT/DELETE /api/admin/plans/[id]` - Manage individual plan
-- `POST /api/admin/plans/reorder` - Update sortOrder for drag & drop
-- `GET /api/admin/organizations` - List all organizations with stats
-  - Includes: total tokens, members, plan info, custom API indicators
-- `GET/PATCH /api/admin/organizations/[id]` - Organization details and assign plan
-  - Returns: full org info, members, tokens, usage stats, plan limits
-- `GET /api/admin/users` - List all users with filters
-  - Stats: total, by role, org counts
-  - Filters: role, search query
-- `GET/PUT /api/admin/settings` - Global SystemSettings (singleton)
-  - Tabs: API Keys, Email config, Stripe keys, General settings
-- `GET /api/admin/stats` - Dashboard statistics
-  - MRR, new orgs, cancellations, plan distribution
-  - Data for Recharts graphs (12 months historical)
-- `POST /api/admin/stripe/webhook` - Webhook stub (future Stripe integration)
-
-**Organization Management APIs (Sprint 2.5):**
-- `POST /api/organizations/invite` - Create team invitation
-  - Sends email via Resend with unique token
-  - Returns: invitation object
-- `GET /api/organizations/invitations` - List pending invitations
-- `DELETE /api/organizations/invitations/[id]` - Cancel invitation
-- `POST /api/invitations/[token]/accept` - Accept invitation
-  - Auto-creates user if email not registered
-  - Adds to organization if user exists
-
-### Key Features
-
-**Vesting Contract Detection:**
-The system automatically detects vesting contract types:
-- `VestingSchedules` - Contracts with `getVestingSchedulesCount` and `getVestingScheduleById`
-- `Vottun` - Contracts with `getVestingListByHolder`
-- `OpenZeppelin` - Contracts with `vestingSchedules`
-- `GenericVesting` / `CustomVesting` / `UnknownVesting` - Fallback categories
-
-**Token Information:**
-The codebase is hardcoded to work with Vottun Token (VTN):
-- Address: `0xA9bc478A44a8c8FE6fd505C1964dEB3cEe3b7abC`
-- Symbol: VTN
-- Decimals: 18
-
-**Rate Limiting and Caching:**
-- BaseScan API calls implement retry logic with exponential backoff
-- **Automatic Fallback System**: If BaseScan fails (rate limit, errors), automatically falls back to Routescan
-  - Orden de fallback: BaseScan (3 retries) → Routescan (3 retries) → Error
-  - ABIs guardados en BD indican la fuente (BASESCAN, ROUTESCAN, STANDARD, UPLOADED)
-  - Logs claros indican qué API se usó exitosamente
-- **Incremental Transfer Caching**: TransferCache stores all transfers and only fetches new ones since last timestamp
-  - First load: ~10s (fetches all history)
-  - Subsequent loads: 2-4s (reads from DB + fetches only new transfers)
-  - Reduces API calls by ~90%
-- **Holder Snapshots**: HolderSnapshot stores top holders every 5 minutes
-  - Instant load if snapshot is <5 minutes old
-  - Enables historical holder analysis
-- **Token Supply Cache**: In-memory cache (5 minutes TTL)
-  - ⚠️ Pending migration to TokenSupplyCache model for persistence
-- Manual refresh via "Actualizar" button with timestamp display ("hace Xm")
-- Fallback to transfer history analysis when balance API fails
-
-### Component Structure (`src/components/`)
-
-**Token Display Components:**
-- `TokenBalance.tsx` - Displays wallet token balances with proper empty states (no mock data)
-- `TokenTransfersList.tsx` - Shows token transfers with filtering and sorting
-
-**Vesting Components:**
-- `VestingInfo.tsx` - Detailed vesting information for wallet/contract pair
-- `VestingSummary.tsx` - Overview of vesting contract status
-- `VestingContractList.tsx` - Grid display of predefined vesting contracts (Vottun World, Investors, Marketing, Staking, Liquidity, Promos, Team, Reserve)
-- `TokenSupplyCard.tsx` - Displays token supply metrics with loading progress (Total, Circulating, Locked Supply)
-
-**UI Control Components:**
-- `NetworkSelector.tsx` - Network selection dropdown (Base, Base Testnet, Base Sepolia)
-- `TokenFilter.tsx` - Token filtering controls
-- `WalletInput.tsx` - Wallet address input with validation
-- `TabsContainer.tsx` - Tab navigation component
-
-**Search & Navigation:**
-- `GlobalSearch.tsx` - Universal search component with Cmd+K / Ctrl+K shortcut
-  - Searches addresses, names, transaction hashes
-  - Shows known addresses with labels
-  - Quick navigation to analytics, holders, etc.
-
-**Data Visualization:**
-- `charts/ExchangeFlowChart.tsx` - Bar chart showing net flow to/from exchanges over time
-- `charts/WhaleTimelineChart.tsx` - Scatter plot of large transfers (whales) timeline
-- `charts/HolderDistributionChart.tsx` - Pie chart of holder concentration (Top 10, Top 50, Rest)
-- All charts built with Recharts, responsive and interactive
-
-**Address Management:**
-- `EditAddressModal.tsx` - Modal for editing address labels inline
-  - Triggered by pencil icon next to addresses
-  - Saves to database via `/api/addresses`
-  - Supports name, type, category, description, tags, color
-
-**Admin Components:**
-- Located in admin pages (see Pages section below)
-- Table views, filters, import/export functionality
-- Statistics dashboards
-
-### Pages (`src/app/`)
-
-**Public Pages:**
-- `/` - Home page with navigation cards to access different explorer sections
-- `/dashboard` - Unified dashboard combining token, vesting, and analytics explorers
-  - Token balances and transfers
-  - Vesting contract information
-  - Analytics overview
-- `/explorer/tokens` - Token explorer interface with balance and transfer views
-- `/explorer/vestings` - Vesting contracts viewer with:
-  - VestingContractList component for selecting predefined contracts
-  - TokenSupplyCard showing supply metrics
-  - Detailed vesting information per contract
-- `/explorer/analytics` - Advanced token analytics dashboard featuring:
-  - Real-time price data and liquidity metrics from DEX Screener
-  - Whale movement tracking with configurable thresholds
-  - Top holders distribution (via Moralis API)
-  - Exchange flow analysis (net flow to CEX)
-  - Automated alerts system (whale moves, accumulation, distribution, liquidity changes)
-  - Interactive tabs: Overview, Whale Movements, Top Holders, Recent Activity
-  - Three main charts (Exchange Flow, Whale Timeline, Holder Distribution)
-  - Sortable large transfers table
-  - Period selection (1 day, 7 days, 30 days, 90 days)
-  - Manual "Actualizar" button with timestamp display
-- `/docs` - API documentation
-
-**Authentication Pages (Sprint 1.1):**
-- `/auth/signin` - User login page
-  - Email/password form
-  - Google OAuth button
-  - Link to signup page
-- `/auth/signup` - User registration page
-  - Email, password, name fields
-  - Password confirmation
-  - Auto-login after signup, redirects to `/onboarding`
-- `/auth/error` - Authentication error page
-  - Displays NextAuth error messages
-
-**Admin Panel (`/admin/*`) - SUPER_ADMIN only (Sprint 4.3):**
-- `/admin/dashboard` - Complete SaaS metrics dashboard
-  - 4 stats cards: Total orgs, Active subscriptions, MRR, Total users
-  - 3 Recharts graphs: New orgs (12 months), Cancellations, MRR evolution
-  - Plan distribution chart (pie chart)
-  - Recent organizations table
-  - **Alerts section**: Organizations near limits (≥80% usage)
-    - Color coded: Yellow (80-89%), Red (90%+)
-    - Shows: Tokens 🪙, API Calls 📡, Members 👥
-    - Direct links to org detail
-- `/admin/organizations` - Organizations management
-  - Table with: Name, Owner, Plan, Members, Tokens, Created
-  - **Custom APIs indicator**: 🔑 icon if org has custom API keys
-  - Filters: Name search (debounced), Plan filter, Status
-  - Click row → Detail page
-- `/admin/organizations/[id]` - Organization detail page
-  - Info card: Name, slug, owner, plan, created date
-  - **Change plan**: Dropdown to assign different plan
-  - **Progress bars**: Usage vs limits (Tokens, API Calls, Members)
-  - **Custom API Keys indicator**: Badge showing which services are custom
-  - Members table: Email, role, joined date
-  - Tokens table: Symbol, address, network, contracts count
-  - Stats cards: Total transfers, unique addresses, last activity
-- `/admin/plans` - Plans management
-  - Grid view with drag & drop reordering (@dnd-kit)
-  - Each card: Name, price, limits, features, active/public status
-  - Inline editing: Click to edit any plan
-  - Create new plan button
-  - Delete with validation (checks if used)
-- `/admin/settings` - Global configuration (4 tabs)
-  - **API Keys tab**: Default keys (BaseScan, Etherscan, Moralis, QuikNode)
-  - **Email tab**: Resend API key and from email
-  - **Stripe tab**: Public and secret keys
-  - **General tab**: App name, URL, support email
-- `/admin/users` - Global users list
-  - Stats cards: Total, SUPER_ADMIN, ADMIN, MEMBER count
-  - Table: Email, name, role (color coded), org counts, verified status
-  - Tooltips: Hover to see org names
-  - Filters: Role, search by email/name
-- `/admin/health` - System health check (future)
-
-**Admin Layout:**
-- Sidebar navigation with icons for all sections
-- Protected routes with middleware (requires SUPER_ADMIN role)
-- Consistent dark mode support
-- User info in sidebar footer
-
-**Settings Pages (`/settings/*`) - Authenticated users (Sprint 2.5):**
-- Layout with persistent sidebar (icons + descriptions)
-- `/settings` - Redirects to `/settings/general`
-- `/settings/general` - Organization information
-  - Org name, slug, ID
-  - Owner information
-- `/settings/members` - Team management
-  - Active members table (email, role, joined date)
-  - **Invite Member** button → Modal form
-  - Pending invitations list with cancel option
-  - Invitation flow integrated with Resend emails
-- `/settings/tokens` - Token management
-  - List of organization tokens
-  - **Add Token** button → Modal form (address + network verification)
-  - Click token → Detail pages
-- `/settings/tokens/[id]` - Individual token settings (multiple tabs)
-  - **General**: Basic info, whale threshold, cache settings
-  - **API Keys**: Custom API keys (BaseScan, Etherscan, Moralis, QuikNode, Routescan)
-  - **Contracts**: Manage contracts linked to token
-  - **ABI**: Manage custom ABIs
-  - **Supply**: Configure supply method (API vs ONCHAIN)
-- Protected routes with middleware (requires organization membership)
-
-## Important Implementation Details
-
-### API Fallback System (Routescan Integration)
-
-The application implements an **automatic fallback system** to ensure high availability when fetching contract ABIs:
-
-**Fallback Order:**
-1. **Database Cache** - First checks for previously cached ABIs in the database
-2. **BaseScan API** - Attempts to fetch from BaseScan (3 retries with exponential backoff)
-3. **Routescan API** - If BaseScan fails, automatically falls back to Routescan (3 retries)
-4. **Legacy Cache** - Falls back to hardcoded ABIs if both APIs fail
-5. **Error** - Only fails if all sources are exhausted
-
-**Implementation Details:**
+**⚠️ CRITICAL:** Always filter queries by `tokenId`:
 ```typescript
-// src/lib/blockchain.ts - getContractABIWithCache()
-// Flujo automático:
-// 1. Database → 2. BaseScan → 3. Routescan → 4. Legacy → Error
+// ✅ CORRECT
+await prisma.transferCache.findMany({ where: { tokenId } });
+
+// ❌ WRONG (cross-tenant leak)
+await prisma.transferCache.findMany({ where: { tokenAddress: '0x...' } });
+```
+
+### API Key Hierarchy
+
+```typescript
+// Server Actions must receive tokenId
+const { activeToken } = useToken();
+await fetchTokenBalances(wallet, network, activeToken?.id);  // ✅
+
+// Without tokenId, uses only .env keys ❌
+await fetchTokenBalances(wallet, network);
+```
+
+---
+
+## Common Tasks
+
+### Add New Address Label
+```bash
+# Via UI: /admin/addresses/new
+# Via API: POST /api/addresses
+# Import bulk: /admin/import (CSV/JSON)
+```
+
+### Create New User
+```bash
+# Via UI: /auth/signup
+# Via script: npx tsx prisma/seed-user.ts
+```
+
+### Access Admin Panel
+```bash
+# Login as: superadmin@tokenlens.com / super123
+# Navigate to: http://localhost:4200/admin/dashboard
+```
+
+### Configure API Keys
+```bash
+# Global defaults (SUPER_ADMIN):
+#   /admin/settings → API Keys tab
+
+# Per-token (Org ADMIN):
+#   /settings/tokens/[id] → API Keys tab
+```
+
+### Check Cache Status
+```bash
+npx prisma studio
+# → Check TransferCache, HolderSnapshot tables
+```
+
+### Force Data Refresh
+```bash
+# Click "Actualizar" button in analytics UI
+# Or use ?forceRefresh=true query parameter
+```
+
+---
+
+## Database Models (17 total)
+
+**Multi-Tenant Core (4):**
+- `User`, `Organization`, `Token`, `OrganizationMember`
+
+**SaaS & Billing (5):**
+- `Plan`, `Subscription`, `SystemSettings`, `Invitation`, `TokenSettings`
+
+**Data Models - Multi-Tenant Isolated (8):**
+- `Contract` (generic: vesting, staking, liquidity, DAO, treasury, etc.)
+- `CustomAbi` (per token + contract + network)
+- `KnownAddress` (labeled addresses)
+- `TransferCache` (incremental sync, 90% API reduction)
+- `HolderSnapshot` (5-minute snapshots)
+- `TokenSupplyCache`, `VestingCache`, `VestingBeneficiaryCache`
+
+**Performance Benefits:**
+- Analytics: 10-15s → 2-4s (75-80% faster)
+- API calls: -90% (incremental caching)
+- Complete historical data
+
+See [DATABASE.md](docs/DATABASE.md) for complete schema.
+
+---
+
+## Vesting System
+
+### Auto-Detection
+
+System detects contract type by available methods:
+- **VestingSchedules** - Has `getVestingSchedulesCount()`, `getVestingScheduleById()`
+- **Vottun** - Has `getVestingListByHolder()` (faster, single call)
+- **OpenZeppelin** - Has `vestingSchedules()`
+- **Generic/Unknown** - Fallback patterns
+
+### Strategy Pattern
+
+Each contract type has its own processing strategy. See [VESTING_CONTRACTS.md](docs/VESTING_CONTRACTS.md).
+
+### Predefined Contracts (8)
+
+Vottun World, Investors, Marketing, Staking, Liquidity, Promos, Team, Reserve
+
+---
+
+## API Fallback System
+
+### ABI Fetching
+```
+Database Cache
+    ↓ (if not found)
+BaseScan API (3 retries with exponential backoff)
+    ↓ (if fails)
+Routescan API (3 retries)
+    ↓ (if fails)
+Legacy Cache (contractAbis.ts)
+    ↓ (if fails)
+Error
+```
+
+### Transfer History
+```
+Etherscan V2 API (primary)
+    ↓ (if fails)
+Routescan API (fallback)
 ```
 
 **Benefits:**
-- 🚀 **High Availability**: Rate limits on one API don't block the application
-- 💰 **Cost Efficiency**: Uses free tier of multiple services
-- 📊 **Tracking**: ABIs saved to database include source (`BASESCAN` or `ROUTESCAN`)
-- 🔍 **Logging**: Clear console logs indicate which API was used successfully
+- 🚀 High availability (rate limits don't block)
+- 💰 Uses free tiers efficiently
+- 📊 ABIs saved with source tracking
+- 🔍 Clear console logs
 
-**API Endpoints Used:**
-- **BaseScan**: `https://api.basescan.org/api` (Base Mainnet)
-- **Routescan**: `https://api.routescan.io/v2/network/mainnet/evm/8453/etherscan/api`
+---
 
-**Rate Limiting Behavior:**
-- Each API gets 3 retry attempts with exponential backoff (1s, 2s, 3s)
-- If rate limit detected, waits before retrying
-- Only switches to fallback after all retries exhausted
+## Performance Optimizations
 
-### Vesting Contract Processing
+1. **Incremental Transfer Caching**
+   - First load: ~10s (fetches all history)
+   - Subsequent: 2-4s (reads DB + fetches only new)
+   - 90% API call reduction
 
-When working with vesting contracts:
-1. The system first checks for preloaded ABIs in `contractAbis.ts`
-2. If not found, fetches ABI from BaseScan with retry logic
-3. Applies appropriate strategy based on detected contract type
-4. Processes beneficiaries either by index or by holder depending on available methods
-5. Calculates releasable tokens based on time elapsed and vesting schedule
+2. **Holder Snapshots**
+   - Created every 5 minutes
+   - Instant load if recent
+   - Enables historical analysis
 
-**Predefined Vesting Contracts:**
-The application includes 8 predefined vesting contracts accessible via VestingContractList:
-- Vottun World: `0xa699Cf416FFe6063317442c3Fbd0C39742E971c5`
-- Investors: `0x3e0ef51811B647E00A85A7e5e495fA4763911982`
-- Marketing: `0xE521B2929DD28a725603bCb6F4009FBb656C4b15`
-- Staking: `0x3a7cf4cCC76bb23Cf15845B0d4f05BafF1D478cF`
-- Liquidity: `0x417Fc9c343210AA52F0b19dbf4EecBD786139BC1`
-- Promos: `0xFC750D874077F8c90858cC132e0619CE7571520b`
-- Team: `0xde68AD324aafD9F2b6946073C90ED5e61D5d51B8`
-- Reserve: `0xC4CE5cFea2B6e32Ad41973348AC70EB3b00D8e6d`
+3. **Connection Pooling**
+   - Uses `@prisma/adapter-pg`
+   - Prevents connection leaks
+   - ~30% faster queries
 
-### Token Analytics Implementation
+4. **Preloaded ABIs**
+   - `contractAbis.ts` has 11 ABIs
+   - Reduces BaseScan API calls
 
-The analytics system (`/explorer/analytics` and `/api/token-analytics`) provides comprehensive market intelligence:
+5. **Database Indexes**
+   - `@@index([tokenId, timestamp])`
+   - On all frequently queried fields
 
-**Data Sources:**
-- Transfer history from Etherscan V2 API (Base chain) with incremental sync caching
-- Real-time holder data from Moralis API (top 50 holders) with 5-minute snapshot caching
-- Price data from QuikNode custom endpoints
-- Liquidity metrics from multiple sources:
-  - DEX Screener API for Aerodrome and other aggregated DEXs
-  - Uniswap V4 StateView contract (`0xa3c0c9b65bad0b08107aa264b0f3db444b867a71`) for on-chain V4 pool data
-- Contract verification via ethers.js RPC calls (using QuikNode for reliability)
+---
 
-**Key Metrics Calculated:**
-- Total transfers and volume for selected period
-- Unique addresses interacting with token
-- Large transfer detection (configurable threshold, default 10,000 VTN)
-- Net flow to/from known exchanges (CEX addresses)
-- Top holder concentration percentage
-- Average transfer size
+## Security
 
-**Alert System:**
-Automatically generates alerts based on:
-- Whale movements (≥3 large transfers in 2 hours)
-- Exchange flow anomalies (>50k VTN net flow)
-- High holder concentration (top 10 >70% of supply)
-- Accumulation patterns (single address receiving >100k VTN)
+**Authentication:**
+- NextAuth.js with JWT sessions
+- bcrypt password hashing (10 rounds)
+- Google OAuth support
 
-**Known Exchange Addresses:**
-- Coinbase: `0x3cd751e6b0078be393132286c442345e5dc49699`
-- Coinbase 2: `0x71660c4005ba85c37ccec55d0c4493e66fe775d3`
-- Coinbase 3: `0x503828976d22510aad0201ac7ec88293211d23da`
-- Gate.io: `0x0d0707963952f2fba59dd06f2b425ace40b492fe`
+**Authorization:**
+- Role-based: SUPER_ADMIN, ADMIN, MEMBER, VIEWER
+- Middleware protects routes
+- `requireSuperAdmin()` helper for APIs
 
-**Performance Optimizations:**
-- **Incremental Transfer Sync**: Uses TransferCache to store all historical transfers
-  - Only fetches new transfers since last cached timestamp
-  - Deduplication by transaction hash
-  - First load: ~10s, subsequent loads: 2-4s (80% improvement)
-  - Reduces Etherscan API calls by ~90%
-- **Holder Snapshots**: Uses HolderSnapshot to cache top holders
-  - Creates snapshot every 5 minutes
-  - Instant load if recent snapshot exists
-  - Enables historical holder analysis
-- Shared ethers.js provider to avoid multiple RPC connections
-- Sequential contract verification with 50ms delays to respect RPC limits
-- Progress tracking for long-running operations
-- Manual refresh via "Actualizar" button
-- Timestamp display showing "Última actualización: hace Xm"
+**Multi-Tenant Isolation:**
+- tokenId filtering prevents leaks
+- Session-based org context
+- API key hierarchy
 
-### Error Handling
+**Secrets:**
+- .env.local (gitignored)
+- SystemSettings in DB
+- Never hardcode in code
 
-- All blockchain calls should have try-catch blocks
-- Fallback to empty arrays or zero values rather than propagating errors
-- Log warnings for non-critical failures
-- Return meaningful error objects with `isValid: false` for contract status checks
+---
 
-### API Key Configuration
+## Troubleshooting Quick Reference
 
-Environment variables expected (in `.env` or `.env.local`):
+**"Can't reach database"** → `docker ps`, restart container
+**"Port 4200 in use"** → Kill process or change port
+**"Invalid Prisma invocation"** → `npx prisma generate`, restart
+**"Rate limit exceeded"** → Automatic fallback to Routescan
+**"No tokens found"** → Check network, API keys, console logs
+**"Slow analytics page"** → Normal on first load (~10s), subsequent should be 2-4s
+**"UNKNOWN token"** → Run backfill script
+**"Module not found"** → `npm install`, `npx prisma generate`
 
-**Database:**
-- `DATABASE_URL` - PostgreSQL connection string
-  - Format: `postgresql://user:password@localhost:5432/explorer_db`
-  - Current setup: Docker container `explorer-postgres`
-  - Connection pooling managed by `@prisma/adapter-pg`
+See [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for complete guide.
 
-**Authentication (Sprint 1.1):**
-- `NEXTAUTH_SECRET` - Secret for JWT signing (generate with `openssl rand -base64 32`)
-- `NEXTAUTH_URL` - Base URL for NextAuth (e.g., `http://localhost:4200`)
-- `GOOGLE_CLIENT_ID` - Google OAuth client ID (optional)
-- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret (optional)
+---
 
-**Required for Basic Functionality:**
-- `NEXT_PUBLIC_BASESCAN_API_KEY` - For BaseScan API access (contract ABIs, verification)
-- `NEXT_PUBLIC_ETHERSCAN_API_KEY` - For Etherscan V2 API access (transfer history)
-- `NEXT_PUBLIC_ROUTESCAN_API_KEY` - For Routescan API (fallback for BaseScan, multi-chain support)
+## Documentation
 
-**Required for Analytics Features:**
-- `NEXT_PUBLIC_MORALIS_API_KEY` - For real holder data from Moralis (top holders endpoint)
-- `NEXT_PUBLIC_QUICKNODE_URL` - QuikNode RPC endpoint for price data and contract interactions
+**For detailed information, see:**
 
-**Optional/Free APIs:**
-- DEX Screener API - Used for liquidity data (no key required, free public API)
+📚 **Core Guides:**
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - App structure, components, pages
+- [API_REFERENCE.md](docs/API_REFERENCE.md) - All API endpoints with examples
+- [DATABASE.md](docs/DATABASE.md) - Prisma schema, migrations, seeding
 
-**API Fallback System:**
-- ABIs: BaseScan → Routescan → Error
-- Transfers: Routescan (primary) or Etherscan V2
-- Default API key `YourApiKeyToken` is used as fallback (rate-limited)
+📚 **Feature Guides:**
+- [TOKENS_AND_BALANCES.md](docs/TOKENS_AND_BALANCES.md) - Token system complete guide
+- [VESTING_CONTRACTS.md](docs/VESTING_CONTRACTS.md) - Vesting system complete guide
 
-## TypeScript Configuration
+📚 **Support:**
+- [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common errors and solutions
 
-- Path alias: `@/*` maps to `./src/*`
-- Strict mode enabled
-- JSX: preserve (Next.js handles transformation)
+📚 **Planning:**
+- [IMPROVEMENTS.md](IMPROVEMENTS.md) - Roadmap and feature planning
+- [database_plan.md](database_plan.md) - Database architecture planning
 
-## Styling
-
-- Tailwind CSS for styling
-- Custom button classes: `btn-primary`
-- Color schemes: blue-50, purple-50, green-50, gray-100 backgrounds
-- Dark mode support via Tailwind's `dark:` variant
-- Responsive design with mobile-first approach
-- Hover states and transitions for better UX
+---
 
 ## Development Best Practices
 
-**When Adding New Features:**
-1. Follow existing patterns for API routes (Next.js App Router structure)
-2. Use TypeScript interfaces for all data structures
+### When Adding Features
+
+1. Follow existing patterns (see ARCHITECTURE.md)
+2. Use TypeScript interfaces
 3. Implement error boundaries and loading states
-4. Add retry logic for external API calls
-5. Cache expensive operations (especially blockchain calls)
-6. Log important operations for debugging
+4. Add retry logic for external APIs
+5. Cache expensive operations
+6. Log important operations
 
-**Analytics & Monitoring:**
-- Console logging is used extensively for debugging
-- All API calls log status and response summaries
-- Progress tracking for long operations (see TokenSupplyCard)
-- Error states always display user-friendly messages
+### Multi-Tenant Considerations
 
-**API Rate Limiting:**
-- Respect BaseScan/Etherscan rate limits (5 calls/second for free tier)
+- **Always filter by tokenId** in database queries
+- **Always pass tokenId** to Server Actions
+- **Test with multiple orgs** having same token address
+
+### API Rate Limiting
+
+- Respect free tier limits (5 calls/second)
 - Use delays between sequential calls (50-500ms)
-- Implement exponential backoff on failures
-- Prefer batch endpoints when available
-- Use cached data when possible (5-minute cache for supply data)
+- Implement exponential backoff
+- Prefer cached data when possible
 
-**Testing Endpoints:**
-- `/api/test` - Basic health check
-- `/api/test-vtn` - VTN token API integration test with Etherscan V2
+### Security
 
-## Uniswap V4 Integration
+- Never commit `.env.local`
+- Hash passwords with bcrypt
+- Validate user input
+- Use parameterized queries (Prisma does this)
+- Check roles before sensitive operations
 
-**Important:** Uniswap V4 uses a different architecture than V2/V3. Pools are managed by a central PoolManager contract and identified by 66-character pool IDs (not addresses).
+---
 
-### How to Query Uniswap V4 Pool Liquidity
+## Useful Keyboard Shortcuts
 
-**StateView Contract (Base Mainnet):**
-- Address: `0xa3c0c9b65bad0b08107aa264b0f3db444b867a71`
-- Purpose: Read-only contract to query pool state without calling PoolManager directly
+- **Cmd+K / Ctrl+K** - Global search (addresses, transactions)
+- **#** key during session - Auto-incorporate learnings into CLAUDE.md
 
-**ABI for getLiquidity:**
-```typescript
-const UNISWAP_V4_STATEVIEW_ABI = [
-  {
-    inputs: [{ internalType: 'bytes32', name: 'poolId', type: 'bytes32' }],
-    name: 'getLiquidity',
-    outputs: [{ internalType: 'uint128', name: 'liquidity', type: 'uint128' }],
-    stateMutability: 'view',
-    type: 'function'
-  }
-];
-```
+---
 
-**Example Usage:**
-```typescript
-const STATE_VIEW_ADDRESS = '0xa3c0c9b65bad0b08107aa264b0f3db444b867a71';
-const POOL_ID = '0x0f42e66657d0549d32594b0ae1e58435b5a96a60cc59a4d48f08fd6593bc8322';
+## Sprint Status
 
-const provider = new ethers.JsonRpcProvider(QUICKNODE_URL);
-const stateView = new ethers.Contract(STATE_VIEW_ADDRESS, UNISWAP_V4_STATEVIEW_ABI, provider);
+**Fase 1: Auth + Multi-Tenant** ✅
+- Sprint 1.1: NextAuth Setup
+- Sprint 1.2: Tenant Context & API Isolation
+- Sprint 1.3: Organization Settings
 
-const liquidity = await stateView.getLiquidity(POOL_ID);
-// Returns uint128 raw liquidity value
-```
+**Fase 2: Tokens + Config** ✅
+- Sprint 2.1: Token Management + Custom API Keys
+- Sprint 2.2: Custom ABIs + Contracts
+- Sprint 2.3: Token Supply Custom Configuration
+- Sprint 2.4: APIs Multi-Tenant Completas
+- Sprint 2.5: Invitación de Miembros
 
-**Converting Liquidity to USD:**
-The liquidity value needs to be converted using the current ETH price:
-```typescript
-const liquidityUSD = Number(liquidity) / 1e18 * ethPrice * 2;
-```
+**Fase 4: Admin Panel SaaS** ✅
+- Sprint 4.1-4.8: Complete admin panel with plans, orgs, users, settings
 
-**Key Differences from V2/V3:**
-- Pool IDs are 66 characters (bytes32), not 42-character addresses
-- Must use StateView contract, not direct pool calls
-- No subgraph available for Base Mainnet yet (as of Jan 2025)
-- Liquidity value format is uint128, requires conversion for USD display
+**⏸️ Pending:** Fase 3 (Onboarding Wizard) - Postponed
 
-## Project Status and Roadmap
-
-### Current Implementation Status (Fase 1-2: ✅ Complete)
-
-**✅ Completed Features:**
-
-1. **Multi-Tenant Architecture (Sprint 1.1)**
-   - Organization → Token → Data hierarchy
-   - User, Organization, Token, OrganizationMember models
-   - All cache models updated with tokenId for data isolation
-   - Migration script for existing Vottun data (8,959 records migrated)
-   - Test user created: admin@vottun.com (ADMIN role)
-
-2. **Authentication System (Sprint 1.1)**
-   - NextAuth.js with JWT sessions
-   - Credentials provider (email/password with bcrypt)
-   - OAuth support (Google)
-   - Role-based access: SUPER_ADMIN, ADMIN, MEMBER, VIEWER
-   - Auth pages: `/auth/signin`, `/auth/signup`, `/auth/error`
-   - Protected routes with middleware
-   - SessionProvider for client-side auth state
-
-3. **Database Integration (PostgreSQL + Prisma)**
-   - Full schema with 11 models (4 multi-tenant + 7 data models)
-   - Connection pooling with `@prisma/adapter-pg`
-   - Seed scripts: 13 addresses + Vottun org + test user
-   - Migrations and schema management
-   - Multi-tenant data isolation by tokenId
-
-4. **Address Labeling System**
-   - Database-backed address labels with types (CONTRACT, WALLET, EXCHANGE, VESTING, TOKEN)
-   - EditAddressModal for inline editing
-   - Integration throughout analytics UI
-   - API endpoints for CRUD operations
-
-5. **Admin Panel (Complete)**
-   - `/admin/dashboard` - Statistics and overview
-   - `/admin/addresses` - Full address management with search, filters, pagination
-   - `/admin/addresses/new` - Add new addresses
-   - `/admin/import` - Import/Export CSV and JSON
-   - Sidebar navigation and consistent styling
-
-6. **Performance & Caching (Incremental Sync)**
-   - TransferCache: Stores all transfers, only fetches new ones (90% API call reduction)
-   - HolderSnapshot: 5-minute snapshots of top holders
-   - Load time improvement: 10-15s → 2-4s (75-80% faster)
-   - Manual "Actualizar" button with timestamp
-
-7. **Search & Navigation**
-   - GlobalSearch component with Cmd+K / Ctrl+K shortcut
-   - Searches addresses, names, transaction hashes
-   - Quick access to analytics and holder views
-
-8. **Data Visualization (Recharts)**
-   - ExchangeFlowChart: Bar chart of net flow to exchanges
-   - WhaleTimelineChart: Scatter plot of large transfers
-   - HolderDistributionChart: Pie chart of holder concentration
-   - Responsive and interactive charts
-
-9. **Unified Dashboard**
-   - `/dashboard` page combining all explorers
-   - Token balances, vesting info, and analytics in one view
-
-**✅ Completed (Sprint 1.2: Aislamiento Multi-Tenant):**
-- ✅ Tenant context helper implemented (`getTenantContext`, `getApiKeys`)
-- ✅ All APIs updated to filter by tokenId
-  - `/api/token-analytics` - Full tenant isolation
-  - `/api/addresses` - Filtered by tokenId
-  - `/api/transfers-cache` - Filtered by tokenId
-  - `/api/vesting-info` - Filtered by tokenId
-  - `/api/token-supply` - Migrated to TokenSupplyCache model
-- ✅ Organization management API (`/api/organizations`)
-- ✅ Settings page created (`/settings/organization`)
-
-**✅ Completed (Sprint 1.3: Gestión de Organizaciones):**
-- ✅ API de organizaciones (`POST /api/organizations`, `GET /api/organizations`)
-- ✅ Página de settings (`/settings/organization`)
-- ✅ Visualización de miembros del equipo
-- ⚠️ Invitación de miembros pendiente
-
-**✅ Completed (Sprint 2.1: Configuración de Tokens):**
-- ✅ CRUD completo de tokens (`/api/tokens`, `/settings/tokens`)
-- ✅ Verificación on-chain de tokens ERC20 (ethers.js)
-- ✅ Página de gestión de tokens (`/settings/tokens`)
-- ✅ Página de configuración individual (`/settings/tokens/[id]`)
-- ✅ Custom API keys por token (BaseScan, Etherscan, Moralis, QuikNode, Routescan)
-- ✅ Custom exchange addresses configurables
-- ✅ Settings: whale threshold, cache duration, max transfers
-
-**⚠️ Pending (Sprint 3.1: Wizard de Onboarding):**
-- Create onboarding wizard for new users
-- Token selector component in UI
-- Redirect to onboarding if no org/tokens
-
-### Future Features (See SAAS_PLAN.md for Details)
-
-**Next Priorities (Sprint 3.1-3.2):**
-1. **Wizard de Onboarding** - 5-step wizard for new users (welcome, org, token, settings, done)
-2. **Token Selector Component** - Dropdown in UI to switch between tokens
-3. **Redirección Automática** - To onboarding if user has no org/tokens
-
-**Medium-term (Sprint 2-3):**
-1. **Multi-Token Support** - Analyze any ERC20 token, not just VTN
-2. **System de Alertas** - Telegram/Email notifications for whale movements, price changes
-3. **API Pública** - REST API with authentication and rate limiting
-
-**Long-term (Sprint 4+):**
-- Progressive Web App (PWA) with push notifications
-- Advanced AI/ML for pattern detection and dump prediction
-- Historical analytics and trend analysis
-- More DEX integrations
-
-### Important Documentation
-
-**For comprehensive information, refer to:**
-
-1. **[IMPROVEMENTS.md](IMPROVEMENTS.md)** - Complete roadmap and feature planning
-   - 10 major improvement areas with detailed implementation plans
-   - Sprint breakdowns and time estimates
-   - Technical specifications for each feature
-   - Prioritization matrix and success metrics
-
-2. **[database_plan.md](database_plan.md)** - Database architecture and implementation
-   - Complete Prisma schema documentation
-   - Migration guides and setup instructions
-   - Performance optimization strategies
-   - Implementation status and next steps
-
-### Project Structure
-
-**Key Directories:**
-```
-src/
-├── app/
-│   ├── api/
-│   │   ├── auth/         # NextAuth API routes + signup endpoint
-│   │   ├── addresses/    # Address CRUD
-│   │   ├── analytics/    # Token analytics
-│   │   ├── tokens/       # Token data
-│   │   └── vottun/       # Vottun integration
-│   ├── auth/             # Auth pages (signin, signup, error)
-│   ├── admin/            # Admin panel (dashboard, addresses, import)
-│   ├── platform/         # Protected platform routes (pending Sprint 1.2)
-│   ├── dashboard/        # Unified dashboard page
-│   ├── explorer/         # Public explorer pages
-│   └── docs/             # API documentation
-├── components/
-│   ├── auth/             # SignInForm, SignUpForm components
-│   ├── charts/           # Recharts visualizations
-│   ├── EditAddressModal.tsx
-│   ├── GlobalSearch.tsx
-│   ├── Providers.tsx     # SessionProvider wrapper
-│   └── [other UI components]
-├── lib/
-│   ├── auth.ts           # NextAuth configuration
-│   ├── blockchain.ts     # Core blockchain interactions
-│   ├── db.ts             # Prisma client singleton
-│   ├── vestingHelpers.ts
-│   ├── contractAbis.ts
-│   ├── types.ts
-│   └── utils.ts
-├── middleware.ts         # Route protection with withAuth
-└── prisma/
-    ├── schema.prisma     # Database schema (11 models)
-    ├── migrations/       # Database migrations
-    ├── seed.ts           # Initial address seeding
-    ├── seed-user.ts      # Test user creation
-    └── migrate-vottun-data.ts  # Vottun data migration script
-
-**Database Models (17 total):**
-
-**Multi-Tenant Core:**
-- `User` - User accounts with auth
-- `Organization` - Multi-tenant organizations
-- `Token` - Token configuration per org
-- `OrganizationMember` - User-org relationships
-
-**SaaS & Billing:**
-- `Plan` - Subscription plans with configurable limits
-- `Subscription` - Org subscriptions linking to plans
-- `SystemSettings` - Global SaaS configuration (singleton)
-- `Invitation` - Team member invitations with email tokens
-
-**Data Models (Multi-Tenant Isolated):**
-- `Contract` - Generic contract model (vesting, staking, liquidity, DAO, treasury, etc.) with category enum (tokenId FK)
-- `CustomAbi` - ABIs for tokens and contracts (tokenId + contractAddress + network)
-- `KnownAddress` - Address labels (tokenId FK)
-- `TransferCache` - Transfer history (tokenId FK)
-- `HolderSnapshot` - Holder snapshots (tokenId FK)
-- `TokenSupplyCache` - Supply cache (tokenId FK)
-- `VestingCache` - Vesting data (tokenId FK)
-- `VestingTransferCache` - Vesting transfers (tokenId FK)
-- `VestingBeneficiaryCache` - Vesting beneficiaries (tokenId FK)
-
-### Development Workflow
-
-**Database Operations:**
-```bash
-# Generate Prisma Client after schema changes
-npx prisma generate
-
-# Create and apply migrations
-npx prisma migrate dev --name description
-
-# Seed database with initial data (13 addresses)
-npx prisma db seed
-
-# Create test user (admin@vottun.com / admin123)
-npx tsx prisma/seed-user.ts
-
-# Migrate existing Vottun data to multi-tenant structure
-npx tsx prisma/migrate-vottun-data.ts
-
-# Migrate vesting contracts to database
-npx tsx prisma/migrate-vesting-contracts.ts
-
-# Migrate ABIs to database (11 ABIs)
-npx tsx prisma/migrate-abis.ts
-
-# Setup admin panel (create plans, system settings)
-npx tsx prisma/migrate-admin-setup.ts
-
-# Create SUPER_ADMIN user (superadmin@tokenlens.com / super123)
-npx tsx prisma/seed-superadmin.ts
-
-# Open Prisma Studio (database GUI)
-npx prisma studio
-
-# Push schema without migration (development)
-npx prisma db push
-```
-
-**Common Tasks:**
-- Adding new address labels: Use `/admin/addresses/new` or POST to `/api/addresses`
-- Bulk import: Use `/admin/import` with CSV/JSON file
-- Creating users: Use `/auth/signup` or run `npx tsx prisma/seed-user.ts`
-- Login: Navigate to `/auth/signin`
-  - Regular user: admin@vottun.com / admin123
-  - SUPER_ADMIN: superadmin@tokenlens.com / super123
-- Access admin panel: Login as SUPER_ADMIN → "Admin" link in navbar
-- Managing plans: `/admin/plans` (create, edit, reorder, delete)
-- Assigning plans to orgs: `/admin/organizations/[id]` → Change Plan dropdown
-- Viewing SaaS metrics: `/admin/dashboard` (MRR, alerts, graphs)
-- Configuring global settings: `/admin/settings` (API keys, Stripe, email)
-- Viewing cache status: Check PostgreSQL directly or add admin cache page (pending)
-- Forcing data refresh: Use "Actualizar" button in analytics UI
-
-### Performance Considerations
-
-**Caching Strategy:**
-- Transfers: Incremental sync (fetch only new since last timestamp)
-- Holders: Snapshot every 5 minutes
-- Supply: 5-minute TTL (in-memory, DB migration pending)
-- Analytics: Combined cache + real-time data
-
-**API Rate Limits:**
-- Etherscan: 5 calls/second (free tier)
-- Moralis: Rate limited by plan
-- BaseScan: 5 calls/second (free tier)
-- QuikNode: Depends on plan
-- DEX Screener: Free, no auth required
-
-**Optimization Tips:**
-- Use cached data whenever possible
-- Batch blockchain calls when feasible
-- Implement exponential backoff for retries
-- Monitor API usage to stay within free tiers
-- Add indexes to frequently queried database fields
-
-### Security Notes
-
-**✅ Implemented (Sprint 1.1):**
-- NextAuth.js authentication system with JWT sessions
-- Role-based access control (SUPER_ADMIN, ADMIN, MEMBER, VIEWER)
-- Protected routes with middleware (admin and platform routes)
-- Password hashing with bcrypt (10 rounds)
-- OAuth support (Google)
-- Session management with SessionProvider
-- Database credentials in `.env.local` (not committed)
-
-**⚠️ Pending Security (Sprint 1.2+):**
-- CSRF protection
-- Rate limiting on authentication endpoints
-- Email verification flow
-- Password reset flow
-- Audit logging for sensitive operations
-- API key management for public API (Sprint 2)
-- Two-factor authentication (2FA) - future consideration
+**🔜 Next:** Fase 5 (Stripe Integration)
 
 ---
 
 **Last Updated:** 2026-02-05
-**Version:** 4.3 (API Key Propagation Fix - customApiKeys parameter)
-
-### Sprint Status:
-
-**Fase 1: Auth + Multi-Tenant**
-- ✅ **Sprint 1.1:** NextAuth Setup (COMPLETADO)
-- ✅ **Sprint 1.2:** Tenant Context & API Isolation (COMPLETADO)
-- ✅ **Sprint 1.3:** Organization Settings (COMPLETADO)
-
-**Fase 2: Tokens + Config**
-- ✅ **Sprint 2.1:** Token Management + Custom API Keys (COMPLETADO)
-- ✅ **Sprint 2.2:** Custom ABIs + Contracts (COMPLETADO - modelo genérico con enum)
-- ✅ **Sprint 2.3:** Token Supply Custom Configuration (COMPLETADO)
-- ✅ **Refactor:** VestingContract → Contract (modelo genérico para todos los tipos)
-- ✅ **Sprint 2.4:** APIs Multi-Tenant Completas (COMPLETADO)
-- ✅ **Sprint 2.5:** Invitación de Miembros (COMPLETADO)
-- ✅ **UI Refactor:** Settings con Sidebar (COMPLETADO)
-
-**Fase 4: Admin Panel SaaS** 🎉
-- ✅ **Sprint 4.1:** Base de Datos (Plan, SystemSettings, Subscription)
-- ✅ **Sprint 4.2:** APIs de Admin (/api/admin/*)
-- ✅ **Sprint 4.3:** UI Panel Admin completo (/admin/*)
-- ✅ **Sprint 4.4:** Navbar + Protección (SUPER_ADMIN)
-- ✅ **Sprint 4.5:** Validación de Límites (limits.ts)
-- ✅ **Sprint 4.6:** Fixes y Mejoras (Login redirect, async params)
-- ✅ **Sprint 4.7:** Mejoras UX (Alertas, custom APIs indicator)
-- ✅ **Sprint 4.8:** Gestión de Usuarios (/admin/users)
+**Version:** 5.0 (Refactored for conciseness with docs/ separation)
 
 ---
 
-## 🎉 Admin Panel SaaS - Resumen Completo (Fase 4)
-
-**Panel completo para SUPER_ADMIN** con gestión de planes, organizaciones, usuarios y configuración global.
-
-### Características Principales:
-
-**Dashboard (`/admin/dashboard`):**
-- 4 métricas clave: Total orgs, Subscriptions, MRR, Users
-- 3 gráficos históricos (12 meses): Nuevas orgs, Cancelaciones, MRR evolution
-- Plan distribution chart
-- **Alertas proactivas**: Orgs cerca de límites (≥80% usage)
-- Recent organizations table
-
-**Gestión de Organizaciones:**
-- Lista completa con filtros y búsqueda
-- Indicador "🔑 Custom APIs" en tabla
-- Detalle individual con:
-  - Cambio de plan (dropdown)
-  - Progress bars de uso vs límites
-  - Lista de miembros y tokens
-  - Indicador custom API keys con detalles
-
-**Gestión de Planes:**
-- CRUD completo con drag & drop reordering
-- Límites configurables (-1 = ilimitado)
-- Features como JSON array
-- Validación antes de eliminar
-
-**Configuración Global (`/admin/settings`):**
-- 4 tabs: API Keys, Email, Stripe, General
-- SystemSettings en BD (no hardcoded en .env)
-
-**Gestión de Usuarios:**
-- Lista global con stats por rol
-- Filtros y búsqueda
-- Tooltips con organizaciones
-
-**Validación de Límites:**
-- `src/lib/limits.ts` - Helpers para validar límites
-- Integrado en: `/api/tokens`, `/api/organizations/invite`, `/api/token-analytics`
-- Mensajes claros para upgrades
-- Hard limits (bloqueo) vs Soft limits (warning)
-
-**Seguridad:**
-- Helper `requireSuperAdmin()` en todas las APIs admin
-- Middleware protege `/admin/*`
-- Link "Admin" solo visible para SUPER_ADMIN
-
-**Acceso:**
-- Login: superadmin@tokenlens.com / super123
-- URL: http://localhost:4200/admin/dashboard
-
----
-
-## 🆕 Recent Changes (2026-02-05)
-
-### 🔄 Multi-Token API Keys Architecture (COMPLETADO)
-
-**Problema identificado:** Los componentes cliente NO pasaban el `tokenId` a las Server Actions, por lo que no podían acceder a las API keys específicas de cada token (TokenSettings). El sistema solo leía SystemSettings globales, ignorando las configuraciones personalizadas por token.
-
-**Contexto SaaS Multi-Tenant:**
-Este es un SaaS donde:
-- Múltiples organizaciones pueden tener el mismo token address (ej: VTN)
-- Cada organización tiene su propio registro Token con su propio `tokenId` único
-- Cada Token puede tener sus propias API keys custom (TokenSettings)
-- La jerarquía DEBE ser: TokenSettings → SystemSettings → .env
-
-**Solución implementada:**
-- ✅ Modificado `getApiKeys(tokenId?)` en `src/actions/blockchain.ts`:
-  - Ahora recibe `tokenId` opcional
-  - Lee TokenSettings del token específico (prioridad máxima)
-  - Fallback a SystemSettings si no hay TokenSettings
-  - Fallback a .env si no hay SystemSettings
-- ✅ Actualizado todas las Server Actions para recibir y usar `tokenId`:
-  - `fetchTokenBalances(walletAddress, network, tokenId?)`
-  - `fetchTokenTransfers(walletAddress, network, tokenFilter, tokenId?)`
-  - `getTokenSupplyInfo(tokenAddress, network, tokenId?, onProgress?)`
-- ✅ Actualizado TODOS los componentes para pasar el `tokenId`:
-  - `TokenBalance.tsx` → Usa `useToken()` y pasa `activeToken?.id`
-  - `TokenSupplyCard.tsx` → Pasa `activeToken.id`
-  - `dashboard/page.tsx` → Pasa `activeToken?.id` en todas las llamadas
-- ✅ TokenContext ya existente con `activeToken` disponible globalmente
-
-**Jerarquía de API Keys (CORRECTA Y FINAL):**
-1. **TokenSettings** (BD - `/settings/tokens/[id]/api-keys`) - **PRIORIDAD MÁXIMA** 🎯
-2. **SystemSettings** (BD - `/admin/settings`) - Fallback global
-3. **.env** - Fallback si BD vacía
-4. `'YourApiKeyToken'` - Último recurso (rechazado por validación)
-
-**Archivos modificados:**
-- ✅ `src/actions/blockchain.ts` - `getApiKeys(tokenId?)` con jerarquía correcta
-- ✅ `src/components/TokenBalance.tsx` - Pasa `activeToken?.id`
-- ✅ `src/app/dashboard/page.tsx` - Pasa `activeToken?.id` (4 ubicaciones)
-- ✅ `src/app/explorer/vestings/components/TokenSupplyCard.tsx` - Pasa `activeToken.id`
-
-**Resultado:** Cada token usa sus propias API keys configuradas en TokenSettings. Multi-tenant funcionando correctamente. ✅
-
-### Routescan API Integration
-- ✅ Added Routescan API support for multi-chain blockchain data
-- ✅ Implemented automatic fallback system: BaseScan → Routescan → Error
-- ✅ Added Routescan API key configuration at both platform and token levels
-- ✅ Updated SystemSettings and TokenSettings models to include `routescanApiKey`
-- ✅ Added Routescan as ABI source tracking option (`BASESCAN`, `ROUTESCAN`, `STANDARD`, `UPLOADED`)
-- ✅ Fixed `callEtherscanV2Api()` to use `routescanApiKey` instead of `basescanApiKey`
-
-### Transfer Cache Improvements
-- ✅ Fixed "UNKNOWN" token display issue in transfer history
-- ✅ Updated `TransferCache` to properly store `tokenSymbol`, `tokenName`, and `decimals`
-- ✅ Modified analytics API to populate token info when caching transfers
-- ✅ Created backfill script ([backfill-transfer-tokens.ts](prisma/backfill-transfer-tokens.ts)) to update existing records
-- ✅ Both wallet-based and token-based transfers now show correct token information
-
-### UI Improvements
-- ✅ Removed mock data from `TokenBalance.tsx` component
-- ✅ Now shows proper empty state messages instead of fake data (USDC, ANTHRAX, SMALLPOX)
-- ✅ Clear error messages and "no tokens found" states for better UX
-
-### Documentation
-- ✅ Updated CLAUDE.md with Routescan API information
-- ✅ Updated API Key Configuration section
-- ✅ Documented API Fallback System
-- ✅ Documented Server Actions refactor and architecture
-
-### Bug Fixes (2026-02-05)
-- ✅ Fixed missing `customApiKeys` parameter in `fetchTokenBalances` fallback path
-  - Location: [src/lib/blockchain.ts:564](src/lib/blockchain.ts#L564)
-  - Issue: When `fetchTokenBalances` fell back to using transfers, it called `callEtherscanV2Api(params, network)` without passing `customApiKeys`
-  - Result: Function defaulted to reading from `NEXT_PUBLIC_*` env vars instead of using database-stored API keys
-  - Fix: Added third parameter `customApiKeys` to the call
-  - Impact: Now properly uses SystemSettings/TokenSettings API keys from database
-
----
-
-**Next Steps:**
-- ⏸️ Fase 3: Onboarding Wizard (POSTPONED)
-- 🔜 Fase 5: Integración REAL con Stripe API
+**Need Help?**
+- Check console logs (most errors are logged)
+- Review [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+- Use Prisma Studio to inspect database
+- Check Network tab in browser DevTools

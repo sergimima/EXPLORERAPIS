@@ -18,12 +18,19 @@ export interface CustomApiKeys {
 
 // Helper para obtener API keys con fallback a environment variables
 function getApiKeys(customKeys?: CustomApiKeys) {
+  // Extraer keys, tratando null como undefined
+  const basescan = customKeys?.basescanApiKey ?? undefined;
+  const etherscan = customKeys?.etherscanApiKey ?? undefined;
+  const moralis = customKeys?.moralisApiKey ?? undefined;
+  const quicknode = customKeys?.quiknodeUrl ?? undefined;
+  const routescan = customKeys?.routescanApiKey ?? undefined;
+
   return {
-    basescanApiKey: customKeys?.basescanApiKey || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken',
-    etherscanApiKey: customKeys?.etherscanApiKey || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || 'YourApiKeyToken',
-    moralisApiKey: customKeys?.moralisApiKey || process.env.NEXT_PUBLIC_MORALIS_API_KEY,
-    quiknodeUrl: customKeys?.quiknodeUrl || process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://mainnet.base.org',
-    routescanApiKey: customKeys?.routescanApiKey || process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || 'YourApiKeyToken'
+    basescanApiKey: basescan || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken',
+    etherscanApiKey: etherscan || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || 'YourApiKeyToken',
+    moralisApiKey: moralis || process.env.NEXT_PUBLIC_MORALIS_API_KEY,
+    quiknodeUrl: quicknode || process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://mainnet.base.org',
+    routescanApiKey: routescan || process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || 'YourApiKeyToken'
   };
 }
 
@@ -1995,7 +2002,8 @@ export async function getTokenSupplyInfo(
       tokenAddress,
       vestingContracts,
       network,
-      onProgress
+      onProgress,
+      customApiKeys: options?.customApiKeys
     });
 
     // Actualizar la caché con los nuevos datos
@@ -2058,22 +2066,27 @@ interface FetchTokenSupplyParams {
   vestingContracts: string[];
   network: string;
   onProgress?: ProgressCallback;
+  customApiKeys?: CustomApiKeys;
 }
 
 /**
  * Función interna para obtener supply directamente de la blockchain
  */
 async function fetchTokenSupplyData(params: FetchTokenSupplyParams): Promise<TokenSupplyInfo> {
-  const { tokenAddress, vestingContracts, network, onProgress } = params;
+  const { tokenAddress, vestingContracts, network, onProgress, customApiKeys } = params;
 
   try {
     if (onProgress) {
       onProgress('iniciando', 0);
     }
 
+    // Obtener API keys con jerarquía correcta
+    const apiKeys = getApiKeys(customApiKeys);
+
     // Obtener configuración de red y crear provider
     const networkConfig = NETWORKS[network as keyof typeof NETWORKS] || NETWORKS['base'];
-    const rpcUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL || networkConfig.rpcUrl;
+    const rpcUrl = apiKeys.quiknodeUrl;
+    console.log('[fetchTokenSupplyData] Using RPC URL:', rpcUrl?.substring(0, 40) + '...');
     const provider = new ethers.JsonRpcProvider(rpcUrl);
 
     // ABI mínimo para ERC20 (solo necesitamos totalSupply y balanceOf)

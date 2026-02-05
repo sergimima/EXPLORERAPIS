@@ -164,11 +164,16 @@ export async function getTokenSupplyInfo(
 ): Promise<TokenSupplyInfo> {
     try {
         console.log('[Server Action] getTokenSupplyInfo:', tokenAddress, network, tokenId);
+
+        // Obtener API keys con jerarquía correcta: TokenSettings → SystemSettings → .env
+        const apiKeys = await getApiKeys(tokenId);
+
         // getTokenSupplyInfo usa un formato diferente: (onProgress?, options?)
         const options: TokenSupplyOptions = {
             tokenAddress,
             network,
-            vestingContracts: [] // Puede ser personalizado si es necesario
+            vestingContracts: [], // Puede ser personalizado si es necesario
+            customApiKeys: apiKeys // CRÍTICO: Pasar API keys con jerarquía correcta
         };
         return await getTokenSupplyInfoOriginal(onProgress, options);
     } catch (error) {
