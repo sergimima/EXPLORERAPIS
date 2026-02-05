@@ -16,6 +16,10 @@ RUN npm install --legacy-peer-deps
 # Copiar resto del código fuente
 COPY . .
 
+# Prisma necesita DATABASE_URL en el build (solo para generar el cliente, no conecta)
+# El valor real se inyecta en runtime via docker-compose
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+
 # Generar build de producción
 RUN npm run build
 
