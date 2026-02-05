@@ -24,7 +24,16 @@ interface TokenTransfer {
  * Obtiene la API key de Routescan/Basescan desde .env o SystemSettings
  */
 async function getApiKey(): Promise<string | null> {
-    // 1. Intentar desde .env
+    // 1. Intentar desde SystemSettings
+    try {
+        const systemSettings = await prisma.systemSettings.findUnique({ where: { id: 'system' } });
+        if (systemSettings?.defaultRoutescanApiKey) return systemSettings.defaultRoutescanApiKey;
+        if (systemSettings?.defaultBasescanApiKey) return systemSettings.defaultBasescanApiKey;
+    } catch (err) {
+        console.warn('Error al obtener SystemSettings');
+    }
+
+    // 2. Fallback a .env
     const envKey = process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
     if (envKey && envKey !== 'YourApiKeyToken') {
         return envKey;

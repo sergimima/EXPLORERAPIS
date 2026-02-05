@@ -128,7 +128,13 @@ async function fetchNewTransfersFromAPI(
   tokenAddress: string,
   lastTimestamp: number = 0
 ): Promise<any[]> {
-  const apiKey = process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken';
+  let apiKey = process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken';
+  try {
+    const { prisma } = await import('@/lib/db');
+    const systemSettings = await prisma.systemSettings.findUnique({ where: { id: 'system' } });
+    if (systemSettings?.defaultRoutescanApiKey) apiKey = systemSettings.defaultRoutescanApiKey;
+    else if (systemSettings?.defaultBasescanApiKey) apiKey = systemSettings.defaultBasescanApiKey;
+  } catch (err) {}
 
   try {
     console.log(`[fetchNewTransfersFromAPI] Token: ${tokenAddress}, desde timestamp: ${lastTimestamp}`);
@@ -260,10 +266,14 @@ async function getTransfersWithCache(
 // Crear un provider compartido para evitar múltiples conexiones
 let cachedProvider: ethers.JsonRpcProvider | null = null;
 
-function getProvider(): ethers.JsonRpcProvider {
+async function getProvider(): Promise<ethers.JsonRpcProvider> {
   if (!cachedProvider) {
-    // Usar QuickNode en lugar del RPC público para evitar timeouts
-    const rpcUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL || BASE_CONFIG.rpcUrl;
+    let rpcUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL || BASE_CONFIG.rpcUrl;
+    try {
+      const { prisma } = await import('@/lib/db');
+      const systemSettings = await prisma.systemSettings.findUnique({ where: { id: 'system' } });
+      if (systemSettings?.defaultQuiknodeUrl) rpcUrl = systemSettings.defaultQuiknodeUrl;
+    } catch (err) {}
     cachedProvider = new ethers.JsonRpcProvider(rpcUrl);
   }
   return cachedProvider;
@@ -271,7 +281,7 @@ function getProvider(): ethers.JsonRpcProvider {
 
 async function isContractAddress(address: string): Promise<boolean> {
   try {
-    const provider = getProvider();
+    const provider = await getProvider();
     const code = await provider.getCode(address);
     return code !== '0x';
   } catch (error) {
@@ -284,7 +294,12 @@ async function fetchHoldersFromMoralis(
   tokenAddress: string,
   knownInfo?: Map<string, { isContract: boolean; isExchange: boolean; label?: string }>
 ): Promise<any[]> {
-  const moralisApiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
+  let moralisApiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
+  try {
+    const { prisma } = await import('@/lib/db');
+    const systemSettings = await prisma.systemSettings.findUnique({ where: { id: 'system' } });
+    if (systemSettings?.defaultMoralisApiKey) moralisApiKey = systemSettings.defaultMoralisApiKey;
+  } catch (err) {}
 
   if (!moralisApiKey) {
     console.error('[fetchHoldersFromMoralis] ❌ Moralis API key not found');
@@ -511,8 +526,12 @@ async function getHoldersWithCache(tokenAddress: string, tokenId: string, forceR
 // ============================================
 
 async function getCurrentPrice(tokenAddress: string): Promise<PriceData> {
-  // Try QuikNode first
-  const quiknodeUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL;
+  let quiknodeUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL;
+  try {
+    const { prisma } = await import('@/lib/db');
+    const systemSettings = await prisma.systemSettings.findUnique({ where: { id: 'system' } });
+    if (systemSettings?.defaultQuiknodeUrl) quiknodeUrl = systemSettings.defaultQuiknodeUrl;
+  } catch (err) {}
 
   if (quiknodeUrl) {
     try {
@@ -922,7 +941,7 @@ export async function GET(request: NextRequest) {
 
     // Obtener precio y liquidez en paralelo (tiempo real - sin caché)
     console.log('\n--- PRICE & LIQUIDITY (Real-time) ---');
-    const provider = getProvider();
+    const provider = await getProvider();
     const [priceData, liquidityData] = await Promise.all([
       getCurrentPrice(tokenAddress),
       getLiquidityData(provider, tokenAddress)

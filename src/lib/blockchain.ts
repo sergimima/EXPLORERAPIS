@@ -1255,8 +1255,18 @@ export async function checkVestingContractStatus(
 
             console.log(`Última transferencia en caché: ${lastTimestamp ? lastTimestamp.toISOString() : 'ninguna'}`);
 
-            // 3. Obtener nuevas transferencias desde Moralis
-            const moralisApiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
+            // 3. Obtener API key de Moralis con jerarquía: SystemSettings → .env
+            let moralisApiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
+            try {
+              const systemSettings = await prisma.systemSettings.findUnique({ where: { id: 'system' } });
+              if (systemSettings?.defaultMoralisApiKey) {
+                moralisApiKey = systemSettings.defaultMoralisApiKey;
+                console.log('✅ Usando Moralis API key desde SystemSettings');
+              }
+            } catch (err) {
+              console.warn('Error al obtener SystemSettings, usando .env');
+            }
+
             if (!moralisApiKey) {
               console.warn('No se ha configurado la clave API de Moralis, usando solo caché');
             } else {
@@ -2210,14 +2220,22 @@ export async function getContractABI(contractAddress: string, network: string) {
 
     // Determinar la URL de la API según la red
     let apiUrl;
-    let apiKey;
+    let apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
+
+    // Intentar obtener desde SystemSettings
+    try {
+      const systemSettings = await prisma.systemSettings.findUnique({ where: { id: 'system' } });
+      if (systemSettings?.defaultBasescanApiKey) {
+        apiKey = systemSettings.defaultBasescanApiKey;
+      }
+    } catch (err) {
+      // Fallback a .env si falla
+    }
 
     if (network === 'base') {
       apiUrl = 'https://api.basescan.org/api';
-      apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
     } else if (network === 'base-sepolia') {
       apiUrl = 'https://api-sepolia.basescan.org/api';
-      apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
     } else {
       throw new Error(`Red no soportada para obtener ABI: ${network}`);
     }

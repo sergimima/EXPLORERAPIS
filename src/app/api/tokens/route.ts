@@ -32,13 +32,18 @@ export async function POST(request: NextRequest) {
 
   // Verificar on-chain que existe y obtener metadata
   try {
-    const provider = new ethers.JsonRpcProvider(
-      network === 'base'
-        ? process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://mainnet.base.org'
-        : network === 'base-sepolia'
-        ? 'https://sepolia.base.org'
-        : 'https://goerli.base.org'
-    );
+    let rpcUrl = network === 'base'
+      ? (process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://mainnet.base.org')
+      : network === 'base-sepolia' ? 'https://sepolia.base.org' : 'https://goerli.base.org';
+
+    if (network === 'base') {
+      try {
+        const systemSettings = await prisma.systemSettings.findUnique({ where: { id: 'system' } });
+        if (systemSettings?.defaultQuiknodeUrl) rpcUrl = systemSettings.defaultQuiknodeUrl;
+      } catch (err) {}
+    }
+
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
 
     const ERC20_ABI = [
       'function symbol() view returns (string)',
