@@ -21,16 +21,46 @@ interface TokenTransfer {
 }
 
 /**
+ * Obtiene la API key de Routescan/Basescan desde .env o SystemSettings
+ */
+async function getApiKey(): Promise<string | null> {
+    // 1. Intentar desde .env
+    const envKey = process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
+    if (envKey && envKey !== 'YourApiKeyToken') {
+        return envKey;
+    }
+
+    // 2. Fallback a SystemSettings (BD)
+    try {
+        const systemSettings = await prisma.systemSettings.findUnique({
+            where: { id: 'system' }
+        });
+
+        if (systemSettings?.defaultRoutescanApiKey) {
+            return systemSettings.defaultRoutescanApiKey;
+        }
+
+        if (systemSettings?.defaultBasescanApiKey) {
+            return systemSettings.defaultBasescanApiKey;
+        }
+    } catch (error) {
+        console.warn('[getApiKey] Error fetching SystemSettings:', error);
+    }
+
+    return null;
+}
+
+/**
  * Obtiene nuevas transferencias desde la API de Etherscan/Basescan
  */
 async function fetchNewTransfersFromAPI(
     walletAddress: string,
     lastTimestamp: number = 0
 ): Promise<any[]> {
-    const apiKey = process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
+    const apiKey = await getApiKey();
 
     if (!apiKey) {
-        console.warn('No API key found for Routescan/Basescan');
+        console.warn('No API key found for Routescan/Basescan (checked .env and SystemSettings)');
         return [];
     }
 
