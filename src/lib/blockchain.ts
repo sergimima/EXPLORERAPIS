@@ -290,9 +290,9 @@ async function callEtherscanV2Api(
   }
 
   const keys = getApiKeys(customApiKeys);
-  const apiKey = keys.basescanApiKey;
+  const apiKey = keys.routescanApiKey;
   if (!apiKey || apiKey === 'YourApiKeyToken') {
-    throw new Error('No se ha configurado la clave API de BaseScan/Etherscan');
+    throw new Error('No se ha configurado la clave API de Routescan');
   }
 
   const queryParams = new URLSearchParams({

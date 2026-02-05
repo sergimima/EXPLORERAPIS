@@ -18,13 +18,18 @@ interface TokenInfo {
 
 const tokenInfoCache = new Map<string, TokenInfo>();
 
+/** API key: env vars o primer argumento del comando (ej. npx tsx prisma/backfill-transfer-tokens.ts TU_KEY) */
+function getApiKey(): string | undefined {
+  return process.env.API_KEY ?? process.argv[2] ?? process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY ?? process.env.NEXT_PUBLIC_BASESCAN_API_KEY ?? process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;
+}
+
 async function getTokenInfo(tokenAddress: string): Promise<TokenInfo | null> {
   // Check cache first
   if (tokenInfoCache.has(tokenAddress.toLowerCase())) {
     return tokenInfoCache.get(tokenAddress.toLowerCase())!;
   }
 
-  const apiKey = process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
+  const apiKey = getApiKey();
 
   if (!apiKey) {
     console.warn('No API key found');
