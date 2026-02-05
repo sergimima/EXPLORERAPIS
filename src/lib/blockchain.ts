@@ -1372,8 +1372,6 @@ export async function checkVestingContractStatus(
               result.totalTokensOut = outgoingAmount.toString();
               result.claimedTokens = outgoingAmount.toString();
 
-
-
               // Calcular locked tokens como la diferencia entre IN y OUT
               const lockedAmount = incomingAmount - outgoingAmount;
               result.lockedTokens = lockedAmount.toString();
@@ -1397,6 +1395,45 @@ export async function checkVestingContractStatus(
             console.error("❌ Error al obtener transferencias de tokens:", e);
             if (e.response?.data) {
               console.error("Detalle del error Moralis:", e.response.data);
+            }
+          }
+
+          // Si no tenemos datos de transferencias, intentar calcular totales desde beneficiarios en cache
+          if ((!result.totalVested || result.totalVested === '0') &&
+              (!result.totalReleased || result.totalReleased === '0')) {
+            try {
+              console.log('💾 Intentando calcular totales desde VestingBeneficiaryCache...');
+              const cachedBeneficiaries = await prisma.vestingBeneficiaryCache.findMany({
+                where: {
+                  vestingContract: normalizedContractAddress.toLowerCase(),
+                  network: network
+                },
+                include: {
+                  vestings: true
+                }
+              });
+
+              if (cachedBeneficiaries.length > 0) {
+                let totalVestedSum = 0;
+                let totalReleasedSum = 0;
+                let totalClaimableSum = 0;
+
+                for (const beneficiary of cachedBeneficiaries) {
+                  totalVestedSum += parseFloat(beneficiary.totalAmount || '0');
+                  totalReleasedSum += parseFloat(beneficiary.releasedAmount || '0');
+                  totalClaimableSum += parseFloat(beneficiary.claimableAmount || '0');
+                }
+
+                result.totalVested = totalVestedSum.toString();
+                result.totalReleased = totalReleasedSum.toString();
+                result.releasableTokens = totalClaimableSum.toString();
+                result.lockedTokens = (totalVestedSum - totalReleasedSum).toString();
+                result.remainingToVest = (totalVestedSum - totalReleasedSum).toString();
+
+                console.log(`✅ Totales calculados desde BD: Vested=${result.totalVested}, Released=${result.totalReleased}, Claimable=${result.releasableTokens}`);
+              }
+            } catch (dbError) {
+              console.error('Error al leer beneficiarios desde BD:', dbError);
             }
           }
 
