@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import LogoUpload from '@/components/LogoUpload';
+import { useToken } from '@/contexts/TokenContext';
 
 export default function GeneralSettingsPage() {
   const params = useParams();
   const tokenId = params.id as string;
+  const { refreshTokens } = useToken();
 
   const [token, setToken] = useState<any>(null);
   const [settings, setSettings] = useState<any>({});
@@ -62,10 +64,12 @@ export default function GeneralSettingsPage() {
           tokenId={tokenId}
           onUploadSuccess={(logoUrl) => {
             setToken({ ...token, logoUrl });
+            refreshTokens(); // Actualiza el header
             toast.success('Logo actualizado correctamente');
           }}
           onDeleteSuccess={() => {
             setToken({ ...token, logoUrl: null });
+            refreshTokens(); // Actualiza el header
             toast.success('Logo eliminado correctamente');
           }}
         />

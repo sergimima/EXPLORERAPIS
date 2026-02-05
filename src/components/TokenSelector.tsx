@@ -2,6 +2,7 @@
 
 import { useToken } from '@/contexts/TokenContext';
 import Link from 'next/link';
+import Avatar from './Avatar';
 
 export default function TokenSelector() {
   const { activeToken, tokens, loading, error, setActiveTokenId } = useToken();
@@ -38,9 +39,11 @@ export default function TokenSelector() {
     <div className="relative group">
       <button className="flex items-center gap-2 px-3 py-2 bg-card border border-input rounded-md hover:bg-muted transition-colors">
         {/* Token Icon */}
-        <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold">
-          {activeToken?.symbol.substring(0, 2) || '??'}
-        </div>
+        <Avatar
+          src={activeToken?.logoUrl}
+          name={activeToken?.symbol || '??'}
+          size="xs"
+        />
 
         {/* Token Info */}
         <div className="flex flex-col items-start">
@@ -76,9 +79,11 @@ export default function TokenSelector() {
               }`}
             >
               {/* Token Icon */}
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
-                {token.symbol.substring(0, 2)}
-              </div>
+              <Avatar
+                src={token.logoUrl}
+                name={token.symbol}
+                size="sm"
+              />
 
               {/* Token Info */}
               <div className="flex-1 min-w-0">

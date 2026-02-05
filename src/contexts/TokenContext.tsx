@@ -20,6 +20,7 @@ export interface TokenData {
   decimals: number;
   network: string;
   organizationId: string;
+  logoUrl?: string | null;
   settings?: TokenSettings | null;
 }
 
