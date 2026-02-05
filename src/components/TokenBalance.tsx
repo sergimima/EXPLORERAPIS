@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchTokenBalances } from '@/actions/blockchain'; // Server Action (accede a SystemSettings en BD)
+import { useToken } from '@/contexts/TokenContext';
 import { ethers } from 'ethers';
 import { Network } from '@/lib/types';
 import { getExplorerUrl } from '@/lib/utils';
@@ -27,6 +28,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
   searchTriggered = 0,
   preloadedData
 }) => {
+  const { activeToken } = useToken();
   const [tokenBalances, setTokenBalances] = useState<TokenInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,8 +57,8 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
     setError(null);
 
     try {
-      console.log(`Fetching token balances for wallet: ${walletAddress} on network: ${network}`);
-      const data = await fetchTokenBalances(walletAddress, network);
+      console.log(`Fetching token balances for wallet: ${walletAddress} on network: ${network}, tokenId: ${activeToken?.id}`);
+      const data = await fetchTokenBalances(walletAddress, network, activeToken?.id);
       console.log('Token balances received:', data);
 
       if (data && data.length > 0) {

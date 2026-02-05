@@ -18,52 +18,74 @@ import type { Network } from '@/lib/types';
 export type { CustomApiKeys, TokenSupplyInfo };
 
 /**
- * Obtiene la API key de Routescan/Basescan desde .env o SystemSettings
+ * Obtiene API keys con jerarquía: TokenSettings → SystemSettings → .env
+ * @param tokenId - ID único del token (opcional)
  */
-async function getApiKeys() {
-    // 1. Intentar desde .env
-    const basescanKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
-    const routescanKey = process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY;
-    const etherscanKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;
-    const moralisKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
-    const quiknodeUrl = process.env.NEXT_PUBLIC_QUICKNODE_URL;
+async function getApiKeys(tokenId?: string) {
+    let keys = {
+        basescanApiKey: null as string | null,
+        routescanApiKey: null as string | null,
+        etherscanApiKey: null as string | null,
+        moralisApiKey: null as string | null,
+        quiknodeUrl: null as string | null
+    };
 
-    // 2. Si no hay keys en .env, leer de SystemSettings (BD)
-    if (!basescanKey && !routescanKey && !etherscanKey) {
+    // 1. TokenSettings (prioridad máxima si hay tokenId)
+    if (tokenId) {
         try {
-            const systemSettings = await prisma.systemSettings.findUnique({
-                where: { id: 'system' }
+            const tokenSettings = await prisma.tokenSettings.findUnique({
+                where: { tokenId }
             });
-
-            return {
-                basescanApiKey: systemSettings?.defaultBasescanApiKey || basescanKey || 'YourApiKeyToken',
-                routescanApiKey: systemSettings?.defaultRoutescanApiKey || routescanKey || 'YourApiKeyToken',
-                etherscanApiKey: systemSettings?.defaultEtherscanApiKey || etherscanKey || 'YourApiKeyToken',
-                moralisApiKey: systemSettings?.defaultMoralisApiKey || moralisKey,
-                quiknodeUrl: systemSettings?.defaultQuiknodeUrl || quiknodeUrl || 'https://mainnet.base.org'
-            };
+            if (tokenSettings) {
+                keys.basescanApiKey = tokenSettings.customBasescanApiKey;
+                keys.routescanApiKey = tokenSettings.customRoutescanApiKey;
+                keys.etherscanApiKey = tokenSettings.customEtherscanApiKey;
+                keys.moralisApiKey = tokenSettings.customMoralisApiKey;
+                keys.quiknodeUrl = tokenSettings.customQuiknodeUrl;
+                console.log('[getApiKeys] Using TokenSettings for token:', tokenId);
+            }
         } catch (error) {
-            console.warn('[getApiKeys] Error fetching SystemSettings:', error);
+            console.warn('[getApiKeys] Error fetching TokenSettings:', error);
         }
     }
 
-    // 3. Fallback a .env si SystemSettings no está disponible
+    // 2. SystemSettings (fallback para keys no configuradas)
+    try {
+        const systemSettings = await prisma.systemSettings.findUnique({
+            where: { id: 'system' }
+        });
+        if (systemSettings) {
+            keys.basescanApiKey = keys.basescanApiKey || systemSettings.defaultBasescanApiKey;
+            keys.routescanApiKey = keys.routescanApiKey || systemSettings.defaultRoutescanApiKey;
+            keys.etherscanApiKey = keys.etherscanApiKey || systemSettings.defaultEtherscanApiKey;
+            keys.moralisApiKey = keys.moralisApiKey || systemSettings.defaultMoralisApiKey;
+            keys.quiknodeUrl = keys.quiknodeUrl || systemSettings.defaultQuiknodeUrl;
+            if (!tokenId) {
+                console.log('[getApiKeys] Using SystemSettings (no tokenId provided)');
+            }
+        }
+    } catch (error) {
+        console.warn('[getApiKeys] Error fetching SystemSettings:', error);
+    }
+
+    // 3. .env fallback
     return {
-        basescanApiKey: basescanKey || 'YourApiKeyToken',
-        routescanApiKey: routescanKey || 'YourApiKeyToken',
-        etherscanApiKey: etherscanKey || 'YourApiKeyToken',
-        moralisApiKey: moralisKey,
-        quiknodeUrl: quiknodeUrl || 'https://mainnet.base.org'
+        basescanApiKey: keys.basescanApiKey || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken',
+        routescanApiKey: keys.routescanApiKey || process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || 'YourApiKeyToken',
+        etherscanApiKey: keys.etherscanApiKey || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || 'YourApiKeyToken',
+        moralisApiKey: keys.moralisApiKey || process.env.NEXT_PUBLIC_MORALIS_API_KEY,
+        quiknodeUrl: keys.quiknodeUrl || process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://mainnet.base.org'
     };
 }
 
 /**
  * Server Action: Obtiene los balances de tokens para una wallet
+ * @param tokenId - ID único del token para usar sus API keys custom
  */
-export async function fetchTokenBalances(walletAddress: string, network: Network) {
+export async function fetchTokenBalances(walletAddress: string, network: Network, tokenId?: string) {
     try {
-        console.log('[Server Action] fetchTokenBalances:', walletAddress, network);
-        const apiKeys = await getApiKeys();
+        console.log('[Server Action] fetchTokenBalances:', walletAddress, network, tokenId);
+        const apiKeys = await getApiKeys(tokenId);
         const result = await fetchTokenBalancesOriginal(walletAddress, network, apiKeys);
         return result;
     } catch (error) {
@@ -93,16 +115,17 @@ export async function checkVestingContractStatus(
 
 /**
  * Server Action: Obtiene las transferencias de un token
- * Signature: (walletAddress, network, tokenFilter, customApiKeys?)
+ * @param tokenId - ID único del token para usar sus API keys custom
  */
 export async function fetchTokenTransfers(
     walletAddress: string,
     network: Network = 'base',
-    tokenFilter: string = ''
+    tokenFilter: string = '',
+    tokenId?: string
 ) {
     try {
-        console.log('[Server Action] fetchTokenTransfers:', walletAddress, network);
-        const apiKeys = await getApiKeys();
+        console.log('[Server Action] fetchTokenTransfers:', walletAddress, network, tokenId);
+        const apiKeys = await getApiKeys(tokenId);
         return await fetchTokenTransfersOriginal(walletAddress, network, tokenFilter, apiKeys);
     } catch (error) {
         console.error('[Server Action] fetchTokenTransfers error:', error);
@@ -131,15 +154,16 @@ export async function fetchVestingInfo(
 
 /**
  * Server Action: Obtiene información del supply de un token
- * Signature: (onProgress?, options?)
+ * @param tokenId - ID único del token para usar sus API keys custom
  */
 export async function getTokenSupplyInfo(
     tokenAddress: string,
     network: Network,
+    tokenId?: string,
     onProgress?: ProgressCallback
 ): Promise<TokenSupplyInfo> {
     try {
-        console.log('[Server Action] getTokenSupplyInfo:', tokenAddress, network);
+        console.log('[Server Action] getTokenSupplyInfo:', tokenAddress, network, tokenId);
         // getTokenSupplyInfo usa un formato diferente: (onProgress?, options?)
         const options: TokenSupplyOptions = {
             tokenAddress,

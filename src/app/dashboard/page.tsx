@@ -163,7 +163,7 @@ function UnifiedExplorerContent() {
     });
 
     try {
-      const transfersPromise = fetchTokenTransfers(wallet, network, tokenFilter)
+      const transfersPromise = fetchTokenTransfers(wallet, network, tokenFilter, activeToken?.id)
         .then(data => {
           setTransfers(data);
           setDataFetched(prev => ({ ...prev, transfers: true }));
@@ -242,7 +242,7 @@ function UnifiedExplorerContent() {
     setLoadingStates(prev => ({ ...prev, transfers: true }));
 
     try {
-      const data = await fetchTokenTransfers(wallet, network, tokenFilter);
+      const data = await fetchTokenTransfers(wallet, network, tokenFilter, activeToken?.id);
       setTransfers(data);
       setDataFetched(prev => ({ ...prev, transfers: true }));
       console.log("Transferencias actualizadas:", data.length);
@@ -269,7 +269,7 @@ function UnifiedExplorerContent() {
       console.log("Caché limpiado");
 
       // 2. Recargar transferencias (esto buscará todo de nuevo en la API)
-      const transfersData = await fetchTokenTransfers(wallet, network, tokenFilter);
+      const transfersData = await fetchTokenTransfers(wallet, network, tokenFilter, activeToken?.id);
       setTransfers(transfersData);
       setDataFetched(prev => ({ ...prev, transfers: true }));
 
@@ -314,7 +314,7 @@ function UnifiedExplorerContent() {
     });
 
     try {
-      const transfersPromise = fetchTokenTransfers(address, network, tokenFilter)
+      const transfersPromise = fetchTokenTransfers(address, network, tokenFilter, activeToken?.id)
         .then(data => {
           setTransfers(data);
           setDataFetched(prev => ({ ...prev, transfers: true }));

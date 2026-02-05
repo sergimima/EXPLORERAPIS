@@ -118,6 +118,7 @@ const TokenSupplyCard: React.FC = () => {
         const data = await getTokenSupplyInfo(
           activeToken.address,
           (activeToken.network ?? 'base') as Network,
+          activeToken.id,
           handleProgress
         );
         setSupplyInfo(data);

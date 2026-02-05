@@ -1009,7 +1009,7 @@ npx prisma db push
 ---
 
 **Last Updated:** 2026-02-05
-**Version:** 4.1 (Routescan Integration + Transfer Cache Fixes)
+**Version:** 4.3 (API Key Propagation Fix - customApiKeys parameter)
 
 ### Sprint Status:
 
@@ -1095,12 +1095,54 @@ npx prisma db push
 
 ## 🆕 Recent Changes (2026-02-05)
 
+### 🔄 Multi-Token API Keys Architecture (COMPLETADO)
+
+**Problema identificado:** Los componentes cliente NO pasaban el `tokenId` a las Server Actions, por lo que no podían acceder a las API keys específicas de cada token (TokenSettings). El sistema solo leía SystemSettings globales, ignorando las configuraciones personalizadas por token.
+
+**Contexto SaaS Multi-Tenant:**
+Este es un SaaS donde:
+- Múltiples organizaciones pueden tener el mismo token address (ej: VTN)
+- Cada organización tiene su propio registro Token con su propio `tokenId` único
+- Cada Token puede tener sus propias API keys custom (TokenSettings)
+- La jerarquía DEBE ser: TokenSettings → SystemSettings → .env
+
+**Solución implementada:**
+- ✅ Modificado `getApiKeys(tokenId?)` en `src/actions/blockchain.ts`:
+  - Ahora recibe `tokenId` opcional
+  - Lee TokenSettings del token específico (prioridad máxima)
+  - Fallback a SystemSettings si no hay TokenSettings
+  - Fallback a .env si no hay SystemSettings
+- ✅ Actualizado todas las Server Actions para recibir y usar `tokenId`:
+  - `fetchTokenBalances(walletAddress, network, tokenId?)`
+  - `fetchTokenTransfers(walletAddress, network, tokenFilter, tokenId?)`
+  - `getTokenSupplyInfo(tokenAddress, network, tokenId?, onProgress?)`
+- ✅ Actualizado TODOS los componentes para pasar el `tokenId`:
+  - `TokenBalance.tsx` → Usa `useToken()` y pasa `activeToken?.id`
+  - `TokenSupplyCard.tsx` → Pasa `activeToken.id`
+  - `dashboard/page.tsx` → Pasa `activeToken?.id` en todas las llamadas
+- ✅ TokenContext ya existente con `activeToken` disponible globalmente
+
+**Jerarquía de API Keys (CORRECTA Y FINAL):**
+1. **TokenSettings** (BD - `/settings/tokens/[id]/api-keys`) - **PRIORIDAD MÁXIMA** 🎯
+2. **SystemSettings** (BD - `/admin/settings`) - Fallback global
+3. **.env** - Fallback si BD vacía
+4. `'YourApiKeyToken'` - Último recurso (rechazado por validación)
+
+**Archivos modificados:**
+- ✅ `src/actions/blockchain.ts` - `getApiKeys(tokenId?)` con jerarquía correcta
+- ✅ `src/components/TokenBalance.tsx` - Pasa `activeToken?.id`
+- ✅ `src/app/dashboard/page.tsx` - Pasa `activeToken?.id` (4 ubicaciones)
+- ✅ `src/app/explorer/vestings/components/TokenSupplyCard.tsx` - Pasa `activeToken.id`
+
+**Resultado:** Cada token usa sus propias API keys configuradas en TokenSettings. Multi-tenant funcionando correctamente. ✅
+
 ### Routescan API Integration
 - ✅ Added Routescan API support for multi-chain blockchain data
 - ✅ Implemented automatic fallback system: BaseScan → Routescan → Error
 - ✅ Added Routescan API key configuration at both platform and token levels
 - ✅ Updated SystemSettings and TokenSettings models to include `routescanApiKey`
 - ✅ Added Routescan as ABI source tracking option (`BASESCAN`, `ROUTESCAN`, `STANDARD`, `UPLOADED`)
+- ✅ Fixed `callEtherscanV2Api()` to use `routescanApiKey` instead of `basescanApiKey`
 
 ### Transfer Cache Improvements
 - ✅ Fixed "UNKNOWN" token display issue in transfer history
@@ -1118,6 +1160,15 @@ npx prisma db push
 - ✅ Updated CLAUDE.md with Routescan API information
 - ✅ Updated API Key Configuration section
 - ✅ Documented API Fallback System
+- ✅ Documented Server Actions refactor and architecture
+
+### Bug Fixes (2026-02-05)
+- ✅ Fixed missing `customApiKeys` parameter in `fetchTokenBalances` fallback path
+  - Location: [src/lib/blockchain.ts:564](src/lib/blockchain.ts#L564)
+  - Issue: When `fetchTokenBalances` fell back to using transfers, it called `callEtherscanV2Api(params, network)` without passing `customApiKeys`
+  - Result: Function defaulted to reading from `NEXT_PUBLIC_*` env vars instead of using database-stored API keys
+  - Fix: Added third parameter `customApiKeys` to the call
+  - Impact: Now properly uses SystemSettings/TokenSettings API keys from database
 
 ---
 

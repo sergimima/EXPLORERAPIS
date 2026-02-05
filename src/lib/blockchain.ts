@@ -561,7 +561,7 @@ export async function fetchTokenBalances(
         sort: 'desc'
       };
 
-      const data = await callEtherscanV2Api(params, network);
+      const data = await callEtherscanV2Api(params, network, customApiKeys);
       const transfers = Array.isArray(data.result) ? data.result : [];
 
       // Crear un mapa para agrupar las transferencias por token
