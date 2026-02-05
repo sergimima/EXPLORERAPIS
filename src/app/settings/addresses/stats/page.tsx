@@ -27,7 +27,7 @@ export default function AdminDashboardPage() {
       const response = await fetch('/api/addresses');
       if (response.ok) {
         const data = await response.json();
-        const addresses = data.addresses || [];
+        const addresses = data.knownAddresses || data.addresses || [];
 
         // Calcular stats
         const byType: Record<string, number> = {};

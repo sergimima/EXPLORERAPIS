@@ -71,6 +71,16 @@ export default function LogoUpload({
         body: JSON.stringify({ image: base64 })
       });
 
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.slice(0, 200));
+        if (response.status === 401) {
+          throw new Error('Sesión expirada. Inicia sesión de nuevo.');
+        }
+        throw new Error('Error del servidor. Intenta más tarde.');
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -106,8 +116,15 @@ export default function LogoUpload({
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Delete failed');
+        const contentType = response.headers.get('content-type');
+        if (contentType?.includes('application/json')) {
+          const data = await response.json();
+          throw new Error(data.error || 'Delete failed');
+        }
+        if (response.status === 401) {
+          throw new Error('Sesión expirada. Inicia sesión de nuevo.');
+        }
+        throw new Error('Error del servidor. Intenta más tarde.');
       }
 
       // Success

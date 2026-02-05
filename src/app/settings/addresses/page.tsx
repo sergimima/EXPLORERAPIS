@@ -37,7 +37,7 @@ export default function AdminAddressesPage() {
       const response = await fetch('/api/addresses');
       if (response.ok) {
         const data = await response.json();
-        setAddresses(data.addresses || []);
+        setAddresses(data.knownAddresses || data.addresses || []);
       }
     } catch (error) {
       console.error('Error fetching addresses:', error);

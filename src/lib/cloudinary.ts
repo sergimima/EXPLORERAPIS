@@ -129,15 +129,66 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
 }
 
 /**
- * Convert File to Base64 string (client-side helper)
+ * Resize image to max dimensions (client-side) to avoid 413 Request Entity Too Large
  * @param file - File object from input
- * @returns Base64 string promise
+ * @param maxSize - Max width/height (default 512, enough for logos)
+ * @param maxKb - Max output size in KB (default 300)
+ */
+export async function resizeImageForUpload(file: File, maxSize = 512, maxKb = 300): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas not supported'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+
+      let quality = 0.9;
+      const tryCompress = () => {
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        const base64Size = (dataUrl.length * 3) / 4;
+        if (base64Size <= maxKb * 1024 || quality <= 0.5) {
+          resolve(dataUrl);
+        } else {
+          quality -= 0.1;
+          tryCompress();
+        }
+      };
+      tryCompress();
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load image'));
+    };
+    img.src = url;
+  });
+}
+
+/**
+ * Convert File to Base64 string (client-side helper)
+ * Resizes to max 512px to avoid 413 errors
  */
 export function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = error => reject(error);
-  });
+  return resizeImageForUpload(file);
 }
