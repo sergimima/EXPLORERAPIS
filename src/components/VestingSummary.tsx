@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { checkVestingContractStatus } from '@/lib/blockchain';
+import { checkVestingContractStatus } from '@/actions/blockchain';
 import { ethers } from 'ethers';
 import { Network } from '@/lib/types';
 

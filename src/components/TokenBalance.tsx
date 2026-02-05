@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchTokenBalances } from '@/lib/blockchain';
+import { fetchTokenBalances } from '@/actions/blockchain'; // Server Action (accede a SystemSettings en BD)
 import { ethers } from 'ethers';
 import { Network } from '@/lib/types';
 import { getExplorerUrl } from '@/lib/utils';

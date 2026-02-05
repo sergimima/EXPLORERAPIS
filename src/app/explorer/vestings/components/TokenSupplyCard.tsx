@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { getTokenSupplyInfo, TokenSupplyInfo } from '@/lib/blockchain';
+import { getTokenSupplyInfo, TokenSupplyInfo } from '@/actions/blockchain';
 import { useToken } from '@/contexts/TokenContext';
+import type { Network } from '@/lib/types';
 
 interface SupplyCardProps {
   title: string;
@@ -113,13 +114,12 @@ const TokenSupplyCard: React.FC = () => {
           }
         };
 
-        // Llamar a getTokenSupplyInfo con el token activo
-        // vestingContracts: vacío por defecto; configurar en TokenSettings.vestingContractAddresses cuando exista
-        const data = await getTokenSupplyInfo(handleProgress, {
-          tokenAddress: activeToken.address,
-          vestingContracts: [],
-          network: activeToken.network ?? 'base'
-        });
+        // Llamar a getTokenSupplyInfo con el token activo (Server Action)
+        const data = await getTokenSupplyInfo(
+          activeToken.address,
+          (activeToken.network ?? 'base') as Network,
+          handleProgress
+        );
         setSupplyInfo(data);
       } catch (err) {
         console.error('Error al obtener información del suministro:', err);

@@ -15,7 +15,7 @@ import VestingSummary from '@/components/VestingSummary';
 import AirdropAssignments from '@/components/AirdropAssignments';
 import VestingContractList from '../explorer/vestings/components/VestingContractList';
 import TokenOverview from '@/components/TokenOverview';
-import { fetchTokenTransfers, CustomApiKeys } from '@/lib/blockchain';
+import { fetchTokenTransfers, CustomApiKeys } from '@/actions/blockchain';
 import { clearWalletCache } from '@/actions/wallet';
 import { useToken, type TokenData } from '@/contexts/TokenContext';
 
@@ -163,7 +163,7 @@ function UnifiedExplorerContent() {
     });
 
     try {
-      const transfersPromise = fetchTokenTransfers(wallet, network, tokenFilter, getCustomApiKeys())
+      const transfersPromise = fetchTokenTransfers(wallet, network, tokenFilter)
         .then(data => {
           setTransfers(data);
           setDataFetched(prev => ({ ...prev, transfers: true }));
@@ -242,7 +242,7 @@ function UnifiedExplorerContent() {
     setLoadingStates(prev => ({ ...prev, transfers: true }));
 
     try {
-      const data = await fetchTokenTransfers(wallet, network, tokenFilter, getCustomApiKeys());
+      const data = await fetchTokenTransfers(wallet, network, tokenFilter);
       setTransfers(data);
       setDataFetched(prev => ({ ...prev, transfers: true }));
       console.log("Transferencias actualizadas:", data.length);
@@ -269,7 +269,7 @@ function UnifiedExplorerContent() {
       console.log("Caché limpiado");
 
       // 2. Recargar transferencias (esto buscará todo de nuevo en la API)
-      const transfersData = await fetchTokenTransfers(wallet, network, tokenFilter, getCustomApiKeys());
+      const transfersData = await fetchTokenTransfers(wallet, network, tokenFilter);
       setTransfers(transfersData);
       setDataFetched(prev => ({ ...prev, transfers: true }));
 
@@ -314,7 +314,7 @@ function UnifiedExplorerContent() {
     });
 
     try {
-      const transfersPromise = fetchTokenTransfers(address, network, tokenFilter, getCustomApiKeys())
+      const transfersPromise = fetchTokenTransfers(address, network, tokenFilter)
         .then(data => {
           setTransfers(data);
           setDataFetched(prev => ({ ...prev, transfers: true }));
