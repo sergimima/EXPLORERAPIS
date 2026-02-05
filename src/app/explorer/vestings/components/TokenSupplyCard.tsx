@@ -51,21 +51,14 @@ const TokenSupplyCard: React.FC = () => {
   const [supplyInfo, setSupplyInfo] = useState<TokenSupplyInfo | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [loadingProgress, setLoadingProgress] = useState<number>(0);
-  const [loadingStage, setLoadingStage] = useState<string>('');
   // Referencias para controlar peticiones duplicadas
   const fetchingRef = useRef<boolean>(false);
-  const requestIdRef = useRef<number>(0);
 
   useEffect(() => {
     if (!activeToken || tokenLoading) {
       setLoading(false);
       return;
     }
-
-    // Generar un ID único para esta ejecución del efecto
-    const currentRequestId = ++requestIdRef.current;
-
 
     const fetchSupplyInfo = async () => {
       // Si ya estamos obteniendo datos, no hacer nada
@@ -76,50 +69,12 @@ const TokenSupplyCard: React.FC = () => {
 
       try {
         setLoading(true);
-        setLoadingProgress(0);
-        setLoadingStage('iniciando');
-
-        // Definir el callback de progreso
-        const handleProgress = (stage: string, progress: number) => {
-          setLoadingProgress(progress);
-
-          // Traducir las etapas a mensajes en español
-          switch (stage) {
-            case 'iniciando':
-              setLoadingStage('Iniciando...');
-              break;
-            case 'cargando_total_supply':
-              setLoadingStage('Cargando suministro total...');
-              break;
-            case 'cargando_datos':
-              setLoadingStage('Procesando datos...');
-              break;
-            case 'esperando':
-              setLoadingStage(`Esperando (${progress}%)...`);
-              break;
-            case 'esperando_peticion':
-              setLoadingStage(`Esperando a que termine otra petición (${progress}%)...`);
-              break;
-            case 'usando_cache':
-              setLoadingStage('Usando datos en caché');
-              break;
-            case 'cargando_circulating_supply':
-              setLoadingStage('Cargando suministro circulante...');
-              break;
-            case 'completado':
-              setLoadingStage('Completado');
-              break;
-            default:
-              setLoadingStage(`Cargando (${progress}%)...`);
-          }
-        };
 
         // Llamar a getTokenSupplyInfo con el token activo (Server Action)
         const data = await getTokenSupplyInfo(
           activeToken.address,
           (activeToken.network ?? 'base') as Network,
-          activeToken.id,
-          handleProgress
+          activeToken.id
         );
         setSupplyInfo(data);
       } catch (err) {
@@ -128,9 +83,9 @@ const TokenSupplyCard: React.FC = () => {
       } finally {
         setLoading(false);
         // Permitir futuras actualizaciones después de un tiempo
-        const timeoutId = setTimeout(() => {
+        setTimeout(() => {
           fetchingRef.current = false;
-        }, 5000); // Esperar 5 segundos antes de permitir otra actualización
+        }, 5000);
       }
     };
 
@@ -161,33 +116,11 @@ const TokenSupplyCard: React.FC = () => {
     return (
       <div className="mb-8">
         <div className="bg-card rounded-lg shadow-md p-6 mb-4 border border-border">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-center gap-3 py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             <h3 className="text-lg font-medium text-card-foreground">
-              Cargando información del suministro
+              Cargando información del suministro...
             </h3>
-          </div>
-
-          <div className="mb-4">
-            <div className="relative pt-1">
-              <div className="flex mb-2 items-center justify-between">
-                <div>
-                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-primary bg-accent">
-                    {loadingStage}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-semibold inline-block text-primary">
-                    {loadingProgress}%
-                  </span>
-                </div>
-              </div>
-              <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-muted">
-                <div
-                  style={{ width: `${loadingProgress}%` }}
-                  className="shadow-none flex flex-col text-center whitespace-nowrap text-primary-foreground justify-center bg-primary transition-all duration-300"
-                ></div>
-              </div>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

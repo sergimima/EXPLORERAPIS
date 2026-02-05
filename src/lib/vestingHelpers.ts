@@ -88,33 +88,45 @@ export function calculateReleasableTokens(
   currentTime: number = Math.floor(Date.now() / 1000)
 ): number {
   let totalReleasable = 0;
-  
+
   for (const beneficiary of beneficiaries) {
-    if (beneficiary.startTime && beneficiary.endTime && beneficiary.amount) {
+    // PRIORIDAD 1: Si ya tiene el campo releasable/totalReleasable calculado, usarlo directamente
+    if (beneficiary.releasable || beneficiary.totalReleasable) {
+      const releasableValue = parseFloat(beneficiary.releasable || beneficiary.totalReleasable || '0');
+      totalReleasable += releasableValue;
+      continue; // Siguiente beneficiario
+    }
+
+    // PRIORIDAD 2: Calcular desde tiempo si tiene los campos necesarios
+    // Soportar tanto 'amount' como 'totalAmount', 'claimed' como 'totalClaimed'
+    const amount = beneficiary.amount || beneficiary.totalAmount;
+    const claimed = beneficiary.claimed || beneficiary.totalClaimed || beneficiary.releasedAmount;
+
+    if (beneficiary.startTime && beneficiary.endTime && amount) {
       const startTime = beneficiary.startTime;
       const endTime = beneficiary.endTime;
-      const totalAmount = parseFloat(beneficiary.amount);
-      const claimed = parseFloat(beneficiary.claimed || '0');
-      
+      const totalAmount = parseFloat(amount);
+      const claimedAmount = parseFloat(claimed || '0');
+
       // Si el vesting ya comenzó
       if (currentTime > startTime) {
         // Calcular el porcentaje de tiempo transcurrido
         const totalDuration = endTime - startTime;
         const elapsed = Math.min(currentTime - startTime, totalDuration);
         const percentComplete = elapsed / totalDuration;
-        
+
         // Calcular cuánto debería estar liberado
         const shouldBeReleased = totalAmount * percentComplete;
-        const releasable = Math.max(0, shouldBeReleased - claimed);
-        
+        const releasable = Math.max(0, shouldBeReleased - claimedAmount);
+
         // Actualizar el valor de tokens liberables para este beneficiario
         beneficiary.releasable = releasable.toString();
         totalReleasable += releasable;
-        
-        console.log(`Estimación para ${beneficiary.address}: Total=${totalAmount}, Reclamado=${claimed}, Liberado=${shouldBeReleased}, Liberables=${releasable}`);
+
+        console.log(`Estimación para ${beneficiary.address}: Total=${totalAmount}, Reclamado=${claimedAmount}, Liberado=${shouldBeReleased}, Liberables=${releasable}`);
       }
     }
   }
-  
+
   return totalReleasable;
 }
