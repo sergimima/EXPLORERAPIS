@@ -206,6 +206,7 @@ model Token {
   vestingCache            VestingCache[]
   vestingTransferCache    VestingTransferCache[]
   vestingBeneficiaryCache VestingBeneficiaryCache[]
+  vestingContractCache    VestingContractCache[]
 
   // Metadata
   createdAt      DateTime @default(now())
@@ -694,6 +695,34 @@ model VestingBeneficiaryCache {
   @@index([vestingContract])
   @@index([beneficiaryAddress])
   @@map("vesting_beneficiary_cache")
+}
+
+// Caché de totales calculados por contrato de vesting
+model VestingContractCache {
+  id              String   @id @default(cuid())
+  tokenId         String
+  contractAddress String
+  network         String   @default("base")
+
+  // Totales calculados
+  totalTokensIn      String  @default("0")
+  totalTokensOut     String  @default("0")
+  lockedTokens       String  @default("0")
+  releasableTokens   String  @default("0")
+  claimedTokens      String  @default("0")
+
+  // Control de sincronización
+  lastUpdate         DateTime @default(now())
+  lastBlockNumber    BigInt   @default(0)
+  lastTransferHash   String?  // Hash de la última transferencia procesada
+
+  token              Token    @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenId, contractAddress, network])
+  @@index([tokenId])
+  @@index([contractAddress])
+  @@index([lastUpdate])
+  @@map("vesting_contract_cache")
 }
 
 // Tabla para schedules individuales de vesting por beneficiario

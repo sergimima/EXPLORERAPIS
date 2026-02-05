@@ -1389,39 +1389,115 @@ export async function checkVestingContractStatus(
                 result.creationDate = new Date(firstTx.block_timestamp).toISOString();
               }
 
-              // Analizar todas las transferencias para calcular totales
-              let incomingAmount = 0;
-              let outgoingAmount = 0;
-              let vtnTransactionsCount = 0;
+              // Verificar si hay cache de totales válido
+              let usedCache = false;
+              if (tokenId) {
+                const lastTransferHash = allTransfers[0]?.transaction_hash || allTransfers[0]?.hash;
 
-              // Procesar todas las transferencias - Moralis ya filtra por dirección
-              allTransfers.forEach((tx: any) => {
-                // Moralis devuelve address (token), from_address, to_address, value
-                // Filtrar solo transferencias del token del contrato de vesting
-                if (tx.address?.toLowerCase() === tokenAddressForTransfers.toLowerCase()) {
-                  vtnTransactionsCount++;
-                  const amount = parseFloat(ethers.formatUnits(tx.value, result.tokenDecimals));
+                try {
+                  const cachedTotals = await prisma.vestingContractCache.findUnique({
+                    where: {
+                      tokenId_contractAddress_network: {
+                        tokenId,
+                        contractAddress: normalizedContractAddress.toLowerCase(),
+                        network
+                      }
+                    }
+                  });
 
-                  // Tokens entrantes al contrato
-                  if (tx.to_address?.toLowerCase() === normalizedContractAddress.toLowerCase()) {
-                    incomingAmount += amount;
+                  // Si el cache existe y el último hash coincide, usar cache
+                  if (cachedTotals && cachedTotals.lastTransferHash === lastTransferHash) {
+                    console.log('✓ Usando totales desde cache de contrato');
+                    result.totalTokensIn = cachedTotals.totalTokensIn;
+                    result.totalTokensOut = cachedTotals.totalTokensOut;
+                    result.lockedTokens = cachedTotals.lockedTokens;
+                    result.releasableTokens = cachedTotals.releasableTokens;
+                    result.claimedTokens = cachedTotals.claimedTokens;
+                    usedCache = true;
                   }
-                  // Tokens salientes del contrato (claims o transferencias)
-                  else if (tx.from_address?.toLowerCase() === normalizedContractAddress.toLowerCase()) {
-                    outgoingAmount += amount;
+                } catch (cacheError) {
+                  console.warn('Error al consultar cache de totales:', cacheError);
+                }
+              }
+
+              // Si no usamos cache, calcular totales
+              if (!usedCache) {
+                console.log('🔄 Calculando totales desde transferencias');
+
+                let incomingAmount = 0;
+                let outgoingAmount = 0;
+                let vtnTransactionsCount = 0;
+
+                // Procesar todas las transferencias - Moralis ya filtra por dirección
+                allTransfers.forEach((tx: any) => {
+                  // Moralis devuelve address (token), from_address, to_address, value
+                  // Filtrar solo transferencias del token del contrato de vesting
+                  if (tx.address?.toLowerCase() === tokenAddressForTransfers.toLowerCase()) {
+                    vtnTransactionsCount++;
+                    const amount = parseFloat(ethers.formatUnits(tx.value, result.tokenDecimals));
+
+                    // Tokens entrantes al contrato
+                    if (tx.to_address?.toLowerCase() === normalizedContractAddress.toLowerCase()) {
+                      incomingAmount += amount;
+                    }
+                    // Tokens salientes del contrato (claims o transferencias)
+                    else if (tx.from_address?.toLowerCase() === normalizedContractAddress.toLowerCase()) {
+                      outgoingAmount += amount;
+                    }
+                  }
+                });
+
+                // Actualizar totales
+                result.totalTokensIn = incomingAmount.toString();
+                result.totalTokensOut = outgoingAmount.toString();
+                result.claimedTokens = outgoingAmount.toString();
+
+                // Calcular locked tokens como la diferencia entre IN y OUT
+                const lockedAmount = incomingAmount - outgoingAmount;
+                result.lockedTokens = lockedAmount.toString();
+
+                // Guardar en cache si tenemos tokenId
+                if (tokenId) {
+                  const lastTransferHash = allTransfers[0]?.transaction_hash || allTransfers[0]?.hash;
+                  const lastBlockNumber = allTransfers[0]?.block_number || 0;
+
+                  try {
+                    await prisma.vestingContractCache.upsert({
+                      where: {
+                        tokenId_contractAddress_network: {
+                          tokenId,
+                          contractAddress: normalizedContractAddress.toLowerCase(),
+                          network
+                        }
+                      },
+                      create: {
+                        tokenId,
+                        contractAddress: normalizedContractAddress.toLowerCase(),
+                        network,
+                        totalTokensIn: result.totalTokensIn,
+                        totalTokensOut: result.totalTokensOut,
+                        lockedTokens: result.lockedTokens,
+                        releasableTokens: '0', // Se calculará después con beneficiarios
+                        claimedTokens: result.claimedTokens,
+                        lastTransferHash,
+                        lastBlockNumber: BigInt(lastBlockNumber)
+                      },
+                      update: {
+                        totalTokensIn: result.totalTokensIn,
+                        totalTokensOut: result.totalTokensOut,
+                        lockedTokens: result.lockedTokens,
+                        claimedTokens: result.claimedTokens,
+                        lastTransferHash,
+                        lastBlockNumber: BigInt(lastBlockNumber),
+                        lastUpdate: new Date()
+                      }
+                    });
+                    console.log('✓ Cache de totales guardado');
+                  } catch (cacheError) {
+                    console.warn('Error al guardar cache de totales:', cacheError);
                   }
                 }
-              });
-
-
-              // Actualizar totales
-              result.totalTokensIn = incomingAmount.toString();
-              result.totalTokensOut = outgoingAmount.toString();
-              result.claimedTokens = outgoingAmount.toString();
-
-              // Calcular locked tokens como la diferencia entre IN y OUT
-              const lockedAmount = incomingAmount - outgoingAmount;
-              result.lockedTokens = lockedAmount.toString();
+              }
 
               // Si no obtuvimos totalVested del contrato, usar totalTokensIn como estimación
               if (!result.totalVested || result.totalVested === '0') {
@@ -1864,6 +1940,28 @@ export async function checkVestingContractStatus(
               if (totalReleasable > 0) {
                 result.releasableTokens = totalReleasable.toString();
                 console.log("Total de tokens liberables calculados:", result.releasableTokens);
+
+                // Actualizar cache de totales con releasableTokens
+                if (tokenId) {
+                  try {
+                    await prisma.vestingContractCache.update({
+                      where: {
+                        tokenId_contractAddress_network: {
+                          tokenId,
+                          contractAddress: normalizedContractAddress.toLowerCase(),
+                          network
+                        }
+                      },
+                      data: {
+                        releasableTokens: result.releasableTokens,
+                        lastUpdate: new Date()
+                      }
+                    });
+                    console.log('✓ releasableTokens actualizado en cache');
+                  } catch (cacheError) {
+                    console.warn('Error al actualizar releasableTokens en cache:', cacheError);
+                  }
+                }
               }
 
             } catch (e) {
