@@ -30,32 +30,52 @@ async function getSupplyOnChain(
   network: string,
   customQuiknodeUrl?: string
 ): Promise<{ totalSupply: string; circulatingSupply: string; lockedSupply: string }> {
-  const rpcUrl = customQuiknodeUrl || NETWORKS[network] || NETWORKS['base'];
-  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  // Intentar primero con QuikNode custom, luego con RPC público como fallback
+  const rpcUrls = [
+    customQuiknodeUrl,
+    NETWORKS[network] || NETWORKS['base']
+  ].filter(Boolean);
 
-  const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+  let lastError: Error | null = null;
 
-  // Obtener total supply y decimals
-  const [totalSupplyBigInt, decimals] = await Promise.all([
-    tokenContract.totalSupply(),
-    tokenContract.decimals()
-  ]);
+  for (const rpcUrl of rpcUrls) {
+    try {
+      console.log(`[token-supply] Intentando RPC: ${rpcUrl?.substring(0, 40)}...`);
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
 
-  // Convertir de wei a tokens
-  const totalSupply = ethers.formatUnits(totalSupplyBigInt, decimals);
+      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
 
-  // Por ahora, circulating = total (simplificación)
-  // TODO: Restar balances de vesting contracts, burned addresses, etc.
-  const circulatingSupply = totalSupply;
-  const lockedSupply = '0';
+      // Obtener total supply y decimals
+      const [totalSupplyBigInt, decimals] = await Promise.all([
+        tokenContract.totalSupply(),
+        tokenContract.decimals()
+      ]);
 
-  console.log(`[token-supply] ✅ On-chain: Total=${totalSupply}, Circulating=${circulatingSupply}`);
+      // Convertir de wei a tokens
+      const totalSupply = ethers.formatUnits(totalSupplyBigInt, decimals);
 
-  return {
-    totalSupply,
-    circulatingSupply,
-    lockedSupply
-  };
+      // Por ahora, circulating = total (simplificación)
+      // TODO: Restar balances de vesting contracts, burned addresses, etc.
+      const circulatingSupply = totalSupply;
+      const lockedSupply = '0';
+
+      console.log(`[token-supply] ✅ On-chain: Total=${totalSupply}, Circulating=${circulatingSupply}`);
+
+      return {
+        totalSupply,
+        circulatingSupply,
+        lockedSupply
+      };
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`[token-supply] ⚠️ Error con RPC ${rpcUrl?.substring(0, 40)}: ${lastError.message}`);
+      // Continuar con el siguiente RPC
+      continue;
+    }
+  }
+
+  // Si llegamos aquí, todos los RPCs fallaron
+  throw new Error(`No se pudo obtener supply on-chain. Último error: ${lastError?.message}`);
 }
 
 export async function GET(request: NextRequest) {
