@@ -13,6 +13,7 @@ export interface CustomApiKeys {
   etherscanApiKey?: string;
   moralisApiKey?: string;
   quiknodeUrl?: string;
+  routescanApiKey?: string;
 }
 
 // Helper para obtener API keys con fallback a environment variables
@@ -21,7 +22,8 @@ function getApiKeys(customKeys?: CustomApiKeys) {
     basescanApiKey: customKeys?.basescanApiKey || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken',
     etherscanApiKey: customKeys?.etherscanApiKey || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || 'YourApiKeyToken',
     moralisApiKey: customKeys?.moralisApiKey || process.env.NEXT_PUBLIC_MORALIS_API_KEY,
-    quiknodeUrl: customKeys?.quiknodeUrl || process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://mainnet.base.org'
+    quiknodeUrl: customKeys?.quiknodeUrl || process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://mainnet.base.org',
+    routescanApiKey: customKeys?.routescanApiKey || process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || 'YourApiKeyToken'
   };
 }
 
@@ -69,15 +71,29 @@ async function getContractABIWithCache(
     return VESTING_CONTRACT_ABIS[normalizedAddress];
   }
 
-  // 3. Obtener de BaseScan
+  // 3. Obtener de BaseScan con fallback a Routescan
   console.log(`📡 Obteniendo ABI de BaseScan para ${contractAddress}...`);
-  const abi = await getContractABI(contractAddress, network);
+  let abi = await getContractABI(contractAddress, network);
+  let abiSource = 'BASESCAN';
+
+  // Si BaseScan falla, intentar con Routescan como fallback
+  if (!abi) {
+    console.log(`⚠️ BaseScan falló, intentando con Routescan como fallback...`);
+    const apiKeys = getApiKeys(customKeys);
+    abi = await fetchABIFromRoutescan(contractAddress, network, apiKeys.routescanApiKey);
+
+    if (abi) {
+      console.log(`✅ ABI obtenido exitosamente desde Routescan (fallback)`);
+      abiSource = 'ROUTESCAN';
+    }
+  }
 
   if (!abi) {
-    throw new Error(`No se pudo obtener ABI para ${contractAddress}`);
+    throw new Error(`No se pudo obtener ABI para ${contractAddress} (intentado: BaseScan, Routescan)`);
   }
 
   // 4. Guardar en BD si tenemos tokenId
+
   if (tokenId && abi) {
     try {
       await prisma.customAbi.upsert({
@@ -93,14 +109,14 @@ async function getContractABIWithCache(
           contractAddress: normalizedAddress,
           network,
           abi: abi as any,
-          source: 'BASESCAN'
+          source: abiSource
         },
         update: {
           abi: abi as any,
-          source: 'BASESCAN'
+          source: abiSource
         }
       });
-      console.log(`💾 ABI guardado en BD para futuras consultas`);
+      console.log(`💾 ABI guardado en BD para futuras consultas (source: ${abiSource})`);
     } catch (error) {
       console.warn(`⚠️ Error guardando ABI en BD:`, error);
     }
@@ -2214,6 +2230,91 @@ export async function getContractABI(contractAddress: string, network: string) {
     } else {
       console.error('Error desconocido al obtener ABI desde BaseScan');
     }
+    return null;
+  }
+}
+
+/**
+ * Obtiene el ABI de un contrato desde Routescan (fallback para BaseScan)
+ * @param contractAddress Dirección del contrato
+ * @param network Red blockchain
+ * @param apiKey API key de Routescan
+ * @returns ABI del contrato o null si falla
+ */
+async function fetchABIFromRoutescan(
+  contractAddress: string,
+  network: string,
+  apiKey: string
+): Promise<any> {
+  try {
+    // Determinar la URL de la API según la red
+    let apiUrl;
+
+    if (network === 'base') {
+      // Routescan API para Base Mainnet (chain ID 8453)
+      apiUrl = 'https://api.routescan.io/v2/network/mainnet/evm/8453/etherscan/api';
+    } else if (network === 'base-sepolia') {
+      // Routescan API para Base Sepolia (chain ID 84532)
+      apiUrl = 'https://api.routescan.io/v2/network/testnet/evm/84532/etherscan/api';
+    } else {
+      console.warn(`Red no soportada en Routescan: ${network}`);
+      return null;
+    }
+
+    // Si no hay API key, usamos una por defecto
+    if (!apiKey) {
+      apiKey = 'YourApiKeyToken';
+      console.warn('No se encontró API key para Routescan, usando valor por defecto (limitado)');
+    }
+
+    console.log(`🔄 Intentando obtener ABI desde Routescan para ${contractAddress}...`);
+
+    // Implementar reintentos para manejar límites de tasa
+    const maxRetries = 3;
+    let retryCount = 0;
+    let lastError = null;
+
+    while (retryCount < maxRetries) {
+      try {
+        // Hacer la petición a la API de Routescan (compatible con Etherscan)
+        const response = await axios.get(apiUrl, {
+          params: {
+            module: 'contract',
+            action: 'getabi',
+            address: contractAddress,
+            apikey: apiKey
+          }
+        });
+
+        // Verificar si la respuesta es correcta
+        if (response.data.status === '1' && response.data.result) {
+          console.log('✅ ABI obtenido correctamente desde Routescan');
+          return JSON.parse(response.data.result);
+        } else if (response.data.status === 'NOTOK' && response.data.message?.includes('rate limit')) {
+          // Si es un error de límite de tasa, esperamos y reintentamos
+          console.warn(`⚠️ Límite de tasa excedido en Routescan (intento ${retryCount + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+          retryCount++;
+          lastError = new Error(response.data.message);
+        } else {
+          // Otros errores de la API, no reintentamos
+          console.warn('⚠️ Error al obtener ABI desde Routescan:', response.data.message);
+          return null;
+        }
+      } catch (error) {
+        lastError = error;
+        retryCount++;
+        if (retryCount < maxRetries) {
+          console.warn(`⚠️ Error al conectar con Routescan (intento ${retryCount}/${maxRetries}), reintentando...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
+      }
+    }
+
+    console.error('❌ Error al obtener ABI desde Routescan después de múltiples intentos:', lastError);
+    return null;
+  } catch (error) {
+    console.error('❌ Error en fetchABIFromRoutescan:', error);
     return null;
   }
 }

@@ -507,9 +507,17 @@ export default function AnalyticsContent() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-2">
-          <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-lg font-bold">
-            {activeToken.symbol.substring(0, 2)}
-          </div>
+          {activeToken.logoUrl ? (
+            <img
+              src={activeToken.logoUrl}
+              alt={activeToken.symbol}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-lg font-bold">
+              {activeToken.symbol.substring(0, 2)}
+            </div>
+          )}
           <div>
             <h1 className="text-4xl font-bold">Análisis de {activeToken.symbol}</h1>
             <p className="text-muted-foreground">{activeToken.name}</p>

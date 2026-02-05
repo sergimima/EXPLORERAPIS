@@ -105,9 +105,17 @@ export default function TokenSettingsLayout({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-              <div className="w-12 h-12 flex-shrink-0 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-lg">
-                {token?.symbol?.substring(0, 2) || '??'}
-              </div>
+              {token?.logoUrl ? (
+                <img
+                  src={token.logoUrl}
+                  alt={token.symbol || 'Token'}
+                  className="w-12 h-12 flex-shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-12 h-12 flex-shrink-0 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-lg">
+                  {token?.symbol?.substring(0, 2) || '??'}
+                </div>
+              )}
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-bold truncate">{token?.symbol || 'Token'}</h1>

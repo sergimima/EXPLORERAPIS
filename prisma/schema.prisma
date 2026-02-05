@@ -229,6 +229,7 @@ model TokenSettings {
   customEtherscanApiKey   String?
   customMoralisApiKey     String?
   customQuiknodeUrl       String?
+  customRoutescanApiKey   String?
 
   // Configuraciones
   cacheDurationMinutes    Int      @default(5)
@@ -264,7 +265,7 @@ model CustomAbi {
 
   // ABI data
   abi             Json     // ABI en formato JSON
-  source          String   @default("STANDARD") // STANDARD, UPLOADED, BASESCAN
+  source          String   @default("STANDARD") // STANDARD, UPLOADED, BASESCAN, ROUTESCAN
 
   // Metadata
   createdAt       DateTime @default(now())
@@ -434,6 +435,7 @@ model SystemSettings {
   defaultEtherscanApiKey String?
   defaultMoralisApiKey   String?
   defaultQuiknodeUrl     String?
+  defaultRoutescanApiKey String?
 
   // Email (Resend)
   resendApiKey    String?

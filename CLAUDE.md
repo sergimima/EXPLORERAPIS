@@ -40,7 +40,8 @@ This is a blockchain explorer application for the Base blockchain network, built
 - Autoprefixer 10.4.21 - PostCSS plugin for vendor prefixes
 
 **External APIs Used:**
-- BaseScan API - Contract ABIs and blockchain data
+- BaseScan API - Contract ABIs and blockchain data (with Routescan fallback)
+- Routescan API - Multi-chain blockchain explorer (fallback for BaseScan/Etherscan)
 - Etherscan V2 API - Transaction history for Base network
 - Moralis API - Real-time holder data and token ownership
 - DEX Screener API - Liquidity and trading data for Aerodrome and other DEXs (free, no key)
@@ -127,7 +128,7 @@ The project uses PostgreSQL with Prisma ORM for data persistence and caching.
    - Override limits: tokensLimit, apiCallsLimit, transfersLimit, membersLimit
 
 7. **SystemSettings** - Global SaaS configuration (singleton)
-   - API Keys: defaultBasescanApiKey, defaultEtherscanApiKey, defaultMoralisApiKey, defaultQuiknodeUrl
+   - API Keys: defaultBasescanApiKey, defaultEtherscanApiKey, defaultMoralisApiKey, defaultQuiknodeUrl, defaultRoutescanApiKey
    - Email: resendApiKey, resendFromEmail
    - Stripe: stripePublicKey, stripeSecretKey
    - General: appName, appUrl, supportEmail
@@ -317,6 +318,10 @@ The codebase is hardcoded to work with Vottun Token (VTN):
 
 **Rate Limiting and Caching:**
 - BaseScan API calls implement retry logic with exponential backoff
+- **Automatic Fallback System**: If BaseScan fails (rate limit, errors), automatically falls back to Routescan
+  - Orden de fallback: BaseScan (3 retries) → Routescan (3 retries) → Error
+  - ABIs guardados en BD indican la fuente (BASESCAN, ROUTESCAN, STANDARD, UPLOADED)
+  - Logs claros indican qué API se usó exitosamente
 - **Incremental Transfer Caching**: TransferCache stores all transfers and only fetches new ones since last timestamp
   - First load: ~10s (fetches all history)
   - Subsequent loads: 2-4s (reads from DB + fetches only new transfers)
@@ -472,13 +477,46 @@ The codebase is hardcoded to work with Vottun Token (VTN):
   - Click token → Detail pages
 - `/settings/tokens/[id]` - Individual token settings (multiple tabs)
   - **General**: Basic info, whale threshold, cache settings
-  - **API Keys**: Custom API keys (BaseScan, Etherscan, Moralis, QuikNode)
+  - **API Keys**: Custom API keys (BaseScan, Etherscan, Moralis, QuikNode, Routescan)
   - **Contracts**: Manage contracts linked to token
   - **ABI**: Manage custom ABIs
   - **Supply**: Configure supply method (API vs ONCHAIN)
 - Protected routes with middleware (requires organization membership)
 
 ## Important Implementation Details
+
+### API Fallback System (Routescan Integration)
+
+The application implements an **automatic fallback system** to ensure high availability when fetching contract ABIs:
+
+**Fallback Order:**
+1. **Database Cache** - First checks for previously cached ABIs in the database
+2. **BaseScan API** - Attempts to fetch from BaseScan (3 retries with exponential backoff)
+3. **Routescan API** - If BaseScan fails, automatically falls back to Routescan (3 retries)
+4. **Legacy Cache** - Falls back to hardcoded ABIs if both APIs fail
+5. **Error** - Only fails if all sources are exhausted
+
+**Implementation Details:**
+```typescript
+// src/lib/blockchain.ts - getContractABIWithCache()
+// Flujo automático:
+// 1. Database → 2. BaseScan → 3. Routescan → 4. Legacy → Error
+```
+
+**Benefits:**
+- 🚀 **High Availability**: Rate limits on one API don't block the application
+- 💰 **Cost Efficiency**: Uses free tier of multiple services
+- 📊 **Tracking**: ABIs saved to database include source (`BASESCAN` or `ROUTESCAN`)
+- 🔍 **Logging**: Clear console logs indicate which API was used successfully
+
+**API Endpoints Used:**
+- **BaseScan**: `https://api.basescan.org/api` (Base Mainnet)
+- **Routescan**: `https://api.routescan.io/v2/network/mainnet/evm/8453/etherscan/api`
+
+**Rate Limiting Behavior:**
+- Each API gets 3 retry attempts with exponential backoff (1s, 2s, 3s)
+- If rate limit detected, waits before retrying
+- Only switches to fallback after all retries exhausted
 
 ### Vesting Contract Processing
 
@@ -760,7 +798,7 @@ const liquidityUSD = Number(liquidity) / 1e18 * ethPrice * 2;
 - ✅ Verificación on-chain de tokens ERC20 (ethers.js)
 - ✅ Página de gestión de tokens (`/settings/tokens`)
 - ✅ Página de configuración individual (`/settings/tokens/[id]`)
-- ✅ Custom API keys por token (BaseScan, Etherscan, Moralis, QuikNode)
+- ✅ Custom API keys por token (BaseScan, Etherscan, Moralis, QuikNode, Routescan)
 - ✅ Custom exchange addresses configurables
 - ✅ Settings: whale threshold, cache duration, max transfers
 

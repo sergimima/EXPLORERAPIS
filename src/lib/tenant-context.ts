@@ -31,6 +31,7 @@ export interface TenantContext {
       customEtherscanApiKey?: string;
       customMoralisApiKey?: string;
       customQuiknodeUrl?: string;
+      customRoutescanApiKey?: string;
       whaleThreshold: string;
     };
   };
@@ -98,6 +99,7 @@ export async function getTenantContext(
           customEtherscanApiKey: token.settings.customEtherscanApiKey || undefined,
           customMoralisApiKey: token.settings.customMoralisApiKey || undefined,
           customQuiknodeUrl: token.settings.customQuiknodeUrl || undefined,
+          customRoutescanApiKey: token.settings.customRoutescanApiKey || undefined,
           whaleThreshold: token.settings.whaleThreshold
         } : undefined
       };
@@ -127,6 +129,7 @@ export async function getTenantContext(
           customEtherscanApiKey: defaultToken.settings.customEtherscanApiKey || undefined,
           customMoralisApiKey: defaultToken.settings.customMoralisApiKey || undefined,
           customQuiknodeUrl: defaultToken.settings.customQuiknodeUrl || undefined,
+          customRoutescanApiKey: defaultToken.settings.customRoutescanApiKey || undefined,
           whaleThreshold: defaultToken.settings.whaleThreshold
         } : undefined
       };
@@ -163,6 +166,9 @@ export function getApiKeys(tenantContext: TenantContext) {
                     process.env.NEXT_PUBLIC_MORALIS_API_KEY,
     quiknodeUrl: settings?.customQuiknodeUrl ||
                   process.env.NEXT_PUBLIC_QUICKNODE_URL ||
-                  'https://mainnet.base.org'
+                  'https://mainnet.base.org',
+    routescanApiKey: settings?.customRoutescanApiKey ||
+                      process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY ||
+                      'YourApiKeyToken'
   };
 }

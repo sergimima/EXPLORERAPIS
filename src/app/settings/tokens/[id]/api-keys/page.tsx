@@ -144,6 +144,28 @@ export default function ApiKeysSettingsPage() {
               Obtener endpoint →
             </a>
           </div>
+
+          {/* Routescan */}
+          <div>
+            <label className="block text-sm font-medium mb-1 text-foreground">
+              Routescan API Key
+            </label>
+            <input
+              type="password"
+              value={settings.customRoutescanApiKey || ''}
+              onChange={(e) => setSettings({ ...settings, customRoutescanApiKey: e.target.value })}
+              placeholder="Si está vacío, usa la key del platform"
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+            <a
+              href="https://routescan.io/documentation/api-keys"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary hover:opacity-80 mt-1 inline-block"
+            >
+              Obtener API key →
+            </a>
+          </div>
         </div>
       </div>
 

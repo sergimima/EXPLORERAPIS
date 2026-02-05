@@ -8,6 +8,7 @@ interface SystemSettings {
   etherscanApiKey?: string;
   moralisApiKey?: string;
   quicknodeUrl?: string;
+  routescanApiKey?: string;
   resendApiKey?: string;
   resendFromEmail?: string;
   stripeSecretKey?: string;
@@ -176,6 +177,20 @@ export default function AdminSettingsPage() {
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     RPC provider for blockchain interactions and price data
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Routescan API Key:</label>
+                  <input
+                    type="text"
+                    value={formData.routescanApiKey || ''}
+                    onChange={(e) => setFormData({ ...formData, routescanApiKey: e.target.value })}
+                    placeholder="Enter Routescan API key"
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Used for multi-chain blockchain data and contract verification
                   </p>
                 </div>
               </div>

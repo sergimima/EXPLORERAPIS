@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     // SystemSettings es singleton con id = "system"
     let settings = await prisma.systemSettings.findUnique({
       where: { id: 'system' }
-    });
+    }) as any;
 
     // Si no existe, crear con valores por defecto
     if (!settings) {
@@ -36,15 +36,27 @@ export async function GET(request: NextRequest) {
     }
 
     // Ocultar valores sensibles (API keys) en la respuesta
+    // Mapear nombres de campos para que coincidan con el frontend (sin prefijo "default")
     const safeSettings = {
-      ...settings,
-      defaultBasescanApiKey: settings.defaultBasescanApiKey ? '***hidden***' : null,
-      defaultEtherscanApiKey: settings.defaultEtherscanApiKey ? '***hidden***' : null,
-      defaultMoralisApiKey: settings.defaultMoralisApiKey ? '***hidden***' : null,
-      defaultQuiknodeUrl: settings.defaultQuiknodeUrl ? '***hidden***' : null,
+      appName: settings.appName,
+      appUrl: settings.appUrl,
+      supportEmail: settings.supportEmail,
+      // API Keys (mapeados sin prefijo "default")
+      basescanApiKey: settings.defaultBasescanApiKey ? '***hidden***' : null,
+      etherscanApiKey: settings.defaultEtherscanApiKey ? '***hidden***' : null,
+      moralisApiKey: settings.defaultMoralisApiKey ? '***hidden***' : null,
+      quicknodeUrl: settings.defaultQuiknodeUrl ? '***hidden***' : null,
+      routescanApiKey: settings.defaultRoutescanApiKey ? '***hidden***' : null,
+      // Email
       resendApiKey: settings.resendApiKey ? '***hidden***' : null,
+      resendFromEmail: settings.resendFromEmail,
+      resendFromName: settings.resendFromName,
+      // Stripe
+      stripePublishableKey: settings.stripePublicKey,
       stripeSecretKey: settings.stripeSecretKey ? '***hidden***' : null,
       stripeWebhookSecret: settings.stripeWebhookSecret ? '***hidden***' : null,
+      // Cloudinary
+      cloudinaryCloudName: settings.cloudinaryCloudName,
       cloudinaryApiKey: settings.cloudinaryApiKey ? '***hidden***' : null,
       cloudinaryApiSecret: settings.cloudinaryApiSecret ? '***hidden***' : null
     };
@@ -83,18 +95,21 @@ export async function PUT(request: NextRequest) {
       updatedBy: session.user.id
     };
 
-    // API Keys
-    if (body.defaultBasescanApiKey !== undefined) {
-      updateData.defaultBasescanApiKey = body.defaultBasescanApiKey || null;
+    // API Keys (mapeados desde el frontend sin prefijo "default")
+    if (body.basescanApiKey !== undefined && body.basescanApiKey !== '***hidden***') {
+      updateData.defaultBasescanApiKey = body.basescanApiKey || null;
     }
-    if (body.defaultEtherscanApiKey !== undefined) {
-      updateData.defaultEtherscanApiKey = body.defaultEtherscanApiKey || null;
+    if (body.etherscanApiKey !== undefined && body.etherscanApiKey !== '***hidden***') {
+      updateData.defaultEtherscanApiKey = body.etherscanApiKey || null;
     }
-    if (body.defaultMoralisApiKey !== undefined) {
-      updateData.defaultMoralisApiKey = body.defaultMoralisApiKey || null;
+    if (body.moralisApiKey !== undefined && body.moralisApiKey !== '***hidden***') {
+      updateData.defaultMoralisApiKey = body.moralisApiKey || null;
     }
-    if (body.defaultQuiknodeUrl !== undefined) {
-      updateData.defaultQuiknodeUrl = body.defaultQuiknodeUrl || null;
+    if (body.quicknodeUrl !== undefined && body.quicknodeUrl !== '***hidden***') {
+      updateData.defaultQuiknodeUrl = body.quicknodeUrl || null;
+    }
+    if (body.routescanApiKey !== undefined && body.routescanApiKey !== '***hidden***') {
+      updateData.defaultRoutescanApiKey = body.routescanApiKey || null;
     }
 
     // Email (Resend)
@@ -151,18 +166,30 @@ export async function PUT(request: NextRequest) {
         appUrl: body.appUrl || 'http://localhost:4200',
         ...updateData
       }
-    });
+    }) as any;
 
     // Ocultar valores sensibles en la respuesta
+    // Mapear nombres de campos para que coincidan con el frontend (sin prefijo "default")
     const safeSettings = {
-      ...settings,
-      defaultBasescanApiKey: settings.defaultBasescanApiKey ? '***hidden***' : null,
-      defaultEtherscanApiKey: settings.defaultEtherscanApiKey ? '***hidden***' : null,
-      defaultMoralisApiKey: settings.defaultMoralisApiKey ? '***hidden***' : null,
-      defaultQuiknodeUrl: settings.defaultQuiknodeUrl ? '***hidden***' : null,
+      appName: settings.appName,
+      appUrl: settings.appUrl,
+      supportEmail: settings.supportEmail,
+      // API Keys (mapeados sin prefijo "default")
+      basescanApiKey: settings.defaultBasescanApiKey ? '***hidden***' : null,
+      etherscanApiKey: settings.defaultEtherscanApiKey ? '***hidden***' : null,
+      moralisApiKey: settings.defaultMoralisApiKey ? '***hidden***' : null,
+      quicknodeUrl: settings.defaultQuiknodeUrl ? '***hidden***' : null,
+      routescanApiKey: settings.defaultRoutescanApiKey ? '***hidden***' : null,
+      // Email
       resendApiKey: settings.resendApiKey ? '***hidden***' : null,
+      resendFromEmail: settings.resendFromEmail,
+      resendFromName: settings.resendFromName,
+      // Stripe
+      stripePublishableKey: settings.stripePublicKey,
       stripeSecretKey: settings.stripeSecretKey ? '***hidden***' : null,
       stripeWebhookSecret: settings.stripeWebhookSecret ? '***hidden***' : null,
+      // Cloudinary
+      cloudinaryCloudName: settings.cloudinaryCloudName,
       cloudinaryApiKey: settings.cloudinaryApiKey ? '***hidden***' : null,
       cloudinaryApiSecret: settings.cloudinaryApiSecret ? '***hidden***' : null
     };
