@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
       });
 
       return NextResponse.json({
-        timestamp: lastTransfer ? lastTransfer.timestamp : null
+        timestamp: lastTransfer ? Number(lastTransfer.timestamp) : null
       });
     }
 

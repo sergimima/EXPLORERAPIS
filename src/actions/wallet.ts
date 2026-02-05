@@ -89,7 +89,7 @@ export async function getWalletTransfers(walletAddress: string): Promise<TokenTr
 
         // 2. Encontrar timestamp del transfer más reciente
         const lastTimestamp = cachedTransfers.length > 0
-            ? cachedTransfers[0].timestamp // Ya está ordenado desc
+            ? Number(cachedTransfers[0].timestamp)
             : 0;
 
         // 3. Fetch solo nuevos transfers desde API
@@ -139,8 +139,8 @@ export async function getWalletTransfers(walletAddress: string): Promise<TokenTr
                 from: tx.from,
                 to: tx.to,
                 value: tx.value,
-                timestamp: tx.timestamp,
-                blockNumber: tx.blockNumber,
+                timestamp: Number(tx.timestamp),
+                blockNumber: Number(tx.blockNumber),
                 tokenAddress: tx.tokenAddress,
                 // Usamos 'any' en tx para evitar error de TS si los tipos de Prisma no se han regenerado aún
                 tokenSymbol: tx.tokenSymbol || 'UNKNOWN',
@@ -150,7 +150,7 @@ export async function getWalletTransfers(walletAddress: string): Promise<TokenTr
         ];
 
         // Ordenar por timestamp descendente
-        return allTransfers.sort((a, b) => b.timestamp - a.timestamp);
+        return allTransfers.sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
 
     } catch (error) {
         console.error('[getWalletTransfers] ❌ Error:', error);
