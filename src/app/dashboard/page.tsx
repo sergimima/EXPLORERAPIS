@@ -37,6 +37,7 @@ function UnifiedExplorerContent() {
 
   // Estado principal
   const [activeTab, setActiveTab] = useState<'tokens' | 'vestings' | 'analytics'>('tokens');
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['tokens']));
   const [wallet, setWallet] = useState<string>('');
   const [network, setNetwork] = useState<Network>('base');
   const [tokenFilter, setTokenFilter] = useState<string>('');
@@ -65,6 +66,7 @@ function UnifiedExplorerContent() {
     // Setear tab si viene en URL
     if (tabParam && (tabParam === 'tokens' || tabParam === 'vestings' || tabParam === 'analytics')) {
       setActiveTab(tabParam);
+      setVisitedTabs(prev => new Set(prev).add(tabParam));
     }
 
     // Setear wallet si viene en URL y auto-buscar
@@ -360,7 +362,7 @@ function UnifiedExplorerContent() {
         <div className="border-b border-border">
           <nav className="flex space-x-8 px-6" aria-label="Tabs">
             <button
-              onClick={() => setActiveTab('tokens')}
+              onClick={() => { setActiveTab('tokens'); setVisitedTabs(prev => new Set(prev).add('tokens')); }}
               className={`py-4 px-1 border-b-2 font-medium text-lg transition-colors ${activeTab === 'tokens'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-secondary-foreground hover:border-border'
@@ -369,7 +371,7 @@ function UnifiedExplorerContent() {
               🪙 Tokens & Balances
             </button>
             <button
-              onClick={() => setActiveTab('vestings')}
+              onClick={() => { setActiveTab('vestings'); setVisitedTabs(prev => new Set(prev).add('vestings')); }}
               className={`py-4 px-1 border-b-2 font-medium text-lg transition-colors ${activeTab === 'vestings'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-secondary-foreground hover:border-border'
@@ -378,7 +380,7 @@ function UnifiedExplorerContent() {
               🔒 Vesting Contracts
             </button>
             <button
-              onClick={() => setActiveTab('analytics')}
+              onClick={() => { setActiveTab('analytics'); setVisitedTabs(prev => new Set(prev).add('analytics')); }}
               className={`py-4 px-1 border-b-2 font-medium text-lg transition-colors ${activeTab === 'analytics'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-secondary-foreground hover:border-border'
@@ -390,9 +392,8 @@ function UnifiedExplorerContent() {
         </div>
       </div>
 
-      {/* Contenido según el tab activo */}
-      {activeTab === 'tokens' && (
-        <div>
+      {/* Contenido según el tab activo - se mantienen montados con CSS hidden para evitar re-fetch */}
+      <div className={activeTab !== 'tokens' ? 'hidden' : ''}>
           {/* Overview - Dashboard siempre visible */}
           <div className="mb-8">
             <TokenOverview network={network} />
@@ -523,11 +524,10 @@ function UnifiedExplorerContent() {
               )}
             </div>
           </div>
-        </div>
-      )}
+      </div>
 
-      {activeTab === 'vestings' && (
-        <div>
+      {visitedTabs.has('vestings') && (
+        <div className={activeTab !== 'vestings' ? 'hidden' : ''}>
           {/* Sección de Información de Suministro */}
           <div className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">Información del Suministro</h2>
@@ -605,11 +605,11 @@ function UnifiedExplorerContent() {
               />
             </div>
           )}
-        </div>
+      </div>
       )}
 
-      {activeTab === 'analytics' && (
-        <div>
+      {visitedTabs.has('analytics') && (
+        <div className={activeTab !== 'analytics' ? 'hidden' : ''}>
           <AnalyticsContent />
         </div>
       )}

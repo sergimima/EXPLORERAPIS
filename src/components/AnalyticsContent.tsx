@@ -86,6 +86,7 @@ interface AnalyticsData {
   liquidityData: LiquidityData | null;
   alerts: Alert[];
   exchangeAddresses: string[];
+  exchangeAddressNames?: Record<string, string>;
   dailyVolumeHistory: {
     date: string;
     displayDate: string;
@@ -154,12 +155,19 @@ export default function AnalyticsContent() {
 
           if (addresses && Array.isArray(addresses)) {
             const newNames = new Map<string, string>();
+            // Primero los nombres de exchanges del API (defaults + custom)
+            if (data.exchangeAddressNames) {
+              Object.entries(data.exchangeAddressNames).forEach(([addr, name]) => {
+                newNames.set(addr.toLowerCase(), name as string);
+              });
+            }
+            // Luego los de KnownAddress (sobreescriben si hay conflicto)
             addresses.forEach((ka: any) => {
               newNames.set(ka.address.toLowerCase(), ka.name);
             });
             setAddressNames(newNames);
-            setKnownAddresses(addresses); // Guardar también las addresses completas
-            console.log(`✅ Loaded ${newNames.size} known address names from DB`);
+            setKnownAddresses(addresses);
+            console.log(`✅ Loaded ${newNames.size} address names (${Object.keys(data.exchangeAddressNames || {}).length} exchanges + ${addresses.length} known)`);
           }
         }
       } catch (error) {

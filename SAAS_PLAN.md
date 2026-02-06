@@ -318,6 +318,51 @@ npx prisma db push                    # Aplicar logoUrl a Organization y Token
 
 ---
 
+### Sprint 4.10: Direcciones Conocidas Globales (SUPER_ADMIN) (3-4h)
+
+**Status:** 🔜 Pendiente
+**Prioridad:** 🟡 Media-Alta (evita que cada org tenga que registrar los mismos exchanges)
+
+**Problema actual:**
+- `KnownAddress` va por `tokenId` - cada token tiene su propio set
+- Los 4 exchanges por defecto (Coinbase x3, Gate.io) estan hardcodeados en `route.ts` pero NO estan en BD
+- Si un SUPER_ADMIN quiere que todos los tokens tengan "Coinbase" como conocida, tiene que entrarla manualmente en cada token
+
+**Objetivo:**
+Desde el panel de SUPER_ADMIN, poder gestionar direcciones conocidas **globales** (sin `tokenId`) que se apliquen a todos los tokens del sistema.
+
+**Propuesta de implementacion:**
+
+1. **Schema:** `KnownAddress.tokenId` ya es nullable (`String?`), asi que las globales tendrian `tokenId = null`
+
+2. **Nueva pagina:** `/admin/addresses`
+   - CRUD de direcciones globales (tokenId = null)
+   - Tabla: Address | Nombre | Tipo | Tags | Acciones
+   - Boton "Añadir Exchange Global"
+   - Importar las 4 hardcodeadas como seed inicial
+
+3. **API:** `GET/POST /api/admin/addresses`
+   - Solo SUPER_ADMIN
+   - POST crea con `tokenId: null` (global)
+   - GET lista todas las globales
+
+4. **Merge en analytics:** `buildExchangeSet()` ya combina 3 fuentes, añadir 4ta:
+   - DEFAULT_EXCHANGES (hardcoded, eventualmente eliminar)
+   - TokenSettings.customExchangeAddresses
+   - KnownAddress con type EXCHANGE y tokenId = [tokenId actual]
+   - **NUEVO:** KnownAddress con type EXCHANGE y tokenId = null (globales)
+
+5. **Merge de nombres:** `addressNames` debe incluir globales con menor prioridad:
+   ```
+   Prioridad: KnownAddress per-token > KnownAddress global > DEFAULT_EXCHANGE_LABELS
+   ```
+
+6. **Eliminar hardcoded:** Una vez migradas las 4 a BD como globales, eliminar `DEFAULT_EXCHANGES` y `DEFAULT_EXCHANGE_LABELS`
+
+**Sin migracion DB:** `tokenId` ya es nullable, no requiere cambios en schema.
+
+---
+
 ### Sprint 3.1: Wizard de Onboarding (5-6h)
 
 **Status:** ⏸️ Postponed

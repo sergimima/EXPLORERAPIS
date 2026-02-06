@@ -78,6 +78,7 @@ interface AnalyticsData {
   liquidityData: LiquidityData | null;
   alerts: Alert[];
   exchangeAddresses: string[];
+  exchangeAddressNames: Record<string, string>;
   dailyVolumeHistory: {
     date: string;
     displayDate: string;
@@ -985,11 +986,17 @@ export async function GET(request: NextRequest) {
     console.log('\n--- EXCHANGE SET ---');
     const knownExchangeFromDB = await prisma.knownAddress.findMany({
       where: { tokenId, type: 'EXCHANGE' },
-      select: { address: true }
+      select: { address: true, name: true }
     });
     const knownExchangeAddresses = knownExchangeFromDB.map(ka => ka.address);
     const exchangeSet = buildExchangeSet(customExchangeAddresses, knownExchangeAddresses);
     console.log(`Exchange set: ${exchangeSet.size} addresses (${DEFAULT_EXCHANGES.length} default + ${customExchangeAddresses?.length || 0} custom + ${knownExchangeAddresses.length} from KnownAddress)`);
+
+    // Construir mapa de nombres para todas las exchange addresses
+    const exchangeAddressNames: Record<string, string> = { ...DEFAULT_EXCHANGE_LABELS };
+    knownExchangeFromDB.forEach(ka => {
+      exchangeAddressNames[ka.address.toLowerCase()] = ka.name;
+    });
 
     // Obtener holders con caché de snapshots
     console.log('\n--- HOLDERS (Snapshot Cache) ---');
@@ -1084,6 +1091,7 @@ export async function GET(request: NextRequest) {
       alerts,
       statistics,
       exchangeAddresses: Array.from(exchangeSet),
+      exchangeAddressNames,
       dailyVolumeHistory,
       timeRange: {
         from: timeThreshold,
