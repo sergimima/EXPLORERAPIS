@@ -295,17 +295,22 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
       return;
     }
 
-    // Resetear estados
+    // Guardar beneficiarios previos antes de refrescar
+    const previousBeneficiaries = summary?.beneficiaries;
+    const previousTotalBeneficiaries = summary?.totalBeneficiaries;
+    const previousValidBeneficiaries = summary?.validBeneficiaries;
+    const previousErrorBeneficiaries = summary?.errorBeneficiaries;
+    const hadDetailsVisible = showDetails;
+
+    // Resetear estados (sin borrar summary ni ocultar detalles)
     setLoadingBasic(true);
     setLoadingDetails(false);
-    setShowDetails(false);
     setError(null);
-    setSummary(null);
 
     try {
       // Paso 1: Cargar la información básica del contrato
       const contractStatus = await checkVestingContractStatus(contractAddress, network);
-      
+
       // Depurar los valores recibidos del backend
       console.log("Valores recibidos del backend:", {
         totalBeneficiaries: contractStatus.totalBeneficiaries,
@@ -318,10 +323,8 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
         releasableTokens: contractStatus.releasableTokens,
         claimedTokens: contractStatus.claimedTokens
       });
-      
-      // Paso 2: Mostrar solo el resumen básico inmediatamente
-      
-      // Actualizar el resumen con la información completa
+
+      // Paso 2: Actualizar resumen conservando beneficiarios previos si la respuesta no los trae
       const completeSummary: VestingContractSummary = {
         contractAddress: contractStatus.contractAddress,
         tokenAddress: contractStatus.tokenAddress || undefined,
@@ -341,15 +344,20 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
         lockedTokens: contractStatus.lockedTokens,
         releasableTokens: contractStatus.releasableTokens,
         claimedTokens: contractStatus.claimedTokens,
-        beneficiaries: contractStatus.beneficiaries,
-        totalBeneficiaries: contractStatus.totalBeneficiaries,
-        validBeneficiaries: contractStatus.validBeneficiaries,
-        errorBeneficiaries: contractStatus.errorBeneficiaries,
+        beneficiaries: contractStatus.beneficiaries || previousBeneficiaries,
+        totalBeneficiaries: contractStatus.totalBeneficiaries || previousTotalBeneficiaries,
+        validBeneficiaries: contractStatus.validBeneficiaries ?? previousValidBeneficiaries,
+        errorBeneficiaries: contractStatus.errorBeneficiaries ?? previousErrorBeneficiaries,
         lastUpdated: Date.now(),
         error: contractStatus.error || undefined
       };
-      
+
       setSummary(completeSummary);
+
+      // Mantener la tabla de beneficiarios visible si ya lo estaba
+      if (hadDetailsVisible) {
+        setShowDetails(true);
+      }
       
       // Añadimos a historial solo si es un contrato válido
       if (contractStatus.isValid) {
@@ -426,10 +434,51 @@ const VestingSummary: React.FC<VestingSummaryProps> = ({ network, initialContrac
             creationDate: contractStatus.creationDate,
             lastUpdated: Date.now(),
             error: contractStatus.error || undefined,
-            claimedTokens: contractStatus.claimedTokens
+            claimedTokens: contractStatus.claimedTokens,
+            totalBeneficiaries: contractStatus.totalBeneficiaries,
+            validBeneficiaries: contractStatus.validBeneficiaries,
+            errorBeneficiaries: contractStatus.errorBeneficiaries
           };
-          
+
           setSummary(newSummary);
+
+          // Si releasableTokens sigue en 0 pero hay datos, cargar desde beneficiarios cacheados
+          if (contractStatus.isValid &&
+              (!contractStatus.releasableTokens || contractStatus.releasableTokens === '0') &&
+              contractStatus.totalTokensIn && parseFloat(contractStatus.totalTokensIn) > 0) {
+            try {
+              const params = new URLSearchParams({
+                vestingContract: initialContractAddress,
+                network: network
+              });
+              const cacheResponse = await fetch(`/api/vesting-beneficiaries?${params}`);
+              if (cacheResponse.ok) {
+                const cacheData = await cacheResponse.json();
+                if (cacheData.beneficiaries && cacheData.beneficiaries.length > 0) {
+                  let totalClaimable = 0;
+                  let totalVestedFromBenef = 0;
+                  let totalReleasedFromBenef = 0;
+                  for (const b of cacheData.beneficiaries) {
+                    totalClaimable += parseFloat(b.claimableAmount || '0');
+                    totalVestedFromBenef += parseFloat(b.totalAmount || '0');
+                    totalReleasedFromBenef += parseFloat(b.releasedAmount || '0');
+                  }
+                  const remaining = totalVestedFromBenef - totalReleasedFromBenef;
+                  setSummary(prev => prev ? {
+                    ...prev,
+                    releasableTokens: totalClaimable > 0 ? totalClaimable.toString() : prev.releasableTokens,
+                    totalBeneficiaries: cacheData.count || prev.totalBeneficiaries,
+                    validBeneficiaries: cacheData.count || prev.validBeneficiaries,
+                    totalSchedulesCreated: cacheData.count || prev.totalSchedulesCreated,
+                    remainingToVest: remaining > 0 ? remaining.toString() : prev.remainingToVest
+                  } : null);
+                  console.log('✓ Datos suplementarios cargados desde beneficiarios cacheados');
+                }
+              }
+            } catch (e) {
+              console.warn('Error al cargar datos suplementarios de beneficiarios:', e);
+            }
+          }
           
           // Añadimos a historial solo si es un contrato válido
           if (contractStatus.isValid) {

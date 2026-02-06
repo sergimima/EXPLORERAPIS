@@ -101,6 +101,57 @@ export async function POST(request: NextRequest) {
       totalSaved++;
     }
 
+    // Agregar totales de beneficiarios al caché del contrato
+    try {
+      const { getTenantContext } = await import('@/lib/tenant-context');
+      const tenantContext = await getTenantContext();
+      const tokenId = tenantContext?.activeToken?.id;
+
+      if (tokenId) {
+        let totalClaimable = 0;
+        let totalVestedSum = 0;
+        let totalReleasedSum = 0;
+        let totalRemainingSum = 0;
+
+        for (const b of beneficiaries) {
+          totalClaimable += parseFloat(b.claimableAmount || '0');
+          totalVestedSum += parseFloat(b.totalAmount || '0');
+          totalReleasedSum += parseFloat(b.releasedAmount || '0');
+          totalRemainingSum += parseFloat(b.remainingAmount || '0');
+        }
+
+        await prisma.vestingContractCache.upsert({
+          where: {
+            tokenId_contractAddress_network: {
+              tokenId,
+              contractAddress: vestingContract.toLowerCase(),
+              network: network || 'base'
+            }
+          },
+          create: {
+            tokenId,
+            contractAddress: vestingContract.toLowerCase(),
+            network: network || 'base',
+            releasableTokens: totalClaimable.toString(),
+            totalBeneficiaries: beneficiaries.length,
+            validBeneficiaries: totalSaved,
+          },
+          update: {
+            releasableTokens: totalClaimable.toString(),
+            ...(totalVestedSum > 0 ? { totalVested: totalVestedSum.toString() } : {}),
+            ...(totalReleasedSum > 0 ? { totalReleased: totalReleasedSum.toString() } : {}),
+            ...(totalRemainingSum > 0 ? { remainingToVest: totalRemainingSum.toString() } : {}),
+            totalBeneficiaries: beneficiaries.length,
+            validBeneficiaries: totalSaved,
+            lastUpdate: new Date()
+          }
+        });
+        console.log('[vesting-beneficiaries] ✓ VestingContractCache actualizado con totales de beneficiarios');
+      }
+    } catch (aggregateError) {
+      console.warn('[vesting-beneficiaries] Error al actualizar cache de contrato:', aggregateError);
+    }
+
     return NextResponse.json({
       success: true,
       saved: totalSaved

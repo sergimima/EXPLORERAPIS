@@ -1415,12 +1415,60 @@ export async function checkVestingContractStatus(
                   // Si el cache existe y el último hash coincide, usar cache
                   if (cachedTotals && cachedTotals.lastTransferHash === lastTransferHash) {
                     console.log('✓ Usando totales desde cache de contrato');
+                    // Totales de transferencias
                     result.totalTokensIn = cachedTotals.totalTokensIn;
                     result.totalTokensOut = cachedTotals.totalTokensOut;
                     result.lockedTokens = cachedTotals.lockedTokens;
                     result.releasableTokens = cachedTotals.releasableTokens;
                     result.claimedTokens = cachedTotals.claimedTokens;
+                    // Totales de vesting
+                    if (cachedTotals.totalVested && cachedTotals.totalVested !== '0') result.totalVested = cachedTotals.totalVested;
+                    if (cachedTotals.totalReleased && cachedTotals.totalReleased !== '0') result.totalReleased = cachedTotals.totalReleased;
+                    if (cachedTotals.remainingToVest && cachedTotals.remainingToVest !== '0') result.remainingToVest = cachedTotals.remainingToVest;
+                    // Conteos
+                    if (cachedTotals.vestingSchedulesCount > 0) result.vestingSchedulesCount = cachedTotals.vestingSchedulesCount;
+                    if (cachedTotals.totalSchedulesCreated > 0) result.totalSchedulesCreated = cachedTotals.totalSchedulesCreated;
+                    if (cachedTotals.totalBeneficiaries > 0) result.totalBeneficiaries = cachedTotals.totalBeneficiaries;
+                    if (cachedTotals.validBeneficiaries > 0) result.validBeneficiaries = cachedTotals.validBeneficiaries;
+                    if (cachedTotals.errorBeneficiaries > 0) result.errorBeneficiaries = cachedTotals.errorBeneficiaries;
+                    // Metadata del contrato
+                    if (cachedTotals.contractType) result.contractType = cachedTotals.contractType;
+                    if (cachedTotals.tokenAddress) result.tokenAddress = cachedTotals.tokenAddress;
+                    if (cachedTotals.tokenName) result.tokenName = cachedTotals.tokenName;
+                    if (cachedTotals.tokenSymbol) result.tokenSymbol = cachedTotals.tokenSymbol;
+                    if (cachedTotals.tokenDecimals) result.tokenDecimals = cachedTotals.tokenDecimals;
+                    if (cachedTotals.creationDate) result.creationDate = cachedTotals.creationDate;
                     usedCache = true;
+
+                    // Si releasableTokens sigue en '0', intentar calcular desde beneficiarios cacheados
+                    if (!cachedTotals.releasableTokens || cachedTotals.releasableTokens === '0') {
+                      try {
+                        const cachedBenefs = await prisma.vestingBeneficiaryCache.findMany({
+                          where: {
+                            vestingContract: normalizedContractAddress.toLowerCase(),
+                            network: network,
+                            ...(tokenId ? { tokenId } : {})
+                          }
+                        });
+                        if (cachedBenefs.length > 0) {
+                          let totalClaimable = 0;
+                          for (const b of cachedBenefs) {
+                            totalClaimable += parseFloat(b.claimableAmount || '0');
+                          }
+                          if (totalClaimable > 0) {
+                            result.releasableTokens = totalClaimable.toString();
+                            // Actualizar caché para que la próxima vez ya lo tenga
+                            await prisma.vestingContractCache.update({
+                              where: { tokenId_contractAddress_network: { tokenId, contractAddress: normalizedContractAddress.toLowerCase(), network } },
+                              data: { releasableTokens: result.releasableTokens, lastUpdate: new Date() }
+                            });
+                            console.log('✓ releasableTokens recalculado desde beneficiarios:', result.releasableTokens);
+                          }
+                        }
+                      } catch (e) {
+                        console.warn('Error recalculando releasableTokens desde beneficiarios:', e);
+                      }
+                    }
                   }
                 } catch (cacheError) {
                   console.warn('Error al consultar cache de totales:', cacheError);
@@ -1484,8 +1532,22 @@ export async function checkVestingContractStatus(
                         totalTokensIn: result.totalTokensIn,
                         totalTokensOut: result.totalTokensOut,
                         lockedTokens: result.lockedTokens,
-                        releasableTokens: '0', // Se calculará después con beneficiarios
+                        releasableTokens: result.releasableTokens || '0',
                         claimedTokens: result.claimedTokens,
+                        totalVested: result.totalVested || '0',
+                        totalReleased: result.totalReleased || '0',
+                        remainingToVest: result.remainingToVest || '0',
+                        vestingSchedulesCount: result.vestingSchedulesCount || 0,
+                        totalSchedulesCreated: result.totalSchedulesCreated || 0,
+                        totalBeneficiaries: result.totalBeneficiaries || 0,
+                        validBeneficiaries: result.validBeneficiaries || 0,
+                        errorBeneficiaries: result.errorBeneficiaries || 0,
+                        contractType: result.contractType || null,
+                        tokenAddress: result.tokenAddress || null,
+                        tokenName: result.tokenName || null,
+                        tokenSymbol: result.tokenSymbol || null,
+                        tokenDecimals: result.tokenDecimals || 18,
+                        creationDate: result.creationDate || null,
                         lastTransferHash,
                         lastBlockNumber: BigInt(lastBlockNumber)
                       },
@@ -1494,6 +1556,12 @@ export async function checkVestingContractStatus(
                         totalTokensOut: result.totalTokensOut,
                         lockedTokens: result.lockedTokens,
                         claimedTokens: result.claimedTokens,
+                        contractType: result.contractType || undefined,
+                        tokenAddress: result.tokenAddress || undefined,
+                        tokenName: result.tokenName || undefined,
+                        tokenSymbol: result.tokenSymbol || undefined,
+                        tokenDecimals: result.tokenDecimals || undefined,
+                        creationDate: result.creationDate || undefined,
                         lastTransferHash,
                         lastBlockNumber: BigInt(lastBlockNumber),
                         lastUpdate: new Date()
@@ -1559,8 +1627,50 @@ export async function checkVestingContractStatus(
                 result.releasableTokens = totalClaimableSum.toString();
                 result.lockedTokens = (totalVestedSum - totalReleasedSum).toString();
                 result.remainingToVest = (totalVestedSum - totalReleasedSum).toString();
+                result.totalBeneficiaries = cachedBeneficiaries.length;
+                result.validBeneficiaries = cachedBeneficiaries.length;
 
                 console.log(`✅ Totales calculados desde BD: Vested=${result.totalVested}, Released=${result.totalReleased}, Claimable=${result.releasableTokens}`);
+
+                // Persistir estos totales en VestingContractCache
+                if (tokenId) {
+                  try {
+                    await prisma.vestingContractCache.upsert({
+                      where: {
+                        tokenId_contractAddress_network: {
+                          tokenId,
+                          contractAddress: normalizedContractAddress.toLowerCase(),
+                          network
+                        }
+                      },
+                      create: {
+                        tokenId,
+                        contractAddress: normalizedContractAddress.toLowerCase(),
+                        network,
+                        totalVested: result.totalVested,
+                        totalReleased: result.totalReleased,
+                        releasableTokens: result.releasableTokens,
+                        lockedTokens: result.lockedTokens,
+                        remainingToVest: result.remainingToVest,
+                        totalBeneficiaries: cachedBeneficiaries.length,
+                        validBeneficiaries: cachedBeneficiaries.length,
+                      },
+                      update: {
+                        totalVested: result.totalVested,
+                        totalReleased: result.totalReleased,
+                        releasableTokens: result.releasableTokens,
+                        lockedTokens: result.lockedTokens,
+                        remainingToVest: result.remainingToVest,
+                        totalBeneficiaries: cachedBeneficiaries.length,
+                        validBeneficiaries: cachedBeneficiaries.length,
+                        lastUpdate: new Date()
+                      }
+                    });
+                    console.log('✓ Totales de beneficiarios persistidos en VestingContractCache');
+                  } catch (persistError) {
+                    console.warn('Error al persistir totales de beneficiarios:', persistError);
+                  }
+                }
               }
             } catch (dbError) {
               console.error('Error al leer beneficiarios desde BD:', dbError);
@@ -1970,7 +2080,7 @@ export async function checkVestingContractStatus(
                 result.releasableTokens = totalReleasable.toString();
                 console.log("Total de tokens liberables calculados:", result.releasableTokens);
 
-                // Actualizar cache de totales con releasableTokens
+                // Actualizar cache de totales con todos los campos calculados
                 if (tokenId) {
                   try {
                     await prisma.vestingContractCache.update({
@@ -1983,10 +2093,18 @@ export async function checkVestingContractStatus(
                       },
                       data: {
                         releasableTokens: result.releasableTokens,
+                        totalVested: result.totalVested || undefined,
+                        totalReleased: result.totalReleased || undefined,
+                        remainingToVest: result.remainingToVest || undefined,
+                        vestingSchedulesCount: result.vestingSchedulesCount || undefined,
+                        totalSchedulesCreated: result.totalSchedulesCreated || undefined,
+                        totalBeneficiaries: result.totalBeneficiaries || undefined,
+                        validBeneficiaries: result.validBeneficiaries || undefined,
+                        errorBeneficiaries: result.errorBeneficiaries || undefined,
                         lastUpdate: new Date()
                       }
                     });
-                    console.log('✓ releasableTokens actualizado en cache');
+                    console.log('✓ Cache de contrato actualizado con todos los campos');
                   } catch (cacheError) {
                     console.warn('Error al actualizar releasableTokens en cache:', cacheError);
                   }
