@@ -446,6 +446,51 @@ for (let i = 0; i < 3; i++) {
 
 ## Known Issues & Gotchas
 
+### 0. Token Supply Shows 0 - Rate Limit Exceeded (NEW - Fixed 2026-02-06)
+
+**Issue:** Dashboard shows all supply values as 0 despite API working when called directly.
+
+**Cause:** When using `supplyMethod: 'API'`, excessive page reloads cause multiple API calls, exceeding rate limits.
+
+**Error in logs:**
+```
+Error: Request failed with status code 500
+"429 Too Many Requests: over rate limit"
+```
+
+**Solutions:**
+1. ✅ **Client-side caching with SWR** (implemented in TokenOverview.tsx):
+   - Prevents duplicate API calls when switching tabs
+   - Deduplicates requests within 1 minute
+   - Auto-refresh every 5 minutes
+   - Config: `revalidateOnFocus: false` to prevent tab-switch reloads
+
+2. **Alternative - Switch to ONCHAIN method**:
+   - Prisma Studio: Set `TokenSettings.supplyMethod = 'ONCHAIN'`
+   - Queries contract directly via ethers.js
+
+### 0.1. Holders Show 0 - Missing Moralis API Key (NEW - Fixed 2026-02-06)
+
+**Issue:** Holders count shows 0 in dashboard and analytics.
+
+**Cause:** Moralis API key not configured or not read from TokenSettings.
+
+**Error in logs:**
+```
+[fetchHoldersFromMoralis] ❌ Moralis API key not found
+```
+
+**Solution:**
+✅ **Fixed:** token-analytics API now uses correct hierarchy:
+1. TokenSettings.customMoralisApiKey (highest priority)
+2. SystemSettings.defaultMoralisApiKey (fallback)
+3. process.env.NEXT_PUBLIC_MORALIS_API_KEY (last resort)
+
+**Configure via:**
+- Prisma Studio: `TokenSettings` table, field `customMoralisApiKey`
+- Admin UI: `/admin/settings` → API Keys tab
+- Get free key: https://moralis.io/
+
 ### 1. Missing tokenId Parameter
 
 **Issue:** Some legacy code doesn't pass `tokenId`:

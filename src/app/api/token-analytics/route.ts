@@ -292,17 +292,36 @@ async function isContractAddress(address: string): Promise<boolean> {
 
 async function fetchHoldersFromMoralis(
   tokenAddress: string,
+  tokenId?: string,
   knownInfo?: Map<string, { isContract: boolean; isExchange: boolean; label?: string }>
 ): Promise<any[]> {
   let moralisApiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
   try {
     const { prisma } = await import('@/lib/db');
-    const systemSettings = await prisma.systemSettings.findUnique({ where: { id: 'system' } });
-    if (systemSettings?.defaultMoralisApiKey) moralisApiKey = systemSettings.defaultMoralisApiKey;
-  } catch (err) {}
+
+    // 1. Try TokenSettings first (highest priority)
+    if (tokenId) {
+      const tokenSettings = await prisma.tokenSettings.findUnique({ where: { tokenId } });
+      if (tokenSettings?.customMoralisApiKey) {
+        moralisApiKey = tokenSettings.customMoralisApiKey;
+        console.log('[fetchHoldersFromMoralis] Using Moralis key from TokenSettings');
+      }
+    }
+
+    // 2. Fallback to SystemSettings
+    if (!moralisApiKey) {
+      const systemSettings = await prisma.systemSettings.findUnique({ where: { id: 'system' } });
+      if (systemSettings?.defaultMoralisApiKey) {
+        moralisApiKey = systemSettings.defaultMoralisApiKey;
+        console.log('[fetchHoldersFromMoralis] Using Moralis key from SystemSettings');
+      }
+    }
+  } catch (err) {
+    console.error('[fetchHoldersFromMoralis] Error fetching API keys:', err);
+  }
 
   if (!moralisApiKey) {
-    console.error('[fetchHoldersFromMoralis] ❌ Moralis API key not found');
+    console.error('[fetchHoldersFromMoralis] ❌ Moralis API key not found in TokenSettings, SystemSettings, or .env');
     return [];
   }
 
@@ -466,7 +485,7 @@ async function getHoldersWithCache(tokenAddress: string, tokenId: string, forceR
     });
     console.log(`[getHoldersWithCache] Added/updated ${knownAddressesAdded} known addresses from DB (total: ${knownAddressesInfo.size})`);
 
-    const freshHolders = await fetchHoldersFromMoralis(tokenAddress, knownAddressesInfo);
+    const freshHolders = await fetchHoldersFromMoralis(tokenAddress, tokenId, knownAddressesInfo);
 
     if (freshHolders.length === 0) {
       console.warn('[getHoldersWithCache] ⚠️ No holders fetched, returning empty');
@@ -509,7 +528,7 @@ async function getHoldersWithCache(tokenAddress: string, tokenId: string, forceR
     console.error('[getHoldersWithCache] ❌ Error:', error);
     // Fallback: intentar fetch directo
     console.log('[getHoldersWithCache] Falling back to direct Moralis call...');
-    const holders = await fetchHoldersFromMoralis(tokenAddress);
+    const holders = await fetchHoldersFromMoralis(tokenAddress, tokenId);
     return holders.map((h) => ({
       address: h.address,
       balance: ethers.formatUnits(h.balance, 18),

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { Network } from '@/lib/types';
 import { useToken } from '@/contexts/TokenContext';
 
@@ -33,52 +33,62 @@ interface OverviewData {
   };
 }
 
+// Fetcher function for SWR
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch');
+  return res.json();
+};
+
 export default function TokenOverview({ network }: TokenOverviewProps) {
   const { activeToken } = useToken();
-  const [data, setData] = useState<OverviewData | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!activeToken) return;
+  // SWR for supply data with 5-minute cache
+  const { data: supplyData, error: supplyError } = useSWR(
+    activeToken ? `/api/token-supply?tokenAddress=${activeToken.address}&network=${network}` : null,
+    fetcher,
+    {
+      refreshInterval: 5 * 60 * 1000,  // Refresh every 5 minutes
+      revalidateOnFocus: false,         // Don't revalidate when window regains focus
+      revalidateOnReconnect: false,     // Don't revalidate on reconnect
+      dedupingInterval: 60000,          // Dedupe requests within 1 minute
+    }
+  );
 
-    const fetchOverviewData = async () => {
-      setLoading(true);
-      try {
-        // Fetch supply data
-        const supplyRes = await fetch(`/api/token-supply?tokenAddress=${activeToken.address}&network=${network}`);
-        const supplyData = await supplyRes.json();
+  // SWR for analytics data with 5-minute cache
+  const { data: analyticsData, error: analyticsError } = useSWR(
+    activeToken ? `/api/token-analytics?tokenAddress=${activeToken.address}&network=${network}&period=1` : null,
+    fetcher,
+    {
+      refreshInterval: 5 * 60 * 1000,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 60000,
+    }
+  );
 
-        // Fetch analytics for holders and volume
-        const analyticsRes = await fetch(`/api/token-analytics?tokenAddress=${activeToken.address}&network=${network}&period=1`);
-        const analyticsData = await analyticsRes.json();
+  const loading = !supplyData && !supplyError && !analyticsData && !analyticsError;
+  const hasError = supplyError || analyticsError;
 
-        setData({
-          supply: {
-            total: supplyData.totalSupply || '0',
-            circulating: supplyData.circulatingSupply || '0',
-            locked: supplyData.lockedSupply || '0',
-          },
-          holders: {
-            total: analyticsData.analytics?.uniqueAddresses || 0,
-            top10Percentage: analyticsData.analytics?.holderConcentration?.top10Percentage || 0,
-          },
-          volume24h: analyticsData.analytics?.totalVolume || '0',
-          largeTransfers: (analyticsData.analytics?.largeTransfers || []).slice(0, 5),
-          vestingStats: {
-            totalLocked: supplyData.lockedSupply || '0',
-            totalReleased: '0', // TODO: Calculate from vesting data
-            activeContracts: 0, // TODO: Get from database
-          },
-        });
-      } catch (error) {
-        console.error('Error fetching overview data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOverviewData();
-  }, [activeToken, network]);
+  // Combine data
+  const data: OverviewData | null = supplyData && analyticsData ? {
+    supply: {
+      total: supplyData.totalSupply || '0',
+      circulating: supplyData.circulatingSupply || '0',
+      locked: supplyData.lockedSupply || '0',
+    },
+    holders: {
+      total: analyticsData.statistics?.uniqueAddresses || 0,
+      top10Percentage: parseFloat(analyticsData.statistics?.topHoldersConcentration || '0'),
+    },
+    volume24h: analyticsData.statistics?.totalVolume || '0',
+    largeTransfers: (analyticsData.largeTransfers || []).slice(0, 5),
+    vestingStats: {
+      totalLocked: supplyData.lockedSupply || '0',
+      totalReleased: '0', // TODO: Calculate from vesting data
+      activeContracts: 0, // TODO: Get from database
+    },
+  } : null;
 
   if (!activeToken) {
     return (
