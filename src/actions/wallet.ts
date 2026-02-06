@@ -26,9 +26,11 @@ interface TokenTransfer {
  */
 async function getApiKeys(tokenId?: string) {
     let keys = {
-        routescanApiKey: null as string | null,
         basescanApiKey: null as string | null,
-        etherscanApiKey: null as string | null
+        routescanApiKey: null as string | null,
+        etherscanApiKey: null as string | null,
+        moralisApiKey: null as string | null,
+        quiknodeUrl: null as string | null
     };
 
     // 1. TokenSettings (prioridad máxima si hay tokenId)
@@ -38,9 +40,11 @@ async function getApiKeys(tokenId?: string) {
                 where: { tokenId }
             });
             if (tokenSettings) {
-                keys.routescanApiKey = tokenSettings.customRoutescanApiKey;
                 keys.basescanApiKey = tokenSettings.customBasescanApiKey;
+                keys.routescanApiKey = tokenSettings.customRoutescanApiKey;
                 keys.etherscanApiKey = tokenSettings.customEtherscanApiKey;
+                keys.moralisApiKey = tokenSettings.customMoralisApiKey;
+                keys.quiknodeUrl = tokenSettings.customQuiknodeUrl;
                 console.log('[getApiKeys] Using TokenSettings for token:', tokenId);
             }
         } catch (error) {
@@ -54,9 +58,11 @@ async function getApiKeys(tokenId?: string) {
             where: { id: 'system' }
         });
         if (systemSettings) {
-            keys.routescanApiKey = keys.routescanApiKey || systemSettings.defaultRoutescanApiKey;
             keys.basescanApiKey = keys.basescanApiKey || systemSettings.defaultBasescanApiKey;
+            keys.routescanApiKey = keys.routescanApiKey || systemSettings.defaultRoutescanApiKey;
             keys.etherscanApiKey = keys.etherscanApiKey || systemSettings.defaultEtherscanApiKey;
+            keys.moralisApiKey = keys.moralisApiKey || systemSettings.defaultMoralisApiKey;
+            keys.quiknodeUrl = keys.quiknodeUrl || systemSettings.defaultQuiknodeUrl;
             if (!tokenId) {
                 console.log('[getApiKeys] Using SystemSettings (no tokenId provided)');
             }
@@ -67,9 +73,11 @@ async function getApiKeys(tokenId?: string) {
 
     // 3. .env fallback
     return {
-        routescanApiKey: keys.routescanApiKey || process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || 'YourApiKeyToken',
         basescanApiKey: keys.basescanApiKey || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken',
-        etherscanApiKey: keys.etherscanApiKey || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || 'YourApiKeyToken'
+        routescanApiKey: keys.routescanApiKey || process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || 'YourApiKeyToken',
+        etherscanApiKey: keys.etherscanApiKey || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || 'YourApiKeyToken',
+        moralisApiKey: keys.moralisApiKey || process.env.NEXT_PUBLIC_MORALIS_API_KEY,
+        quiknodeUrl: keys.quiknodeUrl || process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://mainnet.base.org'
     };
 }
 

@@ -35,6 +35,13 @@ export interface TenantContext {
       whaleThreshold: string;
     };
   };
+  systemSettings?: {
+    defaultBasescanApiKey?: string;
+    defaultEtherscanApiKey?: string;
+    defaultMoralisApiKey?: string;
+    defaultQuiknodeUrl?: string;
+    defaultRoutescanApiKey?: string;
+  };
   role: string;
 }
 
@@ -136,6 +143,11 @@ export async function getTenantContext(
     }
   }
 
+  // Cargar SystemSettings para usar en jerarquía de API keys
+  const systemSettings = await prisma.systemSettings.findUnique({
+    where: { id: 'system' }
+  });
+
   return {
     userId: user.id,
     organizationId: user.organization.id,
@@ -147,27 +159,40 @@ export async function getTenantContext(
     },
     tokens: user.organization.tokens,
     activeToken,
+    systemSettings: systemSettings ? {
+      defaultBasescanApiKey: systemSettings.defaultBasescanApiKey || undefined,
+      defaultEtherscanApiKey: systemSettings.defaultEtherscanApiKey || undefined,
+      defaultMoralisApiKey: systemSettings.defaultMoralisApiKey || undefined,
+      defaultQuiknodeUrl: systemSettings.defaultQuiknodeUrl || undefined,
+      defaultRoutescanApiKey: systemSettings.defaultRoutescanApiKey || undefined
+    } : undefined,
     role: user.role
   };
 }
 
-// Helper para obtener API keys (custom o platform defaults)
+// Helper para obtener API keys con jerarquía: TokenSettings → SystemSettings → .env
 export function getApiKeys(tenantContext: TenantContext) {
-  const settings = tenantContext.activeToken?.settings;
+  const tokenSettings = tenantContext.activeToken?.settings;
+  const systemSettings = tenantContext.systemSettings;
 
   return {
-    basescanApiKey: settings?.customBasescanApiKey ||
+    basescanApiKey: tokenSettings?.customBasescanApiKey ||
+                     systemSettings?.defaultBasescanApiKey ||
                      process.env.NEXT_PUBLIC_BASESCAN_API_KEY ||
                      'YourApiKeyToken',
-    etherscanApiKey: settings?.customEtherscanApiKey ||
+    etherscanApiKey: tokenSettings?.customEtherscanApiKey ||
+                      systemSettings?.defaultEtherscanApiKey ||
                       process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY ||
                       'YourApiKeyToken',
-    moralisApiKey: settings?.customMoralisApiKey ||
+    moralisApiKey: tokenSettings?.customMoralisApiKey ||
+                    systemSettings?.defaultMoralisApiKey ||
                     process.env.NEXT_PUBLIC_MORALIS_API_KEY,
-    quiknodeUrl: settings?.customQuiknodeUrl ||
+    quiknodeUrl: tokenSettings?.customQuiknodeUrl ||
+                  systemSettings?.defaultQuiknodeUrl ||
                   process.env.NEXT_PUBLIC_QUICKNODE_URL ||
                   'https://mainnet.base.org',
-    routescanApiKey: settings?.customRoutescanApiKey ||
+    routescanApiKey: tokenSettings?.customRoutescanApiKey ||
+                      systemSettings?.defaultRoutescanApiKey ||
                       process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY ||
                       'YourApiKeyToken'
   };
