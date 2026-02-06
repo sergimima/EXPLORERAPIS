@@ -26,8 +26,10 @@ function getApiKeys(customKeys?: CustomApiKeys) {
   const routescan = customKeys?.routescanApiKey ?? undefined;
 
   return {
-    basescanApiKey: basescan || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken',
-    etherscanApiKey: etherscan || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || 'YourApiKeyToken',
+    // Etherscan V2 API key (now primary for all EVM chains)
+    etherscanApiKey: etherscan || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || basescan || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken',
+    // BaseScan deprecated but kept for backwards compatibility
+    basescanApiKey: basescan || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || etherscan || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || 'YourApiKeyToken',
     moralisApiKey: moralis || process.env.NEXT_PUBLIC_MORALIS_API_KEY,
     quiknodeUrl: quicknode || process.env.NEXT_PUBLIC_QUICKNODE_URL || 'https://mainnet.base.org',
     routescanApiKey: routescan || process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || 'YourApiKeyToken'
@@ -39,8 +41,9 @@ function getApiKeys(customKeys?: CustomApiKeys) {
  * Orden de búsqueda:
  * 1. Base de datos (CustomAbi)
  * 2. ABIs hardcoded (VESTING_CONTRACT_ABIS) - legacy fallback
- * 3. BaseScan API
- * 4. Guardar en BD si se obtuvo de BaseScan
+ * 3. Etherscan V2 API (primary)
+ * 4. Routescan API (fallback)
+ * 5. Guardar en BD si se obtuvo de API
  */
 async function getContractABIWithCache(
   contractAddress: string,
@@ -158,15 +161,15 @@ const NETWORKS: Record<string, {
       'https://base.publicnode.com',
       'https://1rpc.io/base'
     ],
-    explorerApiUrl: 'https://api.basescan.org/api',
-    explorerApiV2Url: 'https://api.routescan.io/v2/network/mainnet/evm/8453/etherscan/api', // Routescan (gratis)
+    explorerApiUrl: 'https://api.etherscan.io/v2/api?chainid=8453', // Etherscan V2 for Base
+    explorerApiV2Url: 'https://api.routescan.io/v2/network/mainnet/evm/8453/etherscan/api', // Routescan (fallback)
     chainId: 8453,
     etherscanChainId: 8453, // ID de Base Mainnet
     name: 'Base Mainnet'
   },
   'base-testnet': {
     rpcUrl: 'https://goerli.base.org',
-    explorerApiUrl: 'https://api-goerli.basescan.org/api',
+    explorerApiUrl: 'https://api.etherscan.io/v2/api?chainid=84531', // Etherscan V2 for Base Testnet
     explorerApiV2Url: 'https://api.routescan.io/v2/network/testnet/evm/84531/etherscan/api', // Routescan testnet
     chainId: 84531,
     etherscanChainId: 84531, // ID de Base Goerli Testnet
@@ -174,8 +177,8 @@ const NETWORKS: Record<string, {
   },
   'base-sepolia': {
     rpcUrl: 'https://sepolia.base.org',
-    explorerApiUrl: 'https://api-sepolia.basescan.org/api',
-    explorerApiV2Url: 'https://api.routescan.io/v2/network/testnet/evm/84532/etherscan/api', // Routescan sepolia
+    explorerApiUrl: 'https://api.etherscan.io/v2/api?chainid=84532', // Etherscan V2 for Base Sepolia
+    explorerApiV2Url: 'https://api.routescan.io/v2/network/testnet/evm/84532/etherscan/api', // Routescan sepolia (fallback)
     chainId: 84532,
     etherscanChainId: 84532, // ID de Base Sepolia Testnet
     name: 'Base Testnet (Sepolia)'
@@ -2364,7 +2367,7 @@ async function fetchTokenSupplyData(params: FetchTokenSupplyParams): Promise<Tok
 //=============================================================================
 
 /**
- * Obtiene el ABI de un contrato desde BaseScan
+ * Obtiene el ABI de un contrato desde Etherscan V2 API
  * @param contractAddress Dirección del contrato
  * @param network Red blockchain
  * @returns ABI del contrato
@@ -2379,12 +2382,14 @@ export async function getContractABI(contractAddress: string, network: string) {
 
     // Determinar la URL de la API según la red
     let apiUrl;
-    let apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
+    let apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
 
-    // Intentar obtener desde SystemSettings
+    // Intentar obtener desde SystemSettings (prioridad: Etherscan > BaseScan)
     try {
       const systemSettings = await prisma.systemSettings.findUnique({ where: { id: 'system' } });
-      if (systemSettings?.defaultBasescanApiKey) {
+      if (systemSettings?.defaultEtherscanApiKey) {
+        apiKey = systemSettings.defaultEtherscanApiKey;
+      } else if (systemSettings?.defaultBasescanApiKey) {
         apiKey = systemSettings.defaultBasescanApiKey;
       }
     } catch (err) {
@@ -2392,9 +2397,11 @@ export async function getContractABI(contractAddress: string, network: string) {
     }
 
     if (network === 'base') {
-      apiUrl = 'https://api.basescan.org/api';
+      apiUrl = 'https://api.etherscan.io/v2/api?chainid=8453';
     } else if (network === 'base-sepolia') {
-      apiUrl = 'https://api-sepolia.basescan.org/api';
+      apiUrl = 'https://api.etherscan.io/v2/api?chainid=84532';
+    } else if (network === 'base-testnet') {
+      apiUrl = 'https://api.etherscan.io/v2/api?chainid=84531';
     } else {
       throw new Error(`Red no soportada para obtener ABI: ${network}`);
     }
@@ -2402,7 +2409,7 @@ export async function getContractABI(contractAddress: string, network: string) {
     // Si no hay API key, usamos una por defecto para pruebas (limitada)
     if (!apiKey) {
       apiKey = 'YourApiKeyToken';
-      console.warn('No se encontró API key para BaseScan, usando valor por defecto (limitado)');
+      console.warn('No se encontró API key para Etherscan, usando valor por defecto (limitado)');
     }
 
     // Implementar reintentos para manejar límites de tasa
@@ -2412,7 +2419,7 @@ export async function getContractABI(contractAddress: string, network: string) {
 
     while (retryCount < maxRetries) {
       try {
-        // Hacer la petición a la API de BaseScan
+        // Hacer la petición a la API de Etherscan V2
         const response = await axios.get(apiUrl, {
           params: {
             module: 'contract',
