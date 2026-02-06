@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 
 export interface TokenSettings {
@@ -41,6 +41,7 @@ export function TokenProvider({ children }: { children: React.ReactNode }) {
   const [activeToken, setActiveToken] = useState<TokenData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasFetched = useRef(false);
 
   // Fetch tokens del usuario
   const fetchTokens = async () => {
@@ -70,10 +71,11 @@ export function TokenProvider({ children }: { children: React.ReactNode }) {
       // Si hay token guardado y existe en la lista, usarlo
       if (savedTokenId && data.some((t: TokenData) => t.id === savedTokenId)) {
         const token = data.find((t: TokenData) => t.id === savedTokenId);
-        setActiveToken(token || null);
+        // Solo actualizar si cambió el ID para evitar re-renders innecesarios
+        setActiveToken(prev => prev?.id === token?.id ? prev : (token || null));
       } else if (data.length > 0) {
         // Si no, usar el primero
-        setActiveToken(data[0]);
+        setActiveToken(prev => prev?.id === data[0].id ? prev : data[0]);
         if (typeof window !== 'undefined') {
           localStorage.setItem('activeTokenId', data[0].id);
         }
@@ -98,15 +100,18 @@ export function TokenProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Effect para cargar tokens cuando el usuario está autenticado
+  // Solo depende de status (no session) para evitar refetch al volver a la pestaña
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status === 'authenticated' && !hasFetched.current) {
+      hasFetched.current = true;
       fetchTokens();
     } else if (status === 'unauthenticated') {
+      hasFetched.current = false;
       setTokens([]);
       setActiveToken(null);
       setLoading(false);
     }
-  }, [status, session]);
+  }, [status]);
 
   const value: TokenContextType = {
     activeToken,

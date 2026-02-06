@@ -139,11 +139,11 @@ export default function WatchlistDetail({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {recentTransfers.map((tx) => {
+                {recentTransfers.map((tx, idx) => {
                   const isOutgoing = tx.from.toLowerCase() === knownAddress.address.toLowerCase();
                   const counterparty = isOutgoing ? tx.to : tx.from;
                   return (
-                    <tr key={tx.hash} className="hover:bg-muted/50">
+                    <tr key={`${tx.hash}-${idx}`} className="hover:bg-muted/50">
                       <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
                         {new Date(tx.timestamp * 1000).toLocaleDateString('es-ES', {
                           day: '2-digit',

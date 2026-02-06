@@ -94,8 +94,10 @@ export default function DailyVolumeChart({ data, days, tokenSymbol = 'tokens', s
           data={chartData}
           margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           onClick={(state: any) => {
-            if (state?.activePayload?.[0]?.payload) {
-              handleBarClick(state.activePayload[0].payload);
+            if (state?.activeIndex !== undefined && state.activeIndex !== null) {
+              const idx = typeof state.activeIndex === 'string' ? parseInt(state.activeIndex) : state.activeIndex;
+              const entry = chartData[idx];
+              if (entry) handleBarClick(entry);
             }
           }}
           style={{ cursor: onDayClick ? 'pointer' : undefined }}

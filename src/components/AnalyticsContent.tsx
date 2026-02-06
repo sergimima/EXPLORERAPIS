@@ -942,7 +942,9 @@ export default function AnalyticsContent() {
                                 <tr>
                                   <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Hora</th>
                                   <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Desde</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Nombre</th>
                                   <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Hacia</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Nombre</th>
                                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Monto</th>
                                   <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Tipo</th>
                                 </tr>
@@ -950,7 +952,7 @@ export default function AnalyticsContent() {
                               <tbody className="divide-y divide-border">
                                 {dayTransfers
                                   .sort((a, b) => b.timestamp - a.timestamp)
-                                  .map((tx) => {
+                                  .map((tx, idx) => {
                                     const isExchangeTx = data.exchangeAddresses?.some(
                                       e => e.toLowerCase() === tx.from.toLowerCase() || e.toLowerCase() === tx.to.toLowerCase()
                                     );
@@ -961,15 +963,21 @@ export default function AnalyticsContent() {
                                       normal: 'bg-primary/10 text-primary',
                                     };
                                     return (
-                                      <tr key={tx.hash} className="hover:bg-muted/50">
+                                      <tr key={`${tx.hash}-${idx}`} className="hover:bg-muted/50">
                                         <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
                                           {new Date(tx.timestamp * 1000).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                                         </td>
                                         <td className="px-3 py-2 whitespace-nowrap">
                                           <AddressLink address={tx.from} />
                                         </td>
+                                        <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
+                                          {addressNames.get(tx.from.toLowerCase()) || '-'}
+                                        </td>
                                         <td className="px-3 py-2 whitespace-nowrap">
                                           <AddressLink address={tx.to} />
+                                        </td>
+                                        <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
+                                          {addressNames.get(tx.to.toLowerCase()) || '-'}
                                         </td>
                                         <td className="px-3 py-2 whitespace-nowrap text-right font-medium">
                                           {parseFloat(tx.valueFormatted).toLocaleString()} {activeToken.symbol}
@@ -1120,11 +1128,11 @@ export default function AnalyticsContent() {
                     </tr>
                   </thead>
                   <tbody className="bg-card divide-y divide-border">
-                    {sortedLargeTransfers.map((transfer) => {
+                    {sortedLargeTransfers.map((transfer, idx) => {
                       const fromName = addressNames.get(transfer.from.toLowerCase());
                       const toName = addressNames.get(transfer.to.toLowerCase());
                       return (
-                        <tr key={transfer.hash} className="hover:bg-muted">
+                        <tr key={`${transfer.hash}-${idx}`} className="hover:bg-muted">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                             {formatDate(transfer.timestamp)}
                           </td>
@@ -1266,8 +1274,8 @@ export default function AnalyticsContent() {
                     </tr>
                   </thead>
                   <tbody className="bg-card divide-y divide-border">
-                    {filteredData.transfers.slice(0, 50).map((transfer) => (
-                      <tr key={transfer.hash} className="hover:bg-muted">
+                    {filteredData.transfers.slice(0, 50).map((transfer, idx) => (
+                      <tr key={`${transfer.hash}-${idx}`} className="hover:bg-muted">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                           {formatDate(transfer.timestamp)}
                         </td>
@@ -1495,14 +1503,16 @@ export default function AnalyticsContent() {
                               <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Fecha</th>
                               <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Tipo</th>
                               <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Desde</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Nombre</th>
                               <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Hacia</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Nombre</th>
                               <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Monto</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
                             {exchangeTxs
                               .sort((a, b) => b.timestamp - a.timestamp)
-                              .map((tx) => {
+                              .map((tx, idx) => {
                                 const toIsExchange = exchangeSet.has(tx.to.toLowerCase());
                                 const fromIsExchange = exchangeSet.has(tx.from.toLowerCase());
                                 const isInflow = toIsExchange && !fromIsExchange;
@@ -1510,7 +1520,7 @@ export default function AnalyticsContent() {
                                 const flowLabel = isInflow ? 'Inflow' : isOutflow ? 'Outflow' : 'Inter-exchange';
                                 const flowColor = isInflow ? 'text-destructive' : isOutflow ? 'text-success' : 'text-muted-foreground';
                                 return (
-                                  <tr key={tx.hash} className="hover:bg-muted/50">
+                                  <tr key={`${tx.hash}-${idx}`} className="hover:bg-muted/50">
                                     <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
                                       {new Date(tx.timestamp * 1000).toLocaleDateString('es-ES', {
                                         day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
@@ -1522,8 +1532,14 @@ export default function AnalyticsContent() {
                                     <td className="px-3 py-2 whitespace-nowrap">
                                       <AddressLink address={tx.from} />
                                     </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
+                                      {addressNames.get(tx.from.toLowerCase()) || '-'}
+                                    </td>
                                     <td className="px-3 py-2 whitespace-nowrap">
                                       <AddressLink address={tx.to} />
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
+                                      {addressNames.get(tx.to.toLowerCase()) || '-'}
                                     </td>
                                     <td className="px-3 py-2 whitespace-nowrap text-right font-medium">
                                       {parseFloat(tx.valueFormatted).toLocaleString()} {activeToken.symbol}
