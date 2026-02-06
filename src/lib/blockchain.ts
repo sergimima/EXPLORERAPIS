@@ -330,18 +330,48 @@ async function callEtherscanV2Api(
   }
 
   const keys = getApiKeys(customApiKeys);
-  const apiKey = keys.routescanApiKey;
-  if (!apiKey || apiKey === 'YourApiKeyToken') {
-    throw new Error('No se ha configurado la clave API de Routescan');
+
+  // Priority 1: Try Etherscan V2 API
+  const etherscanKey = keys.etherscanApiKey;
+  if (etherscanKey && etherscanKey !== 'YourApiKeyToken') {
+    try {
+      const queryParams = new URLSearchParams({
+        ...params,
+        apikey: etherscanKey
+      } as any);
+
+      const url = `${networkConfig.explorerApiUrl}&${queryParams.toString()}`;
+      console.log('📡 Trying Etherscan V2 API...');
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.status === '1' || data.message === 'No transactions found') {
+        console.log('✅ Etherscan V2 API succeeded');
+        return data;
+      } else {
+        console.warn(`⚠️ Etherscan V2 returned error: ${data.message}`);
+      }
+    } catch (error) {
+      console.warn('⚠️ Etherscan V2 API failed:', error);
+    }
+  } else {
+    console.warn('⚠️ No Etherscan API key found, skipping to Routescan');
+  }
+
+  // Priority 2: Fallback to Routescan API
+  const routescanKey = keys.routescanApiKey;
+  if (!routescanKey || routescanKey === 'YourApiKeyToken') {
+    throw new Error('No API keys configured (tried Etherscan V2 and Routescan)');
   }
 
   const queryParams = new URLSearchParams({
     ...params,
-    apikey: apiKey
-  });
+    apikey: routescanKey
+  } as any);
 
   const url = `${networkConfig.explorerApiV2Url}?${queryParams.toString()}`;
-  console.log('Llamando a Routescan API:', url);
+  console.log('📡 Trying Routescan API (fallback)...');
 
   try {
     const response = await fetch(url);
@@ -351,9 +381,10 @@ async function callEtherscanV2Api(
       throw new Error(data.result || 'Error en la respuesta de la API');
     }
 
+    console.log('✅ Routescan API succeeded');
     return data;
   } catch (error) {
-    console.error('Error en la llamada a la API V2:', error);
+    console.error('❌ Routescan API failed:', error);
     throw new Error(`Error al llamar a la API V2: ${error}`);
   }
 }
@@ -529,60 +560,33 @@ export async function fetchTokenBalances(
       throw new Error(`Red no soportada: ${network}`);
     }
 
-    // Obtener API keys (custom o defaults)
-    const keys = getApiKeys(customApiKeys);
-    const apiKey = keys.basescanApiKey;
+    // Try to fetch token balances using callEtherscanV2Api (with automatic Etherscan V2 → Routescan fallback)
+    try {
+      console.log('🔍 Fetching token balances...');
+      const params = {
+        module: 'account',
+        action: 'tokenlist',
+        address: walletAddress
+      };
 
-    // Implementar reintentos para manejar límites de tasa
-    const maxRetries = 3;
-    let retryCount = 0;
-    let lastError = null;
+      const data = await callEtherscanV2Api(params, network, customApiKeys);
 
-    while (retryCount < maxRetries) {
-      try {
-        // Realizar la solicitud a la API de Basescan
-        const response = await axios.get(networkConfig.explorerApiUrl, {
-          params: {
-            module: 'account',
-            action: 'tokenlist',
-            address: walletAddress,
-            apikey: apiKey
-          }
-        });
-
-        // Verificar si la respuesta es válida
-        if (response.data.status === '1' && Array.isArray(response.data.result)) {
-          // Transformar los datos de la API al formato de nuestra aplicación
-          return response.data.result.map((token: any) => ({
-            tokenAddress: token.contractAddress,
-            tokenSymbol: token.symbol || 'UNKNOWN',
-            tokenName: token.name || 'Unknown Token',
-            balance: token.balance, // Devolvemos el valor crudo (Wei)
-            decimals: parseInt(token.decimals) || 18,
-            usdValue: null // La API de Basescan no proporciona valores en USD directamente
-          }));
-        } else if (response.data.status === 'NOTOK' && response.data.message?.includes('rate limit')) {
-          // Si es un error de límite de tasa, esperamos y reintentamos
-          console.warn(`Límite de tasa excedido en BaseScan (intento ${retryCount + 1}/${maxRetries}), esperando antes de reintentar...`);
-          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Espera exponencial
-          retryCount++;
-          lastError = new Error(response.data.message);
-        } else {
-          // Si la API devuelve un error, intentar obtener los tokens de las transferencias
-          console.warn('La API de Basescan no devolvió resultados válidos para los balances:', response.data.message || 'Sin mensaje de error');
-          break; // Salimos del bucle para intentar la alternativa
-        }
-      } catch (error) {
-        // Error de red o de otro tipo
-        lastError = error;
-        retryCount++;
-        if (retryCount < maxRetries) {
-          console.warn(`Error al conectar con BaseScan (intento ${retryCount}/${maxRetries}), reintentando...`);
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-        } else {
-          break; // Salimos del bucle para intentar la alternativa
-        }
+      // Verificar si la respuesta es válida
+      if (data.status === '1' && Array.isArray(data.result)) {
+        // Transformar los datos de la API al formato de nuestra aplicación
+        return data.result.map((token: any) => ({
+          tokenAddress: token.contractAddress,
+          tokenSymbol: token.symbol || 'UNKNOWN',
+          tokenName: token.name || 'Unknown Token',
+          balance: token.balance, // Devolvemos el valor crudo (Wei)
+          decimals: parseInt(token.decimals) || 18,
+          usdValue: null // La API de Basescan no proporciona valores en USD directamente
+        }));
+      } else {
+        console.warn('⚠️ API returned no valid token list:', data.message || 'No error message');
       }
+    } catch (error) {
+      console.warn('⚠️ Failed to fetch token balances via tokenlist:', error);
     }
 
     // Si llegamos aquí, es porque agotamos los reintentos o hubo un error no relacionado con límites de tasa

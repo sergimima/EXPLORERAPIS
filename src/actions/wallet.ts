@@ -21,55 +21,72 @@ interface TokenTransfer {
 }
 
 /**
- * Obtiene la API key de Routescan/Basescan desde .env o SystemSettings
+ * Obtiene API keys con jerarquía: TokenSettings → SystemSettings → .env
+ * @param tokenId - ID único del token (opcional)
  */
-async function getApiKey(): Promise<string | null> {
-    // 1. Intentar desde SystemSettings
-    try {
-        const systemSettings = await prisma.systemSettings.findUnique({ where: { id: 'system' } });
-        if (systemSettings?.defaultRoutescanApiKey) return systemSettings.defaultRoutescanApiKey;
-        if (systemSettings?.defaultBasescanApiKey) return systemSettings.defaultBasescanApiKey;
-    } catch (err) {
-        console.warn('Error al obtener SystemSettings');
+async function getApiKeys(tokenId?: string) {
+    let keys = {
+        routescanApiKey: null as string | null,
+        basescanApiKey: null as string | null,
+        etherscanApiKey: null as string | null
+    };
+
+    // 1. TokenSettings (prioridad máxima si hay tokenId)
+    if (tokenId) {
+        try {
+            const tokenSettings = await prisma.tokenSettings.findUnique({
+                where: { tokenId }
+            });
+            if (tokenSettings) {
+                keys.routescanApiKey = tokenSettings.customRoutescanApiKey;
+                keys.basescanApiKey = tokenSettings.customBasescanApiKey;
+                keys.etherscanApiKey = tokenSettings.customEtherscanApiKey;
+                console.log('[getApiKeys] Using TokenSettings for token:', tokenId);
+            }
+        } catch (error) {
+            console.warn('[getApiKeys] Error fetching TokenSettings:', error);
+        }
     }
 
-    // 2. Fallback a .env
-    const envKey = process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
-    if (envKey && envKey !== 'YourApiKeyToken') {
-        return envKey;
-    }
-
-    // 2. Fallback a SystemSettings (BD)
+    // 2. SystemSettings (fallback para keys no configuradas)
     try {
         const systemSettings = await prisma.systemSettings.findUnique({
             where: { id: 'system' }
         });
-
-        if (systemSettings?.defaultRoutescanApiKey) {
-            return systemSettings.defaultRoutescanApiKey;
-        }
-
-        if (systemSettings?.defaultBasescanApiKey) {
-            return systemSettings.defaultBasescanApiKey;
+        if (systemSettings) {
+            keys.routescanApiKey = keys.routescanApiKey || systemSettings.defaultRoutescanApiKey;
+            keys.basescanApiKey = keys.basescanApiKey || systemSettings.defaultBasescanApiKey;
+            keys.etherscanApiKey = keys.etherscanApiKey || systemSettings.defaultEtherscanApiKey;
+            if (!tokenId) {
+                console.log('[getApiKeys] Using SystemSettings (no tokenId provided)');
+            }
         }
     } catch (error) {
-        console.warn('[getApiKey] Error fetching SystemSettings:', error);
+        console.warn('[getApiKeys] Error fetching SystemSettings:', error);
     }
 
-    return null;
+    // 3. .env fallback
+    return {
+        routescanApiKey: keys.routescanApiKey || process.env.NEXT_PUBLIC_ROUTESCAN_API_KEY || 'YourApiKeyToken',
+        basescanApiKey: keys.basescanApiKey || process.env.NEXT_PUBLIC_BASESCAN_API_KEY || 'YourApiKeyToken',
+        etherscanApiKey: keys.etherscanApiKey || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || 'YourApiKeyToken'
+    };
 }
 
 /**
  * Obtiene nuevas transferencias desde la API de Etherscan/Basescan
+ * @param tokenId - ID único del token para usar sus API keys custom
  */
 async function fetchNewTransfersFromAPI(
     walletAddress: string,
-    lastTimestamp: number = 0
+    lastTimestamp: number = 0,
+    tokenId?: string
 ): Promise<any[]> {
-    const apiKey = await getApiKey();
+    const keys = await getApiKeys(tokenId);
+    const apiKey = keys.routescanApiKey || keys.etherscanApiKey || keys.basescanApiKey;
 
-    if (!apiKey) {
-        console.warn('No API key found for Routescan/Basescan (checked .env and SystemSettings)');
+    if (!apiKey || apiKey === 'YourApiKeyToken') {
+        console.warn('No API key found (checked TokenSettings, SystemSettings, and .env)');
         return [];
     }
 
@@ -108,18 +125,33 @@ async function fetchNewTransfersFromAPI(
 
 /**
  * Obtiene las transferencias de una wallet, usando caché de base de datos
+ * @param tokenId - ID único del token para usar sus API keys custom (si no se pasa, intenta obtenerlo del contexto)
  */
-export async function getWalletTransfers(walletAddress: string): Promise<TokenTransfer[]> {
+export async function getWalletTransfers(walletAddress: string, tokenId?: string): Promise<TokenTransfer[]> {
     const network = 'base';
     const normalizedWallet = walletAddress.toLowerCase();
+
+    // Si no se pasó tokenId, intentar obtenerlo desde el contexto del tenant
+    if (!tokenId) {
+        try {
+            const { getTenantContext } = await import('@/lib/tenant-context');
+            const tenantContext = await getTenantContext();
+            tokenId = tenantContext?.activeToken?.id;
+            if (tokenId) {
+                console.log('[getWalletTransfers] Using tokenId from tenant context:', tokenId);
+            }
+        } catch (error) {
+            console.warn('[getWalletTransfers] Could not get tokenId from context:', error);
+        }
+    }
 
     try {
         // 1. Leer transfers guardados en BD donde la wallet sea 'from' o 'to'
         // 1. Leer transfers guardados en BD usando queryRaw para asegurar que traemos tokenSymbol/tokenName
         // aunque el cliente de Prisma no esté regenerado.
         const cachedTransfers = await prisma.$queryRaw<any[]>`
-            SELECT * FROM "transfer_cache" 
-            WHERE ("from" = ${normalizedWallet} OR "to" = ${normalizedWallet}) 
+            SELECT * FROM "transfer_cache"
+            WHERE ("from" = ${normalizedWallet} OR "to" = ${normalizedWallet})
             AND "network" = ${network}
             ORDER BY "timestamp" DESC
         `;
@@ -132,7 +164,7 @@ export async function getWalletTransfers(walletAddress: string): Promise<TokenTr
             : 0;
 
         // 3. Fetch solo nuevos transfers desde API
-        const newTransfersRaw = await fetchNewTransfersFromAPI(walletAddress, lastTimestamp);
+        const newTransfersRaw = await fetchNewTransfersFromAPI(walletAddress, lastTimestamp, tokenId);
 
         // 4. Guardar nuevos en BD (si hay)
         if (newTransfersRaw.length > 0) {
@@ -194,7 +226,7 @@ export async function getWalletTransfers(walletAddress: string): Promise<TokenTr
     } catch (error) {
         console.error('[getWalletTransfers] ❌ Error:', error);
         // Fallback: intentar fetch directo sin guardar
-        const raw = await fetchNewTransfersFromAPI(walletAddress, 0);
+        const raw = await fetchNewTransfersFromAPI(walletAddress, 0, tokenId);
         return raw.map((tx: any) => ({
             hash: tx.hash,
             from: tx.from,
