@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, serializeBigInt } from '@/lib/db';
 import { fetchVestingInfo } from '@/lib/blockchain';
-import { getTenantContext } from '@/lib/tenant-context';
+import { getTenantContext, getApiKeys } from '@/lib/tenant-context';
 
 export async function GET(request: NextRequest) {
   // Validate tenant context
@@ -125,7 +125,8 @@ export async function GET(request: NextRequest) {
       }
       console.log(`[vesting-info] 🔍 Fetching from blockchain for ${contract.name} (${contractAddress})`);
       try {
-        const vestingData = await fetchVestingInfo(walletAddress, contractAddress, network);
+        const apiKeys = getApiKeys(tenantContext);
+        const vestingData = await fetchVestingInfo(walletAddress, contractAddress, network, apiKeys);
 
         debugLog.push(`${contract.name}: ${vestingData?.length || 0} schedules encontrados`);
 

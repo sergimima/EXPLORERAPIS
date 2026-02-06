@@ -684,7 +684,7 @@ export async function fetchTokenBalances(
  * @param network Red blockchain (base, base-testnet, base-sepolia)
  * @returns Información de vesting
  */
-export async function fetchVestingInfo(walletAddress: string, vestingContractAddress: string, network: string) {
+export async function fetchVestingInfo(walletAddress: string, vestingContractAddress: string, network: string, customApiKeys?: CustomApiKeys) {
   try {
     // Validar la dirección de la wallet
     if (!ethers.isAddress(walletAddress)) {
@@ -704,7 +704,7 @@ export async function fetchVestingInfo(walletAddress: string, vestingContractAdd
     console.log(`Buscando vestings para wallet ${normalizedWalletAddress} en contrato ${normalizedContractAddress} (red: ${network})`);
 
     // Obtener información de vesting desde la blockchain
-    const vestingInfo = await getVestingInfoFromBlockchain(normalizedWalletAddress, normalizedContractAddress, network);
+    const vestingInfo = await getVestingInfoFromBlockchain(normalizedWalletAddress, normalizedContractAddress, network, customApiKeys);
 
     // Si no hay información de vesting, devolver un array vacío
     if (!vestingInfo || vestingInfo.length === 0) {

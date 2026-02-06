@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { fetchVestingInfo } from '@/actions/blockchain';
 import { getExplorerUrl } from '@/lib/utils';
 import { Network } from '@/lib/types';
 

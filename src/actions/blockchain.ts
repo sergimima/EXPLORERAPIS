@@ -142,17 +142,18 @@ export async function fetchTokenTransfers(
 
 /**
  * Server Action: Obtiene información de vesting para una wallet
- * Signature: (walletAddress, vestingContractAddress, network)
+ * @param tokenId - ID único del token para usar sus API keys custom
  */
 export async function fetchVestingInfo(
     walletAddress: string,
     vestingContractAddress: string,
-    network: Network
+    network: Network,
+    tokenId?: string
 ) {
     try {
-        console.log('[Server Action] fetchVestingInfo:', walletAddress, vestingContractAddress, network);
-        // Esta función no acepta customApiKeys
-        return await fetchVestingInfoOriginal(walletAddress, vestingContractAddress, network);
+        console.log('[Server Action] fetchVestingInfo:', walletAddress, vestingContractAddress, network, tokenId);
+        const apiKeys = await getApiKeys(tokenId);
+        return await fetchVestingInfoOriginal(walletAddress, vestingContractAddress, network, apiKeys);
     } catch (error) {
         console.error('[Server Action] fetchVestingInfo error:', error);
         throw error;
