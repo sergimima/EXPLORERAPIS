@@ -37,7 +37,7 @@ export default function Avatar({ src, name, size = 'md', className = '' }: Avata
       <img
         src={src}
         alt={name}
-        className={`${sizeClass} rounded-full object-cover border-2 border-gray-300 dark:border-gray-600 ${className}`}
+        className={`${sizeClass} rounded-full object-cover border-2 border-border ${className}`}
         onError={(e) => {
           // Fallback to initials if image fails to load
           const target = e.target as HTMLImageElement;
@@ -52,7 +52,7 @@ export default function Avatar({ src, name, size = 'md', className = '' }: Avata
 
   return (
     <div
-      className={`${sizeClass} rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-2 border-gray-300 dark:border-gray-600 ${className}`}
+      className={`${sizeClass} rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center border-2 border-border ${className}`}
     >
       <span className="font-bold text-white">{initials}</span>
     </div>

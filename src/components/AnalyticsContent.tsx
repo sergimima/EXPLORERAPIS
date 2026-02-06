@@ -109,7 +109,7 @@ export default function AnalyticsContent() {
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(7);
   const [threshold, setThreshold] = useState('10000');
-  const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'whales' | 'holders' | 'activity' | 'known' | 'watchlist'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'whales' | 'holders' | 'activity' | 'known' | 'watchlist' | 'exchanges'>('overview');
   const [whaleSortBy, setWhaleSortBy] = useState<'amount' | 'date'>('date');
 
   // Estados para el modal de edición
@@ -123,6 +123,8 @@ export default function AnalyticsContent() {
   const [knownAddresses, setKnownAddresses] = useState<any[]>([]);
   const [selectedWatchlistAddress, setSelectedWatchlistAddress] = useState<string | null>(null);
   const [selectedVolumeDate, setSelectedVolumeDate] = useState<string | null>(null);
+  const [exchangeFilter, setExchangeFilter] = useState<string>('all'); // 'all' or specific address
+  const [exchangeDirection, setExchangeDirection] = useState<'all' | 'inflow' | 'outflow'>('all');
 
   // Estados para el caché y actualización
   const [lastUpdate, setLastUpdate] = useState<number>(0);
@@ -875,6 +877,16 @@ export default function AnalyticsContent() {
             >
               Watchlist ({knownAddresses.filter(ka => ka.isFavorite).length})
             </button>
+            <button
+              onClick={() => setActiveTab('exchanges')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'exchanges'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              }`}
+            >
+              Exchanges
+            </button>
           </nav>
         </div>
 
@@ -1386,6 +1398,149 @@ export default function AnalyticsContent() {
           )}
 
           {/* Watchlist Tab */}
+          {/* Exchanges Tab */}
+          {activeTab === 'exchanges' && filteredData && data && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Transferencias a/desde Exchanges</h3>
+
+              {/* Filtros */}
+              <div className="flex flex-wrap gap-4 mb-4">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Exchange</label>
+                  <select
+                    value={exchangeFilter}
+                    onChange={(e) => setExchangeFilter(e.target.value)}
+                    className="px-3 py-1.5 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-card"
+                  >
+                    <option value="all">Todos los exchanges</option>
+                    {data.exchangeAddresses.map((addr) => {
+                      const name = addressNames.get(addr.toLowerCase());
+                      return (
+                        <option key={addr} value={addr.toLowerCase()}>
+                          {name || `${addr.slice(0, 6)}...${addr.slice(-4)}`}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Direccion</label>
+                  <select
+                    value={exchangeDirection}
+                    onChange={(e) => setExchangeDirection(e.target.value as 'all' | 'inflow' | 'outflow')}
+                    className="px-3 py-1.5 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-card"
+                  >
+                    <option value="all">Todas</option>
+                    <option value="inflow">Inflow (hacia exchange)</option>
+                    <option value="outflow">Outflow (desde exchange)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Tabla de transferencias filtradas */}
+              {(() => {
+                const exchangeSet = new Set(data.exchangeAddresses.map(a => a.toLowerCase()));
+                const exchangeTxs = filteredData.transfers.filter((tx) => {
+                  const fromIsExchange = exchangeSet.has(tx.from.toLowerCase());
+                  const toIsExchange = exchangeSet.has(tx.to.toLowerCase());
+                  if (!fromIsExchange && !toIsExchange) return false;
+
+                  // Filtro por exchange concreto
+                  if (exchangeFilter !== 'all') {
+                    if (tx.from.toLowerCase() !== exchangeFilter && tx.to.toLowerCase() !== exchangeFilter) return false;
+                  }
+
+                  // Filtro por direccion
+                  if (exchangeDirection === 'inflow') return toIsExchange && !fromIsExchange;
+                  if (exchangeDirection === 'outflow') return fromIsExchange && !toIsExchange;
+                  return true;
+                });
+
+                // Calcular resumen
+                let inflowTotal = 0;
+                let outflowTotal = 0;
+                exchangeTxs.forEach((tx) => {
+                  const val = parseFloat(tx.valueFormatted);
+                  const toIsExchange = exchangeSet.has(tx.to.toLowerCase());
+                  const fromIsExchange = exchangeSet.has(tx.from.toLowerCase());
+                  if (toIsExchange && !fromIsExchange) inflowTotal += val;
+                  if (fromIsExchange && !toIsExchange) outflowTotal += val;
+                });
+
+                return (
+                  <div>
+                    {/* Summary cards */}
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="bg-background rounded-lg p-3">
+                        <p className="text-xs text-muted-foreground">Transferencias</p>
+                        <p className="text-lg font-semibold">{exchangeTxs.length}</p>
+                      </div>
+                      <div className="bg-background rounded-lg p-3">
+                        <p className="text-xs text-muted-foreground">Inflow (hacia exchange)</p>
+                        <p className="text-lg font-semibold text-destructive">{inflowTotal.toLocaleString()} {activeToken.symbol}</p>
+                      </div>
+                      <div className="bg-background rounded-lg p-3">
+                        <p className="text-xs text-muted-foreground">Outflow (desde exchange)</p>
+                        <p className="text-lg font-semibold text-success">{outflowTotal.toLocaleString()} {activeToken.symbol}</p>
+                      </div>
+                    </div>
+
+                    {exchangeTxs.length === 0 ? (
+                      <p className="text-center py-8 text-muted-foreground">Sin transferencias con exchanges en este periodo</p>
+                    ) : (
+                      <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                        <table className="min-w-full divide-y divide-border text-sm">
+                          <thead className="bg-muted sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Fecha</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Tipo</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Desde</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Hacia</th>
+                              <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Monto</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {exchangeTxs
+                              .sort((a, b) => b.timestamp - a.timestamp)
+                              .map((tx) => {
+                                const toIsExchange = exchangeSet.has(tx.to.toLowerCase());
+                                const fromIsExchange = exchangeSet.has(tx.from.toLowerCase());
+                                const isInflow = toIsExchange && !fromIsExchange;
+                                const isOutflow = fromIsExchange && !toIsExchange;
+                                const flowLabel = isInflow ? 'Inflow' : isOutflow ? 'Outflow' : 'Inter-exchange';
+                                const flowColor = isInflow ? 'text-destructive' : isOutflow ? 'text-success' : 'text-muted-foreground';
+                                return (
+                                  <tr key={tx.hash} className="hover:bg-muted/50">
+                                    <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                                      {new Date(tx.timestamp * 1000).toLocaleDateString('es-ES', {
+                                        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                                      })}
+                                    </td>
+                                    <td className={`px-3 py-2 whitespace-nowrap font-medium ${flowColor}`}>
+                                      {flowLabel}
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap">
+                                      <AddressLink address={tx.from} />
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap">
+                                      <AddressLink address={tx.to} />
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-right font-medium">
+                                      {parseFloat(tx.valueFormatted).toLocaleString()} {activeToken.symbol}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {activeTab === 'watchlist' && (
             <div>
               <h3 className="text-lg font-semibold mb-4">

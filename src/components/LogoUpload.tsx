@@ -151,10 +151,10 @@ export default function LogoUpload({
             <img
               src={preview}
               alt={name}
-              className="w-20 h-20 rounded-full object-cover border-2 border-gray-300 dark:border-gray-600"
+              className="w-20 h-20 rounded-full object-cover border-2 border-border"
             />
           ) : (
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-2 border-gray-300 dark:border-gray-600">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center border-2 border-border">
               <span className="text-2xl font-bold text-white">{initials}</span>
             </div>
           )}
@@ -173,7 +173,7 @@ export default function LogoUpload({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading || deleting}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {preview ? 'Change Logo' : 'Upload Logo'}
           </button>
@@ -183,7 +183,7 @@ export default function LogoUpload({
               type="button"
               onClick={handleDelete}
               disabled={uploading || deleting}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Remove Logo
             </button>
@@ -200,7 +200,7 @@ export default function LogoUpload({
       </div>
 
       {/* Helper text */}
-      <p className="text-sm text-gray-600 dark:text-gray-400">
+      <p className="text-sm text-muted-foreground">
         Recommended: Square image, at least 200x200px. Max 5MB.
         <br />
         Supported formats: JPEG, PNG, GIF, WebP
@@ -208,15 +208,15 @@ export default function LogoUpload({
 
       {/* Error message */}
       {error && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+          <p className="text-sm text-destructive">{error}</p>
         </div>
       )}
 
       {/* Success message */}
       {uploading && (
-        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <p className="text-sm text-blue-600 dark:text-blue-400">Uploading...</p>
+        <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
+          <p className="text-sm text-primary">Uploading...</p>
         </div>
       )}
     </div>
