@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     const tokenId = tenantContext.activeToken.id;
 
     const body = await request.json();
-    const { address, name, type, category, description, tags, color } = body;
+    const { address, name, type, category, description, tags, color, isFavorite } = body;
 
     if (!address || !name) {
       return NextResponse.json(
@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
           description,
           tags: tags || [],
           color,
+          ...(isFavorite !== undefined && { isFavorite }),
         },
       });
     } else {
@@ -106,6 +107,7 @@ export async function POST(request: NextRequest) {
           description,
           tags: tags || [],
           color,
+          ...(isFavorite !== undefined && { isFavorite }),
         },
       });
     }

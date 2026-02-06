@@ -27,6 +27,7 @@ export default function EditAddressModal({
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
   const [color, setColor] = useState('#3B82F6');
+  const [isFavorite, setIsFavorite] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function EditAddressModal({
       setDescription(currentData?.description || '');
       setTags(currentData?.tags?.join(', ') || '');
       setColor(currentData?.color || '#3B82F6');
+      setIsFavorite(currentData?.isFavorite || false);
     }
   }, [address, currentName, currentData, isOpen]);
 
@@ -67,6 +69,7 @@ export default function EditAddressModal({
           description: description.trim() || undefined,
           tags: tags.trim() ? tags.split(',').map(t => t.trim()).filter(t => t) : [],
           color: color || undefined,
+          isFavorite,
         }),
       });
 
@@ -211,6 +214,22 @@ export default function EditAddressModal({
               placeholder="vesting, important, monitored"
               className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             />
+          </div>
+
+          {/* Favorito */}
+          <div className="flex items-center gap-3">
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isFavorite}
+                onChange={(e) => setIsFavorite(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-warning"></div>
+            </label>
+            <span className="text-sm font-medium text-foreground">
+              Watchlist {isFavorite && '(monitoreada)'}
+            </span>
           </div>
 
           {/* Color */}

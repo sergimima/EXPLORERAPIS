@@ -33,6 +33,7 @@ export interface TenantContext {
       customQuiknodeUrl?: string;
       customRoutescanApiKey?: string;
       whaleThreshold: string;
+      customExchangeAddresses?: string[];
     };
   };
   systemSettings?: {
@@ -107,7 +108,8 @@ export async function getTenantContext(
           customMoralisApiKey: token.settings.customMoralisApiKey || undefined,
           customQuiknodeUrl: token.settings.customQuiknodeUrl || undefined,
           customRoutescanApiKey: token.settings.customRoutescanApiKey || undefined,
-          whaleThreshold: token.settings.whaleThreshold
+          whaleThreshold: token.settings.whaleThreshold,
+          customExchangeAddresses: token.settings.customExchangeAddresses?.length ? token.settings.customExchangeAddresses : undefined
         } : undefined
       };
     }
@@ -137,7 +139,8 @@ export async function getTenantContext(
           customMoralisApiKey: defaultToken.settings.customMoralisApiKey || undefined,
           customQuiknodeUrl: defaultToken.settings.customQuiknodeUrl || undefined,
           customRoutescanApiKey: defaultToken.settings.customRoutescanApiKey || undefined,
-          whaleThreshold: defaultToken.settings.whaleThreshold
+          whaleThreshold: defaultToken.settings.whaleThreshold,
+          customExchangeAddresses: defaultToken.settings.customExchangeAddresses?.length ? defaultToken.settings.customExchangeAddresses : undefined
         } : undefined
       };
     }

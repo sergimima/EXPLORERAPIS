@@ -479,6 +479,7 @@ model KnownAddress {
   description String?
   tags        String[] // Array de tags: ["vesting", "important", "monitored"]
   color       String?  // Color hex para UI
+  isFavorite  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

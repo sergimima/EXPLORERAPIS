@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import EditAddressModal from '@/components/EditAddressModal';
+import WatchlistDetail from '@/components/WatchlistDetail';
 import AdvancedFilters, { AdvancedFiltersState, defaultFilters } from '@/components/AdvancedFilters';
 import { useToken } from '@/contexts/TokenContext';
 
@@ -12,6 +13,7 @@ import { useToken } from '@/contexts/TokenContext';
 const HolderDistributionChart = dynamic(() => import('@/components/charts/HolderDistributionChart'), { ssr: false });
 const WhaleTimelineChart = dynamic(() => import('@/components/charts/WhaleTimelineChart'), { ssr: false });
 const ExchangeFlowChart = dynamic(() => import('@/components/charts/ExchangeFlowChart'), { ssr: false });
+const DailyVolumeChart = dynamic(() => import('@/components/charts/DailyVolumeChart'), { ssr: false });
 
 interface TokenTransfer {
   hash: string;
@@ -83,6 +85,16 @@ interface AnalyticsData {
   priceData: PriceData;
   liquidityData: LiquidityData | null;
   alerts: Alert[];
+  exchangeAddresses: string[];
+  dailyVolumeHistory: {
+    date: string;
+    displayDate: string;
+    totalVolume: number;
+    exchangeVolume: number;
+    whaleVolume: number;
+    normalVolume: number;
+    transactionCount: number;
+  }[];
   statistics: Statistics;
   timeRange: {
     from: number;
@@ -97,7 +109,7 @@ export default function AnalyticsContent() {
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(7);
   const [threshold, setThreshold] = useState('10000');
-  const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'whales' | 'holders' | 'activity' | 'known'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'whales' | 'holders' | 'activity' | 'known' | 'watchlist'>('overview');
   const [whaleSortBy, setWhaleSortBy] = useState<'amount' | 'date'>('date');
 
   // Estados para el modal de edición
@@ -109,6 +121,7 @@ export default function AnalyticsContent() {
 
   // Estado para direcciones conocidas completas
   const [knownAddresses, setKnownAddresses] = useState<any[]>([]);
+  const [selectedWatchlistAddress, setSelectedWatchlistAddress] = useState<string | null>(null);
 
   // Estados para el caché y actualización
   const [lastUpdate, setLastUpdate] = useState<number>(0);
@@ -294,6 +307,47 @@ export default function AnalyticsContent() {
     setEditModalOpen(true);
   };
 
+  // Toggle favorito de una address
+  const handleToggleFavorite = async (address: string) => {
+    const ka = knownAddresses.find(k => k.address.toLowerCase() === address.toLowerCase());
+    const newFavorite = ka ? !ka.isFavorite : true;
+
+    try {
+      const response = await fetch('/api/addresses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address,
+          name: ka?.name || address.slice(0, 6) + '...' + address.slice(-4),
+          type: ka?.type || 'WALLET',
+          category: ka?.category,
+          description: ka?.description,
+          tags: ka?.tags || [],
+          color: ka?.color,
+          isFavorite: newFavorite,
+        }),
+      });
+
+      if (response.ok) {
+        // Recargar knownAddresses
+        const reloadResponse = await fetch('/api/addresses');
+        if (reloadResponse.ok) {
+          const { knownAddresses: addresses } = await reloadResponse.json();
+          if (addresses && Array.isArray(addresses)) {
+            setKnownAddresses(addresses);
+            const newNames = new Map<string, string>();
+            addresses.forEach((a: any) => newNames.set(a.address.toLowerCase(), a.name));
+            setAddressNames(newNames);
+          }
+        }
+        toast.success(newFavorite ? 'Agregada a Watchlist' : 'Removida de Watchlist');
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast.error('Error al actualizar favorito');
+    }
+  };
+
   // Handlers para filtros avanzados
   const handleApplyFilters = () => {
     setAppliedFilters(advancedFilters);
@@ -304,19 +358,12 @@ export default function AnalyticsContent() {
     setAppliedFilters(defaultFilters);
   };
 
-  // Función para determinar el tipo de address
+  // Función para determinar el tipo de address (usa exchangeAddresses del API)
   const getAddressType = (address: string, transfer?: TokenTransfer): 'exchange' | 'contract' | 'wallet' => {
     const addr = address.toLowerCase();
 
-    // Known exchanges
-    const knownExchanges = [
-      '0x3cd751e6b0078be393132286c442345e5dc49699', // Coinbase
-      '0x71660c4005ba85c37ccec55d0c4493e66fe775d3', // Coinbase 2
-      '0x503828976d22510aad0201ac7ec88293211d23da', // Coinbase 3
-      '0x0d0707963952f2fba59dd06f2b425ace40b492fe', // Gate.io
-    ];
-
-    if (knownExchanges.includes(addr)) return 'exchange';
+    // Usar la lista de exchanges del API (incluye defaults + custom + KnownAddress EXCHANGE)
+    if (data?.exchangeAddresses?.some(e => e.toLowerCase() === addr)) return 'exchange';
 
     // Check if it's a known contract from holders data
     if (data?.topHolders) {
@@ -389,9 +436,22 @@ export default function AnalyticsContent() {
   const AddressLink = ({ address, label }: { address: string; label?: string }) => {
     // Siempre mostrar la dirección formateada, no el nombre
     const displayAddress = formatAddress(address);
+    const isFav = knownAddresses.some(ka => ka.address.toLowerCase() === address.toLowerCase() && ka.isFavorite);
 
     return (
       <div className="flex items-center gap-2">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleFavorite(address);
+          }}
+          className={`p-1 rounded transition-colors ${isFav ? 'text-warning' : 'text-muted-foreground hover:text-warning'}`}
+          title={isFav ? 'Quitar de Watchlist' : 'Agregar a Watchlist'}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill={isFav ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          </svg>
+        </button>
         <a
           href={`https://basescan.org/address/${address}`}
           target="_blank"
@@ -804,6 +864,16 @@ export default function AnalyticsContent() {
             >
               📋 Direcciones Conocidas
             </button>
+            <button
+              onClick={() => setActiveTab('watchlist')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'watchlist'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              }`}
+            >
+              Watchlist ({knownAddresses.filter(ka => ka.isFavorite).length})
+            </button>
           </nav>
         </div>
 
@@ -816,8 +886,13 @@ export default function AnalyticsContent() {
                 <WhaleTimelineChart transfers={filteredData.transfers} threshold={parseInt(threshold)} tokenSymbol={activeToken.symbol} />
               </div>
               <div>
-                <ExchangeFlowChart transfers={filteredData.transfers} days={days} tokenSymbol={activeToken.symbol} />
+                <ExchangeFlowChart transfers={filteredData.transfers} days={days} tokenSymbol={activeToken.symbol} exchangeAddresses={data.exchangeAddresses} />
               </div>
+              {data.dailyVolumeHistory && data.dailyVolumeHistory.length > 0 && (
+                <div>
+                  <DailyVolumeChart data={data.dailyVolumeHistory} days={days} tokenSymbol={activeToken.symbol} />
+                </div>
+              )}
             </div>
           )}
 
@@ -1221,6 +1296,83 @@ export default function AnalyticsContent() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* Watchlist Tab */}
+          {activeTab === 'watchlist' && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">
+                Watchlist ({knownAddresses.filter(ka => ka.isFavorite).length})
+              </h3>
+              {knownAddresses.filter(ka => ka.isFavorite).length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-lg mb-2">No hay wallets en tu Watchlist</p>
+                  <p className="text-sm">Haz click en la estrella junto a cualquier address para agregarla</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Lista de favoritos */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {knownAddresses.filter(ka => ka.isFavorite).map((ka) => {
+                      const isSelected = selectedWatchlistAddress === ka.address.toLowerCase();
+                      return (
+                        <button
+                          key={ka.id}
+                          onClick={() => setSelectedWatchlistAddress(isSelected ? null : ka.address.toLowerCase())}
+                          className={`text-left p-4 rounded-lg border transition-colors ${
+                            isSelected
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:border-primary/50 bg-card'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-warning">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                              </svg>
+                            </span>
+                            <span className="font-semibold text-card-foreground truncate">{ka.name}</span>
+                            <span className={`px-2 py-0.5 rounded text-xs ${
+                              ka.type === 'EXCHANGE' ? 'bg-destructive/10 text-destructive' :
+                              ka.type === 'CONTRACT' ? 'bg-accent text-accent-foreground' :
+                              ka.type === 'VESTING' ? 'bg-success/10 text-success' :
+                              'bg-accent text-primary'
+                            }`}>
+                              {ka.type}
+                            </span>
+                          </div>
+                          <p className="text-xs font-mono text-muted-foreground">
+                            {ka.address.slice(0, 6)}...{ka.address.slice(-4)}
+                          </p>
+                          {ka.category && (
+                            <p className="text-xs text-muted-foreground mt-1">{ka.category}</p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Detalle de wallet seleccionada */}
+                  {selectedWatchlistAddress && (() => {
+                    const ka = knownAddresses.find(k => k.address.toLowerCase() === selectedWatchlistAddress);
+                    if (!ka) return null;
+                    const holderData = data?.topHolders.find(h => h.address.toLowerCase() === selectedWatchlistAddress);
+                    const recentTransfers = (filteredData?.transfers || [])
+                      .filter(t => t.from.toLowerCase() === selectedWatchlistAddress || t.to.toLowerCase() === selectedWatchlistAddress)
+                      .slice(0, 10);
+                    return (
+                      <WatchlistDetail
+                        knownAddress={ka}
+                        holderData={holderData}
+                        recentTransfers={recentTransfers}
+                        tokenSymbol={activeToken?.symbol || ''}
+                        onClose={() => setSelectedWatchlistAddress(null)}
+                      />
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           )}
         </div>

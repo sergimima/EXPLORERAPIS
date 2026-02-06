@@ -18,20 +18,16 @@ interface ExchangeFlowChartProps {
   transfers: TokenTransfer[];
   days: number;
   tokenSymbol?: string;
+  exchangeAddresses?: string[];
 }
 
-const KNOWN_EXCHANGES = new Set([
-  '0x3cd751e6b0078be393132286c442345e5dc49699',
-  '0x71660c4005ba85c37ccec55d0c4493e66fe775d3',
-  '0x503828976d22510aad0201ac7ec88293211d23da',
-  '0x0d0707963952f2fba59dd06f2b425ace40b492fe',
-]);
+export default function ExchangeFlowChart({ transfers, days, tokenSymbol = 'tokens', exchangeAddresses = [] }: ExchangeFlowChartProps) {
+  // Usar la lista de exchanges del API (incluye defaults + custom + KnownAddress EXCHANGE)
+  const exchangeSet = new Set(exchangeAddresses.map(a => a.toLowerCase()));
 
-function isExchange(address: string): boolean {
-  return KNOWN_EXCHANGES.has(address.toLowerCase());
-}
-
-export default function ExchangeFlowChart({ transfers, days, tokenSymbol = 'tokens' }: ExchangeFlowChartProps) {
+  function isExchange(address: string): boolean {
+    return exchangeSet.has(address.toLowerCase());
+  }
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 

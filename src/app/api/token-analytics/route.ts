@@ -77,6 +77,16 @@ interface AnalyticsData {
   priceData: PriceData;
   liquidityData: LiquidityData | null;
   alerts: Alert[];
+  exchangeAddresses: string[];
+  dailyVolumeHistory: {
+    date: string;
+    displayDate: string;
+    totalVolume: number;
+    exchangeVolume: number;
+    whaleVolume: number;
+    normalVolume: number;
+    transactionCount: number;
+  }[];
   statistics: {
     totalTransfers: number;
     totalVolume: string;
@@ -99,25 +109,38 @@ interface AnalyticsData {
   };
 }
 
-// Lista de direcciones conocidas de exchanges
-const KNOWN_EXCHANGES = new Set([
+// Direcciones de exchanges por defecto (hardcoded base)
+const DEFAULT_EXCHANGES = [
   '0x3cd751e6b0078be393132286c442345e5dc49699', // Coinbase
   '0x71660c4005ba85c37ccec55d0c4493e66fe775d3', // Coinbase 2
   '0x503828976d22510aad0201ac7ec88293211d23da', // Coinbase 3
   '0x0d0707963952f2fba59dd06f2b425ace40b492fe', // Gate.io
-]);
+];
 
-function isExchangeAddress(address: string): boolean {
-  return KNOWN_EXCHANGES.has(address.toLowerCase());
+const DEFAULT_EXCHANGE_LABELS: Record<string, string> = {
+  '0x3cd751e6b0078be393132286c442345e5dc49699': 'Coinbase',
+  '0x71660c4005ba85c37ccec55d0c4493e66fe775d3': 'Coinbase 2',
+  '0x503828976d22510aad0201ac7ec88293211d23da': 'Coinbase 3',
+  '0x0d0707963952f2fba59dd06f2b425ace40b492fe': 'Gate.io',
+};
+
+// Construye el Set combinado de exchanges: defaults + TokenSettings.customExchangeAddresses + KnownAddress EXCHANGE
+function buildExchangeSet(
+  customExchangeAddresses?: string[],
+  knownExchangeAddresses?: string[]
+): Set<string> {
+  const set = new Set(DEFAULT_EXCHANGES.map(a => a.toLowerCase()));
+  if (customExchangeAddresses) {
+    customExchangeAddresses.forEach(a => set.add(a.toLowerCase()));
+  }
+  if (knownExchangeAddresses) {
+    knownExchangeAddresses.forEach(a => set.add(a.toLowerCase()));
+  }
+  return set;
 }
 
 function getAddressLabel(address: string): string | undefined {
-  const addr = address.toLowerCase();
-  if (addr === '0x3cd751e6b0078be393132286c442345e5dc49699') return 'Coinbase';
-  if (addr === '0x71660c4005ba85c37ccec55d0c4493e66fe775d3') return 'Coinbase 2';
-  if (addr === '0x503828976d22510aad0201ac7ec88293211d23da') return 'Coinbase 3';
-  if (addr === '0x0d0707963952f2fba59dd06f2b425ace40b492fe') return 'Gate.io';
-  return undefined;
+  return DEFAULT_EXCHANGE_LABELS[address.toLowerCase()];
 }
 
 // ============================================
@@ -293,7 +316,8 @@ async function isContractAddress(address: string): Promise<boolean> {
 async function fetchHoldersFromMoralis(
   tokenAddress: string,
   tokenId?: string,
-  knownInfo?: Map<string, { isContract: boolean; isExchange: boolean; label?: string }>
+  knownInfo?: Map<string, { isContract: boolean; isExchange: boolean; label?: string }>,
+  exchangeSet?: Set<string>
 ): Promise<any[]> {
   let moralisApiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
   try {
@@ -370,7 +394,7 @@ async function fetchHoldersFromMoralis(
         // Solo verificar con RPC si no tenemos info previa
         rpcCallsNeeded++;
         const isContract = await isContractAddress(holder.owner_address);
-        const isExchange = isExchangeAddress(holder.owner_address);
+        const isExchange = exchangeSet ? exchangeSet.has(holder.owner_address.toLowerCase()) : false;
         holderInfo.push({ isContract, isExchange });
 
         // Pequeño delay entre llamadas RPC
@@ -409,7 +433,7 @@ async function fetchHoldersFromMoralis(
   }
 }
 
-async function getHoldersWithCache(tokenAddress: string, tokenId: string, forceRefresh: boolean = false): Promise<HolderInfo[]> {
+async function getHoldersWithCache(tokenAddress: string, tokenId: string, forceRefresh: boolean = false, exchangeSet?: Set<string>): Promise<HolderInfo[]> {
   const network = 'base';
 
   try {
@@ -485,7 +509,7 @@ async function getHoldersWithCache(tokenAddress: string, tokenId: string, forceR
     });
     console.log(`[getHoldersWithCache] Added/updated ${knownAddressesAdded} known addresses from DB (total: ${knownAddressesInfo.size})`);
 
-    const freshHolders = await fetchHoldersFromMoralis(tokenAddress, tokenId, knownAddressesInfo);
+    const freshHolders = await fetchHoldersFromMoralis(tokenAddress, tokenId, knownAddressesInfo, exchangeSet);
 
     if (freshHolders.length === 0) {
       console.warn('[getHoldersWithCache] ⚠️ No holders fetched, returning empty');
@@ -528,7 +552,7 @@ async function getHoldersWithCache(tokenAddress: string, tokenId: string, forceR
     console.error('[getHoldersWithCache] ❌ Error:', error);
     // Fallback: intentar fetch directo
     console.log('[getHoldersWithCache] Falling back to direct Moralis call...');
-    const holders = await fetchHoldersFromMoralis(tokenAddress, tokenId);
+    const holders = await fetchHoldersFromMoralis(tokenAddress, tokenId, undefined, exchangeSet);
     return holders.map((h) => ({
       address: h.address,
       balance: ethers.formatUnits(h.balance, 18),
@@ -751,12 +775,12 @@ async function getLiquidityData(provider: ethers.JsonRpcProvider, tokenAddress: 
 // Funciones de Análisis
 // ============================================
 
-function calculateNetFlowToExchanges(transfers: TokenTransfer[]): string {
+function calculateNetFlowToExchanges(transfers: TokenTransfer[], exchangeSet: Set<string>): string {
   let netFlow = BigInt(0);
 
   transfers.forEach(transfer => {
-    const fromIsExchange = isExchangeAddress(transfer.from);
-    const toIsExchange = isExchangeAddress(transfer.to);
+    const fromIsExchange = exchangeSet.has(transfer.from.toLowerCase());
+    const toIsExchange = exchangeSet.has(transfer.to.toLowerCase());
     const value = BigInt(transfer.value);
 
     if (toIsExchange && !fromIsExchange) {
@@ -773,7 +797,9 @@ function generateAlerts(
   transfers: TokenTransfer[],
   largeTransfers: TokenTransfer[],
   topHolders: HolderInfo[],
-  netFlow: string
+  netFlow: string,
+  exchangeSet: Set<string>,
+  tokenSymbol: string
 ): Alert[] {
   const alerts: Alert[] = [];
   const now = Math.floor(Date.now() / 1000);
@@ -785,7 +811,7 @@ function generateAlerts(
     alerts.push({
       type: 'whale_move',
       severity: 'high',
-      message: `${recentLargeTransfers.length} transferencias grandes en las últimas 2h (${totalAmount.toFixed(0)} VTN)`,
+      message: `${recentLargeTransfers.length} transferencias grandes en las últimas 2h (${totalAmount.toFixed(0)} ${tokenSymbol})`,
       timestamp: now,
       data: { count: recentLargeTransfers.length, amount: totalAmount }
     });
@@ -799,7 +825,7 @@ function generateAlerts(
       alerts.push({
         type: 'exchange_flow',
         severity,
-        message: `⚠️ ${netFlowNum.toFixed(0)} VTN enviados a exchanges (presión de venta)`,
+        message: `${netFlowNum.toFixed(0)} ${tokenSymbol} enviados a exchanges (presion de venta)`,
         timestamp: now,
         data: { netFlow: netFlowNum }
       });
@@ -807,7 +833,7 @@ function generateAlerts(
       alerts.push({
         type: 'exchange_flow',
         severity: 'low',
-        message: `✅ ${Math.abs(netFlowNum).toFixed(0)} VTN retirados de exchanges (menos presión)`,
+        message: `${Math.abs(netFlowNum).toFixed(0)} ${tokenSymbol} retirados de exchanges (menos presion)`,
         timestamp: now,
         data: { netFlow: netFlowNum }
       });
@@ -820,7 +846,7 @@ function generateAlerts(
     alerts.push({
       type: 'distribution',
       severity: 'medium',
-      message: `Top 10 holders controlan ${top10Concentration.toFixed(1)}% del supply (alta concentración)`,
+      message: `Top 10 holders controlan ${top10Concentration.toFixed(1)}% del supply (alta concentracion)`,
       timestamp: now,
       data: { concentration: top10Concentration }
     });
@@ -829,7 +855,7 @@ function generateAlerts(
   // Alerta: Acumulación por ballenas
   const holderActivity = new Map<string, number>();
   recentLargeTransfers.forEach(t => {
-    if (!isExchangeAddress(t.to)) {
+    if (!exchangeSet.has(t.to.toLowerCase())) {
       const current = holderActivity.get(t.to) || 0;
       holderActivity.set(t.to, current + parseFloat(t.valueFormatted));
     }
@@ -841,7 +867,7 @@ function generateAlerts(
       alerts.push({
         type: 'accumulation',
         severity: 'medium',
-        message: `🐋 Ballena acumulando: ${amount.toFixed(0)} VTN recibidos por ${holder?.label || formatAddress(address)}`,
+        message: `Ballena acumulando: ${amount.toFixed(0)} ${tokenSymbol} recibidos por ${holder?.label || formatAddress(address)}`,
         timestamp: now,
         data: { address, amount }
       });
@@ -900,10 +926,16 @@ export async function GET(request: NextRequest) {
     const threshold = searchParams.get('threshold') || tenantContext.activeToken.settings?.whaleThreshold || '10000';
     const forceRefresh = searchParams.get('forceRefresh') === 'true';
 
+    // Obtener exchanges custom de TokenSettings
+    const customExchangeAddresses = tenantContext.activeToken.settings?.customExchangeAddresses;
+
     console.log(`\n========== Analytics Request ==========`);
     console.log(`Organization: ${tenantContext.organization.name}`);
     console.log(`Token: ${tokenSymbol} (${tokenAddress})`);
     console.log(`Days: ${days}, Threshold: ${threshold}, Force Refresh: ${forceRefresh}`);
+    if (customExchangeAddresses?.length) {
+      console.log(`Custom exchange addresses: ${customExchangeAddresses.length}`);
+    }
 
     // Obtener transferencias con caché incremental
     console.log('\n--- TRANSFERS (Incremental Cache) ---');
@@ -949,13 +981,23 @@ export async function GET(request: NextRequest) {
       .filter(tx => tx.isLargeTransfer)
       .slice(0, 100);
 
+    // Construir Set combinado de exchanges: defaults + custom (TokenSettings) + KnownAddress EXCHANGE
+    console.log('\n--- EXCHANGE SET ---');
+    const knownExchangeFromDB = await prisma.knownAddress.findMany({
+      where: { tokenId, type: 'EXCHANGE' },
+      select: { address: true }
+    });
+    const knownExchangeAddresses = knownExchangeFromDB.map(ka => ka.address);
+    const exchangeSet = buildExchangeSet(customExchangeAddresses, knownExchangeAddresses);
+    console.log(`Exchange set: ${exchangeSet.size} addresses (${DEFAULT_EXCHANGES.length} default + ${customExchangeAddresses?.length || 0} custom + ${knownExchangeAddresses.length} from KnownAddress)`);
+
     // Obtener holders con caché de snapshots
     console.log('\n--- HOLDERS (Snapshot Cache) ---');
-    const topHolders = await getHoldersWithCache(tokenAddress, tokenId, forceRefresh);
+    const topHolders = await getHoldersWithCache(tokenAddress, tokenId, forceRefresh, exchangeSet);
 
     // Calcular métricas
     console.log('\n--- ANALYTICS ---');
-    const netFlowToExchanges = calculateNetFlowToExchanges(transfers);
+    const netFlowToExchanges = calculateNetFlowToExchanges(transfers, exchangeSet);
     const topHoldersConcentration = topHolders.slice(0, 10).reduce((sum, h) => sum + parseFloat(h.percentage), 0);
 
     // Obtener precio y liquidez en paralelo (tiempo real - sin caché)
@@ -968,8 +1010,56 @@ export async function GET(request: NextRequest) {
 
     // Generar alertas
     console.log('\n--- ALERTS ---');
-    const alerts = generateAlerts(transfers, largeTransfers, topHolders, netFlowToExchanges);
+    const alerts = generateAlerts(transfers, largeTransfers, topHolders, netFlowToExchanges, exchangeSet, tokenSymbol);
     console.log(`Generated ${alerts.length} alerts`);
+
+    // Volumen diario con desglose
+    console.log('\n--- DAILY VOLUME HISTORY ---');
+    const volumeByDay = new Map<string, {
+      total: bigint;
+      exchange: bigint;
+      whale: bigint;
+      normal: bigint;
+      txCount: number;
+    }>();
+
+    transfers.forEach(tx => {
+      const date = new Date(tx.timestamp * 1000);
+      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+      if (!volumeByDay.has(dateKey)) {
+        volumeByDay.set(dateKey, { total: BigInt(0), exchange: BigInt(0), whale: BigInt(0), normal: BigInt(0), txCount: 0 });
+      }
+
+      const day = volumeByDay.get(dateKey)!;
+      const value = BigInt(tx.value);
+      day.total += value;
+      day.txCount++;
+
+      const isExchangeTx = exchangeSet.has(tx.from.toLowerCase()) || exchangeSet.has(tx.to.toLowerCase());
+
+      if (isExchangeTx) {
+        day.exchange += value;
+      } else if (tx.isLargeTransfer) {
+        day.whale += value;
+      } else {
+        day.normal += value;
+      }
+    });
+
+    const dailyVolumeHistory = Array.from(volumeByDay.entries())
+      .map(([dateKey, d]) => ({
+        date: dateKey,
+        displayDate: new Date(dateKey).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
+        totalVolume: parseFloat(ethers.formatUnits(d.total, tokenDecimals)),
+        exchangeVolume: parseFloat(ethers.formatUnits(d.exchange, tokenDecimals)),
+        whaleVolume: parseFloat(ethers.formatUnits(d.whale, tokenDecimals)),
+        normalVolume: parseFloat(ethers.formatUnits(d.normal, tokenDecimals)),
+        transactionCount: d.txCount,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    console.log(`Daily volume: ${dailyVolumeHistory.length} days`);
 
     // Estadísticas
     const statistics = {
@@ -993,6 +1083,8 @@ export async function GET(request: NextRequest) {
       liquidityData,
       alerts,
       statistics,
+      exchangeAddresses: Array.from(exchangeSet),
+      dailyVolumeHistory,
       timeRange: {
         from: timeThreshold,
         to: currentTime,
