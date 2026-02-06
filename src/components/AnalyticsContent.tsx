@@ -122,6 +122,7 @@ export default function AnalyticsContent() {
   // Estado para direcciones conocidas completas
   const [knownAddresses, setKnownAddresses] = useState<any[]>([]);
   const [selectedWatchlistAddress, setSelectedWatchlistAddress] = useState<string | null>(null);
+  const [selectedVolumeDate, setSelectedVolumeDate] = useState<string | null>(null);
 
   // Estados para el caché y actualización
   const [lastUpdate, setLastUpdate] = useState<number>(0);
@@ -890,7 +891,92 @@ export default function AnalyticsContent() {
               </div>
               {data.dailyVolumeHistory && data.dailyVolumeHistory.length > 0 && (
                 <div>
-                  <DailyVolumeChart data={data.dailyVolumeHistory} days={days} tokenSymbol={activeToken.symbol} />
+                  <DailyVolumeChart
+                    data={data.dailyVolumeHistory}
+                    days={days}
+                    tokenSymbol={activeToken.symbol}
+                    selectedDate={selectedVolumeDate}
+                    onDayClick={setSelectedVolumeDate}
+                  />
+                  {/* Transferencias del dia seleccionado */}
+                  {selectedVolumeDate && (() => {
+                    const dayTransfers = filteredData.transfers.filter(t => {
+                      const d = new Date(t.timestamp * 1000);
+                      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                      return dateKey === selectedVolumeDate;
+                    });
+                    const displayDate = new Date(selectedVolumeDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+                    return (
+                      <div className="mt-4 bg-card rounded-lg border border-border p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-semibold text-card-foreground">
+                            Transferencias del {displayDate} ({dayTransfers.length})
+                          </h4>
+                          <button
+                            onClick={() => setSelectedVolumeDate(null)}
+                            className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                        {dayTransfers.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Sin transferencias este dia</p>
+                        ) : (
+                          <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                            <table className="min-w-full divide-y divide-border text-sm">
+                              <thead className="bg-muted sticky top-0">
+                                <tr>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Hora</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Desde</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Hacia</th>
+                                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Monto</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Tipo</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border">
+                                {dayTransfers
+                                  .sort((a, b) => b.timestamp - a.timestamp)
+                                  .map((tx) => {
+                                    const isExchangeTx = data.exchangeAddresses?.some(
+                                      e => e.toLowerCase() === tx.from.toLowerCase() || e.toLowerCase() === tx.to.toLowerCase()
+                                    );
+                                    const category = isExchangeTx ? 'exchange' : tx.isLargeTransfer ? 'whale' : 'normal';
+                                    const categoryColors = {
+                                      exchange: 'bg-destructive/10 text-destructive',
+                                      whale: 'bg-warning/10 text-warning',
+                                      normal: 'bg-primary/10 text-primary',
+                                    };
+                                    return (
+                                      <tr key={tx.hash} className="hover:bg-muted/50">
+                                        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                                          {new Date(tx.timestamp * 1000).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                        </td>
+                                        <td className="px-3 py-2 whitespace-nowrap">
+                                          <AddressLink address={tx.from} />
+                                        </td>
+                                        <td className="px-3 py-2 whitespace-nowrap">
+                                          <AddressLink address={tx.to} />
+                                        </td>
+                                        <td className="px-3 py-2 whitespace-nowrap text-right font-medium">
+                                          {parseFloat(tx.valueFormatted).toLocaleString()} {activeToken.symbol}
+                                        </td>
+                                        <td className="px-3 py-2 whitespace-nowrap">
+                                          <span className={`px-2 py-0.5 rounded text-xs ${categoryColors[category]}`}>
+                                            {category === 'exchange' ? 'Exchange' : category === 'whale' ? 'Whale' : 'Normal'}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>

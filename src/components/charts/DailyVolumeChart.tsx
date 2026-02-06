@@ -17,13 +17,25 @@ interface DailyVolumeChartProps {
   data: DailyVolumeEntry[];
   days: number;
   tokenSymbol?: string;
+  selectedDate?: string | null;
+  onDayClick?: (date: string | null) => void;
 }
 
-export default function DailyVolumeChart({ data, days, tokenSymbol = 'tokens' }: DailyVolumeChartProps) {
+export default function DailyVolumeChart({ data, days, tokenSymbol = 'tokens', selectedDate, onDayClick }: DailyVolumeChartProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
   const chartData = data.slice(-days);
+
+  const handleBarClick = (barData: any) => {
+    if (!onDayClick) return;
+    const clickedDate = barData?.date;
+    if (clickedDate === selectedDate) {
+      onDayClick(null); // Deselect
+    } else {
+      onDayClick(clickedDate);
+    }
+  };
 
   const formatYAxis = (value: number) => {
     const abs = Math.abs(value);
@@ -66,9 +78,28 @@ export default function DailyVolumeChart({ data, days, tokenSymbol = 'tokens' }:
 
   return (
     <div className="bg-card rounded-lg shadow-md p-6">
-      <h3 className="text-lg font-semibold mb-4 text-card-foreground">Volumen Diario por Tipo</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-card-foreground">Volumen Diario por Tipo</h3>
+        {selectedDate && (
+          <button
+            onClick={() => onDayClick?.(null)}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Cerrar detalle
+          </button>
+        )}
+      </div>
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          onClick={(state: any) => {
+            if (state?.activePayload?.[0]?.payload) {
+              handleBarClick(state.activePayload[0].payload);
+            }
+          }}
+          style={{ cursor: onDayClick ? 'pointer' : undefined }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#E5E7EB'} />
           <XAxis dataKey="displayDate" stroke={isDark ? '#9CA3AF' : '#6B7280'} />
           <YAxis tickFormatter={formatYAxis} stroke={isDark ? '#9CA3AF' : '#6B7280'} />
@@ -83,9 +114,9 @@ export default function DailyVolumeChart({ data, days, tokenSymbol = 'tokens' }:
               return labels[value] || value;
             }}
           />
-          <Bar dataKey="exchangeVolume" stackId="volume" fill="#EF4444" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="whaleVolume" stackId="volume" fill="#F59E0B" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="normalVolume" stackId="volume" fill="#3B82F6" radius={[8, 8, 0, 0]} />
+          <Bar dataKey="exchangeVolume" stackId="volume" fill="#EF4444" radius={[0, 0, 0, 0]} opacity={selectedDate ? 0.4 : 1} />
+          <Bar dataKey="whaleVolume" stackId="volume" fill="#F59E0B" radius={[0, 0, 0, 0]} opacity={selectedDate ? 0.4 : 1} />
+          <Bar dataKey="normalVolume" stackId="volume" fill="#3B82F6" radius={[8, 8, 0, 0]} opacity={selectedDate ? 0.4 : 1} />
         </BarChart>
       </ResponsiveContainer>
       <div className="mt-4 text-sm text-muted-foreground">
@@ -103,6 +134,9 @@ export default function DailyVolumeChart({ data, days, tokenSymbol = 'tokens' }:
             <span>Normal</span>
           </div>
         </div>
+        {onDayClick && !selectedDate && (
+          <p className="text-xs text-muted-foreground mt-2">Click en una barra para ver las transferencias de ese dia</p>
+        )}
       </div>
     </div>
   );
