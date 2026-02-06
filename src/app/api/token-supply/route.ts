@@ -128,56 +128,50 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 3. Obtener configuración de supply del token
-    const tokenSettings = await prisma.tokenSettings.findUnique({
-      where: { tokenId }
-    });
+    // 3. REMOVED: Vottun API method (kept for reference)
+    // const tokenSettings = await prisma.tokenSettings.findUnique({
+    //   where: { tokenId }
+    // });
+    // const supplyMethod = tokenSettings?.supplyMethod || 'API';
+    // const totalSupplyUrl = tokenSettings?.supplyApiTotalUrl || 'https://intapi.vottun.tech/tkn/v1/total-supply';
+    // const circulatingSupplyUrl = tokenSettings?.supplyApiCirculatingUrl || 'https://intapi.vottun.tech/tkn/v1/circulating-supply';
 
-    const supplyMethod = tokenSettings?.supplyMethod || 'API';
-    const totalSupplyUrl = tokenSettings?.supplyApiTotalUrl || 'https://intapi.vottun.tech/tkn/v1/total-supply';
-    const circulatingSupplyUrl = tokenSettings?.supplyApiCirculatingUrl || 'https://intapi.vottun.tech/tkn/v1/circulating-supply';
+    // 4. Calculate supply on-chain (now the only method)
+    console.log('[token-supply] Calculating supply on-chain...');
+    const apiKeys = await getApiKeys(tenantContext);
+    const supplyData = await getSupplyOnChain(
+      tokenAddress,
+      tenantContext.activeToken.network,
+      apiKeys.quiknodeUrl
+    );
 
-    console.log(`[token-supply] Method: ${supplyMethod}`);
+    const totalSupply = supplyData.totalSupply;
+    const circulatingSupply = supplyData.circulatingSupply;
+    const lockedSupply = supplyData.lockedSupply;
 
-    let totalSupply: string;
-    let circulatingSupply: string;
-    let lockedSupply: string;
-
-    if (supplyMethod === 'ONCHAIN') {
-      // Calcular supply on-chain
-      console.log('[token-supply] Calculating supply on-chain...');
-      const apiKeys = await getApiKeys(tenantContext);
-      const supplyData = await getSupplyOnChain(
-        tokenAddress,
-        tenantContext.activeToken.network,
-        apiKeys.quiknodeUrl
-      );
-      totalSupply = supplyData.totalSupply;
-      circulatingSupply = supplyData.circulatingSupply;
-      lockedSupply = supplyData.lockedSupply;
-    } else {
-      // 4. Fetch desde API (método por defecto)
-      console.log(`[token-supply] Fetching from API...`);
-      console.log(`[token-supply] Total Supply URL: ${totalSupplyUrl}`);
-      console.log(`[token-supply] Circulating Supply URL: ${circulatingSupplyUrl}`);
-
-      const config = {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      };
-
-      const totalSupplyResponse = await axios.get(totalSupplyUrl, config);
-      const circulatingSupplyResponse = await axios.get(circulatingSupplyUrl, config);
-
-      totalSupply = totalSupplyResponse.data?.totalSupply || '0';
-      circulatingSupply = circulatingSupplyResponse.data?.circulatingSupply || '0';
-
-      const totalSupplyNum = parseFloat(totalSupply);
-      const circulatingSupplyNum = parseFloat(circulatingSupply);
-      lockedSupply = (totalSupplyNum - circulatingSupplyNum).toFixed(2);
-    }
+    // REMOVED: API method using Vottun endpoints (rate-limited, replaced with on-chain)
+    // } else {
+    //   console.log(`[token-supply] Fetching from API...`);
+    //   console.log(`[token-supply] Total Supply URL: ${totalSupplyUrl}`);
+    //   console.log(`[token-supply] Circulating Supply URL: ${circulatingSupplyUrl}`);
+    //
+    //   const config = {
+    //     headers: {
+    //       'Accept': 'application/json',
+    //       'Content-Type': 'application/json'
+    //     }
+    //   };
+    //
+    //   const totalSupplyResponse = await axios.get(totalSupplyUrl, config);
+    //   const circulatingSupplyResponse = await axios.get(circulatingSupplyUrl, config);
+    //
+    //   totalSupply = totalSupplyResponse.data?.totalSupply || '0';
+    //   circulatingSupply = circulatingSupplyResponse.data?.circulatingSupply || '0';
+    //
+    //   const totalSupplyNum = parseFloat(totalSupply);
+    //   const circulatingSupplyNum = parseFloat(circulatingSupply);
+    //   lockedSupply = (totalSupplyNum - circulatingSupplyNum).toFixed(2);
+    // }
 
     // 5. Guardar en caché
     const network = tenantContext.activeToken.network;
