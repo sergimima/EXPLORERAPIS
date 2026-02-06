@@ -28,7 +28,7 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
   searchTriggered = 0,
   preloadedData
 }) => {
-  const { activeToken } = useToken();
+  const { activeToken, loading: tokenContextLoading } = useToken();
   const [tokenBalances, setTokenBalances] = useState<TokenInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,11 +77,12 @@ const TokenBalance: React.FC<TokenBalanceProps> = ({
   };
 
   // Efecto para cargar datos cuando cambia la wallet o el contador de búsqueda
+  // Espera a que el TokenContext termine de cargar para tener activeToken disponible
   useEffect(() => {
-    if (walletAddress) {
+    if (walletAddress && !tokenContextLoading && activeToken?.id) {
       handleFetchBalances();
     }
-  }, [walletAddress, network, searchTriggered]);
+  }, [walletAddress, network, searchTriggered, tokenContextLoading, activeToken?.id]);
 
   // Efecto para actualizar estado de carga basado en props
   useEffect(() => {

@@ -15,9 +15,9 @@ import VestingSummary from '@/components/VestingSummary';
 import AirdropAssignments from '@/components/AirdropAssignments';
 import VestingContractList from '../explorer/vestings/components/VestingContractList';
 import TokenOverview from '@/components/TokenOverview';
-import { fetchTokenTransfers, CustomApiKeys } from '@/actions/blockchain';
+import { fetchTokenTransfers, fetchTokenBalances } from '@/actions/blockchain';
 import { clearWalletCache } from '@/actions/wallet';
-import { useToken, type TokenData } from '@/contexts/TokenContext';
+import { useToken } from '@/contexts/TokenContext';
 
 // Importar dinámicamente componentes pesados
 const TokenSupplyCard = dynamic(
@@ -50,19 +50,6 @@ function UnifiedExplorerContent() {
     }
   }, []);
   const [showContractDetails, setShowContractDetails] = useState(false);
-
-  // Helper para obtener custom API keys del token activo
-  const getCustomApiKeys = (): CustomApiKeys | undefined => {
-    const token = activeToken as TokenData | null;
-    if (!token?.settings) return undefined;
-
-    return {
-      basescanApiKey: token.settings.customBasescanApiKey ?? undefined,
-      etherscanApiKey: token.settings.customEtherscanApiKey ?? undefined,
-      moralisApiKey: token.settings.customMoralisApiKey ?? undefined,
-      quiknodeUrl: token.settings.customQuiknodeUrl ?? undefined
-    };
-  };
 
   // Leer parámetros URL al cargar (soportar redirecciones desde settings, explorer)
   useEffect(() => {
@@ -176,20 +163,18 @@ function UnifiedExplorerContent() {
           return [];
         });
 
-      const balancesPromise = import('@/lib/blockchain').then(module => {
-        return module.fetchTokenBalances(wallet, network, getCustomApiKeys())
-          .then(data => {
-            setTokenBalances(data);
-            setDataFetched(prev => ({ ...prev, balances: true }));
-            setLoadingStates(prev => ({ ...prev, balances: false }));
-            return data;
-          })
-          .catch(err => {
-            console.error("Error al cargar balances:", err);
-            setLoadingStates(prev => ({ ...prev, balances: false }));
-            return [];
-          });
-      });
+      const balancesPromise = fetchTokenBalances(wallet, network, activeToken?.id)
+        .then(data => {
+          setTokenBalances(data);
+          setDataFetched(prev => ({ ...prev, balances: true }));
+          setLoadingStates(prev => ({ ...prev, balances: false }));
+          return data;
+        })
+        .catch(err => {
+          console.error("Error al cargar balances:", err);
+          setLoadingStates(prev => ({ ...prev, balances: false }));
+          return [];
+        });
 
       setDataFetched(prev => ({ ...prev, vesting: false }));
       setLoadingStates(prev => ({ ...prev, vesting: false }));
@@ -275,8 +260,7 @@ function UnifiedExplorerContent() {
 
       // 3. Recargar balances también (para arreglar los nombres UNKNOWN)
       setLoadingStates(prev => ({ ...prev, balances: true }));
-      const { fetchTokenBalances } = await import('@/lib/blockchain');
-      const balancesData = await fetchTokenBalances(wallet, network, getCustomApiKeys());
+      const balancesData = await fetchTokenBalances(wallet, network, activeToken?.id);
       setTokenBalances(balancesData);
       setDataFetched(prev => ({ ...prev, balances: true }));
 
@@ -327,20 +311,18 @@ function UnifiedExplorerContent() {
           return [];
         });
 
-      const balancesPromise = import('@/lib/blockchain').then(module => {
-        return module.fetchTokenBalances(address, network, getCustomApiKeys())
-          .then(data => {
-            setTokenBalances(data);
-            setDataFetched(prev => ({ ...prev, balances: true }));
-            setLoadingStates(prev => ({ ...prev, balances: false }));
-            return data;
-          })
-          .catch(err => {
-            console.error("Error al cargar balances:", err);
-            setLoadingStates(prev => ({ ...prev, balances: false }));
-            return [];
-          });
-      });
+      const balancesPromise = fetchTokenBalances(address, network, activeToken?.id)
+        .then(data => {
+          setTokenBalances(data);
+          setDataFetched(prev => ({ ...prev, balances: true }));
+          setLoadingStates(prev => ({ ...prev, balances: false }));
+          return data;
+        })
+        .catch(err => {
+          console.error("Error al cargar balances:", err);
+          setLoadingStates(prev => ({ ...prev, balances: false }));
+          return [];
+        });
 
       setDataFetched(prev => ({ ...prev, vesting: false }));
       setLoadingStates(prev => ({ ...prev, vesting: false }));

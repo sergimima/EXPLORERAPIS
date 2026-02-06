@@ -20,6 +20,18 @@ This file provides guidance to Claude Code when working with this repository.
 
 ---
 
+## Reglas Obligatorias (NO IGNORAR)
+
+1. **NUNCA inventar nombres** de tablas, bases de datos, usuarios, contenedores, etc.
+   - SIEMPRE verificar primero en: `schema.prisma`, `.env`, `docker-compose.yml`
+   - Si no sabes un nombre, LEE el archivo antes de escribir comandos
+
+2. **Si el usuario pasa logs, es que ya ejecutó los pasos previos**
+   - NUNCA culpar al usuario de no haber hecho `build`, `npm run dev`, o similares
+   - Si hay logs, el servidor está corriendo. Busca el problema real.
+
+---
+
 ## Quick Start
 
 ### Prerequisites

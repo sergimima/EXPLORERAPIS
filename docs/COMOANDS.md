@@ -1,0 +1,1 @@
+docker exec explorerapis_db psql -U explorer_user -d explorerdb -c "SELECT \"tokenId\", \"customRoutescanApiKey\", \"customBasescanApiKey\", \"customEtherscanApiKey\" FROM token_settings WHERE \"tokenId\"='cml98o4ov00010tpae2hvqbzs';"
